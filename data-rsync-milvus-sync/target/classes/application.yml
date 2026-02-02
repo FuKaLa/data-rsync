@@ -4,61 +4,61 @@ spring:
   
   # Redis 配置
   redis:
-    host: localhost
-    port: 6379
-    password:
-    database: 0
+    host: ${spring.redis.host:localhost}
+    port: ${spring.redis.port:6379}
+    password: ${spring.redis.password:}
+    database: ${spring.redis.database:0}
   
   # Nacos 配置
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
-        namespace: public
+        server-addr: ${spring.cloud.nacos.discovery.server-addr:localhost:8848}
+        namespace: ${spring.cloud.nacos.discovery.namespace:public}
       config:
-        server-addr: localhost:8848
-        namespace: public
-        file-extension: yml
+        server-addr: ${spring.cloud.nacos.config.server-addr:localhost:8848}
+        namespace: ${spring.cloud.nacos.config.namespace:public}
+        file-extension: ${spring.cloud.nacos.config.file-extension:yml}
 
 # 服务器配置
 server:
-  port: 8084
+  port: ${server.port:8084}
   servlet:
-    context-path: /milvus-sync
+    context-path: ${server.servlet.context-path:/milvus-sync}
 
 # 日志配置
 logging:
   level:
-    root: info
-    com.data.rsync.milvus.sync: debug
+    root: ${logging.level.root:info}
+    com.data.rsync.milvus.sync: ${logging.level.com.data.rsync.milvus.sync:debug}
 
 # Milvus 配置
 milvus:
-  host: localhost
-  port: 19530
-  token: 
-  namespace: 
+  host: ${milvus.host:localhost}
+  port: ${milvus.port:19530}
+  token: ${milvus.token:}
+  namespace: ${milvus.namespace:}
   connection:
-    timeout: 5000 # 连接超时（毫秒）
-    max-retry: 3 # 最大重试次数
+    timeout: ${milvus.connection.timeout:5000} # 连接超时（毫秒）
+    max-retry: ${milvus.connection.max-retry:3} # 最大重试次数
   collection:
-    shards-num: 2 # 分片数
-    consistency-level: Strong # 一致性级别
+    shards-num: ${milvus.collection.shards-num:2} # 分片数
+    consistency-level: ${milvus.collection.consistency-level:Strong} # 一致性级别
   index:
-    type: IVF_FLAT # 索引类型
-    metric-type: L2 # 距离度量类型
-    nlist: 1024 # IVF_FLAT 索引参数
-    nprobe: 16 # 搜索参数
+    type: ${milvus.index.type:IVF_FLAT} # 索引类型
+    metric-type: ${milvus.index.metric-type:L2} # 距离度量类型
+    nlist: ${milvus.index.nlist:1024} # IVF_FLAT 索引参数
+    nprobe: ${milvus.index.nprobe:16} # 搜索参数
   batch:
-    size: 1000 # 批量写入大小
+    size: ${milvus.batch.size:1000} # 批量写入大小
   health-check:
-    interval: 60000 # 健康检查间隔（毫秒）
+    interval: ${milvus.health-check.interval:60000} # 健康检查间隔（毫秒）
 
 # 同步配置
 sync:
   retry:
-    count: 3 # 重试次数
-    interval: 1000 # 重试间隔（毫秒）
+    count: ${sync.retry.count:3} # 重试次数
+    interval: ${sync.retry.interval:1000} # 重试间隔（毫秒）
   validation:
-    enabled: true # 是否启用数据验证
-    interval: 3600000 # 验证间隔（毫秒）
+    enabled: ${sync.validation.enabled:true} # 是否启用数据验证
+    interval: ${sync.validation.interval:3600000} # 验证间隔（毫秒）

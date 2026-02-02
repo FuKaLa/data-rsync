@@ -70,6 +70,44 @@ public interface MilvusSyncService {
     boolean validateMilvusData(Task task);
 
     /**
+     * 执行数据一致性校验
+     * @param task 任务
+     * @param sourceCount 源数据数量
+     * @param sampleData 源数据样本
+     * @return 校验结果
+     */
+    ConsistencyCheckResult checkDataConsistency(Task task, long sourceCount, java.util.List<Map<String, Object>> sampleData);
+
+    /**
+     * 数据一致性校验结果
+     */
+    class ConsistencyCheckResult {
+        private boolean consistent;
+        private long sourceCount;
+        private long targetCount;
+        private int sampleCheckPassed;
+        private int sampleCheckTotal;
+        private String errorMessage;
+        private java.util.List<String> discrepancies;
+
+        // Getters and setters
+        public boolean isConsistent() { return consistent; }
+        public void setConsistent(boolean consistent) { this.consistent = consistent; }
+        public long getSourceCount() { return sourceCount; }
+        public void setSourceCount(long sourceCount) { this.sourceCount = sourceCount; }
+        public long getTargetCount() { return targetCount; }
+        public void setTargetCount(long targetCount) { this.targetCount = targetCount; }
+        public int getSampleCheckPassed() { return sampleCheckPassed; }
+        public void setSampleCheckPassed(int sampleCheckPassed) { this.sampleCheckPassed = sampleCheckPassed; }
+        public int getSampleCheckTotal() { return sampleCheckTotal; }
+        public void setSampleCheckTotal(int sampleCheckTotal) { this.sampleCheckTotal = sampleCheckTotal; }
+        public String getErrorMessage() { return errorMessage; }
+        public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+        public java.util.List<String> getDiscrepancies() { return discrepancies; }
+        public void setDiscrepancies(java.util.List<String> discrepancies) { this.discrepancies = discrepancies; }
+    }
+
+    /**
      * 获取同步状态
      * @param taskId 任务ID
      * @return 同步状态

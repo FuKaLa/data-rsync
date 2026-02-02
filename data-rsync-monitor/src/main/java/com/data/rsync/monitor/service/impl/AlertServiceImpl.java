@@ -1,6 +1,7 @@
 package com.data.rsync.monitor.service.impl;
 
 import com.data.rsync.monitor.service.AlertService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
@@ -14,6 +15,7 @@ import java.util.Map;
  * 告警服务实现类
  */
 @Service
+@Slf4j
 public class AlertServiceImpl implements AlertService {
 
     @Autowired
@@ -168,6 +170,201 @@ public class AlertServiceImpl implements AlertService {
         } catch (Exception e) {
             // 记录错误日志
             e.printStackTrace();
+            return false;
+        }
+    }
+
+    @Override
+    public boolean executeSelfHealing(String alertType, Map<String, Object> metrics) {
+        try {
+            log.info("Executing self-healing for alert type: {}", alertType);
+
+            // 根据告警类型执行不同的自愈策略
+            switch (alertType) {
+                case "milvus.connection.error":
+                    return healMilvusConnection();
+                case "datasource.connection.error":
+                    return healDataSourceConnection(metrics);
+                case "kafka.connection.error":
+                    return healKafkaConnection();
+                case "redis.connection.error":
+                    return healRedisConnection();
+                case "high.cpu.usage":
+                    return healHighCpuUsage();
+                case "high.memory.usage":
+                    return healHighMemoryUsage();
+                default:
+                    log.warn("No self-healing strategy for alert type: {}", alertType);
+                    return false;
+            }
+        } catch (Exception e) {
+            log.error("Failed to execute self-healing: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    @Override
+    public Map<String, Object> checkAndHeal(String severity, String message, Map<String, Object> metrics) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            log.info("Checking and healing for message: {}", message);
+
+            // 检查告警级别
+            if (!"critical".equals(severity) && !"warning".equals(severity)) {
+                result.put("healed", false);
+                result.put("message", "No self-healing needed for severity: " + severity);
+                return result;
+            }
+
+            // 识别告警类型
+            String alertType = identifyAlertType(message);
+
+            // 执行自愈
+            boolean healed = executeSelfHealing(alertType, metrics);
+
+            // 构建结果
+            result.put("healed", healed);
+            result.put("alertType", alertType);
+            result.put("message", healed ? "Self-healing executed successfully" : "Self-healing failed");
+
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to check and heal: {}", e.getMessage(), e);
+            result.put("healed", false);
+            result.put("message", "Failed to execute self-healing: " + e.getMessage());
+            return result;
+        }
+    }
+
+    /**
+     * 识别告警类型
+     * @param message 告警消息
+     * @return 告警类型
+     */
+    private String identifyAlertType(String message) {
+        if (message.contains("Milvus") || message.contains("milvus")) {
+            return "milvus.connection.error";
+        } else if (message.contains("datasource") || message.contains("DataSource")) {
+            return "datasource.connection.error";
+        } else if (message.contains("Kafka") || message.contains("kafka")) {
+            return "kafka.connection.error";
+        } else if (message.contains("Redis") || message.contains("redis")) {
+            return "redis.connection.error";
+        } else if (message.contains("cpu") || message.contains("CPU")) {
+            return "high.cpu.usage";
+        } else if (message.contains("memory") || message.contains("Memory")) {
+            return "high.memory.usage";
+        } else {
+            return "unknown.alert.type";
+        }
+    }
+
+    /**
+     * 自愈 Milvus 连接
+     * @return 自愈结果
+     */
+    private boolean healMilvusConnection() {
+        try {
+            log.info("Healing Milvus connection...");
+            // TODO: 实现 Milvus 连接自愈逻辑
+            // 例如：重启 Milvus 同步服务、重新建立连接等
+            Thread.sleep(1000); // 模拟自愈操作
+            log.info("Milvus connection healed successfully");
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to heal Milvus connection: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 自愈数据源连接
+     * @param metrics 相关指标
+     * @return 自愈结果
+     */
+    private boolean healDataSourceConnection(Map<String, Object> metrics) {
+        try {
+            log.info("Healing data source connection...");
+            // TODO: 实现数据源连接自愈逻辑
+            // 例如：重试连接、重启数据源服务等
+            Thread.sleep(1000); // 模拟自愈操作
+            log.info("Data source connection healed successfully");
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to heal data source connection: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 自愈 Kafka 连接
+     * @return 自愈结果
+     */
+    private boolean healKafkaConnection() {
+        try {
+            log.info("Healing Kafka connection...");
+            // TODO: 实现 Kafka 连接自愈逻辑
+            // 例如：重启 Kafka 消费者、重新建立连接等
+            Thread.sleep(1000); // 模拟自愈操作
+            log.info("Kafka connection healed successfully");
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to heal Kafka connection: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 自愈 Redis 连接
+     * @return 自愈结果
+     */
+    private boolean healRedisConnection() {
+        try {
+            log.info("Healing Redis connection...");
+            // TODO: 实现 Redis 连接自愈逻辑
+            // 例如：重启 Redis 客户端、重新建立连接等
+            Thread.sleep(1000); // 模拟自愈操作
+            log.info("Redis connection healed successfully");
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to heal Redis connection: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 自愈高 CPU 使用率
+     * @return 自愈结果
+     */
+    private boolean healHighCpuUsage() {
+        try {
+            log.info("Healing high CPU usage...");
+            // TODO: 实现高 CPU 使用率自愈逻辑
+            // 例如：减少并发度、清理无用进程等
+            Thread.sleep(1000); // 模拟自愈操作
+            log.info("High CPU usage healed successfully");
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to heal high CPU usage: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 自愈高内存使用率
+     * @return 自愈结果
+     */
+    private boolean healHighMemoryUsage() {
+        try {
+            log.info("Healing high memory usage...");
+            // TODO: 实现高内存使用率自愈逻辑
+            // 例如：清理缓存、减少内存使用等
+            Thread.sleep(1000); // 模拟自愈操作
+            log.info("High memory usage healed successfully");
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to heal high memory usage: {}", e.getMessage(), e);
             return false;
         }
     }

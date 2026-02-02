@@ -104,4 +104,33 @@ public interface TaskService {
      */
     void updateTaskProgress(Long id, Integer progress);
 
+    /**
+     * 暂停任务
+     * @param id 任务ID
+     * @return 暂停结果
+     */
+    boolean pauseTask(Long id);
+
+    /**
+     * 继续任务
+     * @param id 任务ID
+     * @return 继续结果
+     */
+    boolean resumeTask(Long id);
+
+    /**
+     * 回滚任务
+     * @param id 任务ID
+     * @param rollbackPoint 回滚点
+     * @return 回滚结果
+     */
+    boolean rollbackTask(Long id, String rollbackPoint);
+
+    /**
+     * 获取任务历史版本
+     * @param id 任务ID
+     * @return 历史版本列表
+     */
+    List<Map<String, Object>> getTaskVersions(Long id);
+
 }

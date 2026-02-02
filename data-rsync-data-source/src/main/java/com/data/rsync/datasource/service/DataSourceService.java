@@ -1,5 +1,6 @@
 package com.data.rsync.datasource.service;
 
+import com.data.rsync.common.exception.DataSourceException;
 import com.data.rsync.common.model.DataSource;
 import com.data.rsync.common.utils.EncryptUtils;
 import com.data.rsync.datasource.entity.DataSourceEntity;
@@ -7,6 +8,7 @@ import com.data.rsync.datasource.repository.DataSourceRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,11 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -26,6 +33,26 @@ public class DataSourceService {
 
     @Autowired
     private DataSourceRepository dataSourceRepository;
+
+    /**
+     * 数据源恢复状态跟踪
+     */
+    private final Map<Long, RecoveryStatus> recoveryStatusMap = new ConcurrentHashMap<>();
+
+    /**
+     * 恢复线程池
+     */
+    private final ExecutorService recoveryExecutor = Executors.newFixedThreadPool(10);
+
+    /**
+     * 恢复状态枚举
+     */
+    private enum RecoveryStatus {
+        PENDING,  // 等待恢复
+        RECOVERING,  // 正在恢复
+        RECOVERED,  // 恢复成功
+        FAILED  // 恢复失败
+    }
 
     /**
      * 创建数据源
@@ -79,7 +106,7 @@ public class DataSourceService {
 
         // 查询数据源
         DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Data source not found: " + id));
+                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
 
         // 更新字段
         BeanUtils.copyProperties(dataSource, entity, "id", "createTime", "createBy");
@@ -123,7 +150,7 @@ public class DataSourceService {
 
         // 查询数据源
         DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Data source not found: " + id));
+                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
 
         // 删除数据源
         dataSourceRepository.delete(entity);
@@ -141,7 +168,7 @@ public class DataSourceService {
 
         // 查询数据源
         DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Data source not found: " + id));
+                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
 
         // 转换为模型返回
         DataSource result = new DataSource();
@@ -238,7 +265,7 @@ public class DataSourceService {
 
         // 查询数据源
         DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Data source not found: " + id));
+                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
 
         // 更新启用状态
         entity.setEnabled(enabled);
@@ -264,7 +291,7 @@ public class DataSourceService {
 
         // 查询数据源
         DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Data source not found: " + id));
+                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
 
         // 测试连接
         boolean connected = testConnection(entity);
@@ -283,39 +310,63 @@ public class DataSourceService {
     }
 
     /**
-     * 测试数据源连接
+     * 测试数据源连接（带重试机制）
+     * @param entity 数据源实体
+     * @param maxRetries 最大重试次数
+     * @param retryIntervalMs 重试间隔（毫秒）
+     * @return 连接结果
+     */
+    private boolean testConnection(DataSourceEntity entity, int maxRetries, long retryIntervalMs) {
+        Connection connection = null;
+        try {
+            for (int i = 0; i < maxRetries; i++) {
+                try {
+                    // 解密密码
+                    String password = EncryptUtils.decrypt(entity.getPassword());
+
+                    // 加载驱动
+                    Class.forName(getDriverClassName(entity.getType()));
+
+                    // 构建连接URL
+                    String url = entity.getUrl();
+
+                    // 建立连接
+                    connection = DriverManager.getConnection(url, entity.getUsername(), password);
+
+                    // 测试连接
+                    if (connection.isValid(5)) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    log.warn("Attempt {} failed to test connection for data source: {}", i + 1, entity.getName(), e);
+                    if (i < maxRetries - 1) {
+                        Thread.sleep(retryIntervalMs);
+                    }
+                } finally {
+                    if (connection != null) {
+                        try {
+                            connection.close();
+                        } catch (SQLException e) {
+                            log.error("Failed to close connection", e);
+                        }
+                    }
+                }
+            }
+            return false;
+        } catch (InterruptedException e) {
+            log.error("Connection test interrupted", e);
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    /**
+     * 测试数据源连接（默认参数）
      * @param entity 数据源实体
      * @return 连接结果
      */
     private boolean testConnection(DataSourceEntity entity) {
-        Connection connection = null;
-        try {
-            // 解密密码
-            String password = EncryptUtils.decrypt(entity.getPassword());
-
-            // 加载驱动
-            Class.forName(getDriverClassName(entity.getType()));
-
-            // 构建连接URL
-            String url = entity.getUrl();
-
-            // 建立连接
-            connection = DriverManager.getConnection(url, entity.getUsername(), password);
-
-            // 测试连接
-            return connection.isValid(5);
-        } catch (Exception e) {
-            log.error("Failed to test connection for data source: {}", entity.getName(), e);
-            return false;
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    log.error("Failed to close connection", e);
-                }
-            }
-        }
+        return testConnection(entity, 3, 1000);
     }
 
     /**
@@ -338,7 +389,7 @@ public class DataSourceService {
             case "REDIS":
                 return "redis.clients.jedis.Jedis";
             default:
-                throw new RuntimeException("Unsupported data source type: " + type);
+                throw new DataSourceException("Unsupported data source type: " + type);
         }
     }
 
@@ -373,9 +424,134 @@ public class DataSourceService {
             entity.setUpdateTime(LocalDateTime.now());
             dataSourceRepository.save(entity);
             log.info("Checked data source: {} health status: {}", entity.getName(), healthStatus);
+
+            // 如果数据源不健康，触发自动恢复
+            if (!connected) {
+                triggerAutoRecovery(entity.getId());
+            }
         }
 
         log.info("Batch checked {} data sources health", entities.size());
+    }
+
+    /**
+     * 触发自动恢复
+     * @param dataSourceId 数据源ID
+     */
+    public void triggerAutoRecovery(Long dataSourceId) {
+        log.info("Triggering auto recovery for data source: {}", dataSourceId);
+
+        // 检查是否已经在恢复中
+        if (recoveryStatusMap.containsKey(dataSourceId) && 
+                (recoveryStatusMap.get(dataSourceId) == RecoveryStatus.RECOVERING || 
+                 recoveryStatusMap.get(dataSourceId) == RecoveryStatus.PENDING)) {
+            log.info("Data source {} is already in recovery process", dataSourceId);
+            return;
+        }
+
+        // 设置恢复状态为待处理
+        recoveryStatusMap.put(dataSourceId, RecoveryStatus.PENDING);
+
+        // 提交恢复任务
+        recoveryExecutor.submit(() -> {
+            try {
+                recoverDataSource(dataSourceId);
+            } catch (Exception e) {
+                log.error("Failed to execute recovery task for data source: {}", dataSourceId, e);
+                recoveryStatusMap.put(dataSourceId, RecoveryStatus.FAILED);
+            }
+        });
+    }
+
+    /**
+     * 恢复数据源
+     * @param dataSourceId 数据源ID
+     */
+    private void recoverDataSource(Long dataSourceId) {
+        log.info("Recovering data source: {}", dataSourceId);
+
+        // 设置恢复状态为正在恢复
+        recoveryStatusMap.put(dataSourceId, RecoveryStatus.RECOVERING);
+
+        try {
+            // 查询数据源
+            DataSourceEntity entity = dataSourceRepository.findById(dataSourceId).orElse(null);
+            if (entity == null) {
+                log.error("Data source not found: {}", dataSourceId);
+                recoveryStatusMap.put(dataSourceId, RecoveryStatus.FAILED);
+                return;
+            }
+
+            // 尝试恢复连接（增加重试次数和间隔）
+            boolean recovered = testConnection(entity, 5, 3000);
+
+            if (recovered) {
+                // 更新数据源状态为健康
+                entity.setHealthStatus("HEALTHY");
+                entity.setUpdateTime(LocalDateTime.now());
+                dataSourceRepository.save(entity);
+                recoveryStatusMap.put(dataSourceId, RecoveryStatus.RECOVERED);
+                log.info("Successfully recovered data source: {}", entity.getName());
+            } else {
+                // 恢复失败
+                recoveryStatusMap.put(dataSourceId, RecoveryStatus.FAILED);
+                log.error("Failed to recover data source: {}", entity.getName());
+            }
+        } catch (Exception e) {
+            log.error("Error during data source recovery: {}", dataSourceId, e);
+            recoveryStatusMap.put(dataSourceId, RecoveryStatus.FAILED);
+        }
+    }
+
+    /**
+     * 获取数据源恢复状态
+     * @param dataSourceId 数据源ID
+     * @return 恢复状态
+     */
+    public String getRecoveryStatus(Long dataSourceId) {
+        RecoveryStatus status = recoveryStatusMap.get(dataSourceId);
+        return status != null ? status.name() : "NOT_RECOVERING";
+    }
+
+    /**
+     * 定时监控和恢复任务
+     */
+    @Scheduled(fixedRate = 60000) // 每分钟执行一次
+    public void scheduledRecoveryMonitor() {
+        log.debug("Running scheduled recovery monitor");
+
+        // 执行批量健康检查
+        batchCheckDataSourceHealth();
+
+        // 清理过期的恢复状态
+        cleanupRecoveryStatus();
+    }
+
+    /**
+     * 清理过期的恢复状态
+     */
+    private void cleanupRecoveryStatus() {
+        // 移除已完成或失败超过1小时的恢复状态
+        long cutoffTime = System.currentTimeMillis() - 3600000;
+        recoveryStatusMap.entrySet().removeIf(entry -> {
+            RecoveryStatus status = entry.getValue();
+            return status == RecoveryStatus.RECOVERED || status == RecoveryStatus.FAILED;
+        });
+    }
+
+    /**
+     * 关闭资源
+     */
+    public void shutdown() {
+        recoveryExecutor.shutdown();
+        try {
+            if (!recoveryExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+                recoveryExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            recoveryExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
 }

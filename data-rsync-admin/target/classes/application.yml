@@ -1,0 +1,45 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /admin
+
+spring:
+  application:
+    name: data-rsync-admin
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+        file-extension: yml
+  security:
+    user:
+      name: admin
+      password: admin123
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# 自定义配置
+admin:
+  jwt:
+    secret: data-rsync-admin-secret-key
+    expire: 3600
+  cors:
+    allowed-origins: "*"
+    allowed-methods: "*"
+    allowed-headers: "*"

@@ -3,6 +3,7 @@ package com.data.rsync.log.listener.service.impl;
 import com.data.rsync.common.constants.DataRsyncConstants;
 import com.data.rsync.common.model.DataSource;
 import com.data.rsync.common.model.Task;
+import com.data.rsync.common.utils.DatabaseUtils;
 import com.data.rsync.log.listener.service.LogListenerService;
 import io.debezium.config.Configuration;
 import io.debezium.embedded.EmbeddedEngine;
@@ -21,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 日志监听服务实现类
@@ -49,6 +51,46 @@ public class LogListenerServiceImpl implements LogListenerService {
      * 执行器服务
      */
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
+
+    /**
+     * 关闭资源
+     */
+    public void shutdown() {
+        log.info("Shutting down log listener service");
+        
+        // 1. 停止所有Debezium引擎
+        for (Map.Entry<Long, EmbeddedEngine> entry : debeziumEngineMap.entrySet()) {
+            Long taskId = entry.getKey();
+            EmbeddedEngine engine = entry.getValue();
+            try {
+                log.info("Stopping Debezium engine for task: {}", taskId);
+                engine.stop();
+                engine.close();
+            } catch (IOException e) {
+                log.error("Failed to stop Debezium engine for task {}: {}", taskId, e.getMessage(), e);
+            }
+        }
+        debeziumEngineMap.clear();
+        
+        // 2. 关闭线程池
+        log.info("Shutting down executor service");
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(30, TimeUnit.SECONDS)) {
+                log.warn("Executor service did not terminate in 30 seconds, forcing shutdown");
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            log.error("Interrupted while shutting down executor service", e);
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+        
+        // 3. 清理状态缓存
+        listenerStatusMap.clear();
+        
+        log.info("Log listener service shut down successfully");
+    }
 
     /**
      * 启动日志监听
@@ -495,14 +537,14 @@ public class LogListenerServiceImpl implements LogListenerService {
         try {
             // 1. 连接数据库
             DataSource dataSource = task.getDataSource();
-            String jdbcUrl = buildJdbcUrl(dataSource);
+            String jdbcUrl = DatabaseUtils.buildJdbcUrl(dataSource);
             java.sql.Connection connection = null;
             java.sql.Statement statement = null;
             java.sql.ResultSet resultSet = null;
 
             try {
                 // 加载驱动
-                Class.forName(getDriverClassName(dataSource.getType()));
+                Class.forName(DatabaseUtils.getDriverClassName(dataSource.getType()));
                 // 建立连接
                 connection = java.sql.DriverManager.getConnection(jdbcUrl, dataSource.getUsername(), dataSource.getPassword());
                 
@@ -547,53 +589,10 @@ public class LogListenerServiceImpl implements LogListenerService {
                 log.info("Processed {} records for task {} shard {}", count, task.getId(), shardIndex);
             } finally {
                 // 关闭资源
-                if (resultSet != null) resultSet.close();
-                if (statement != null) statement.close();
-                if (connection != null) connection.close();
+                DatabaseUtils.closeResources(connection, statement, resultSet);
             }
         } catch (Exception e) {
             log.error("Failed to execute shard scan for task {} shard {}: {}", task.getId(), shardIndex, e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 构建 JDBC URL
-     * @param dataSource 数据源
-     * @return JDBC URL
-     */
-    private String buildJdbcUrl(DataSource dataSource) {
-        String type = dataSource.getType();
-        switch (type) {
-            case DataRsyncConstants.DataSourceType.MYSQL:
-                return "jdbc:mysql://" + dataSource.getHost() + ":" + dataSource.getPort() + "/" + dataSource.getDatabase() + "?useSSL=false&serverTimezone=UTC";
-            case DataRsyncConstants.DataSourceType.POSTGRESQL:
-                return "jdbc:postgresql://" + dataSource.getHost() + ":" + dataSource.getPort() + "/" + dataSource.getDatabase();
-            case DataRsyncConstants.DataSourceType.ORACLE:
-                return "jdbc:oracle:thin:@" + dataSource.getHost() + ":" + dataSource.getPort() + ":" + dataSource.getDatabase();
-            case DataRsyncConstants.DataSourceType.SQL_SERVER:
-                return "jdbc:sqlserver://" + dataSource.getHost() + ":" + dataSource.getPort() + ";databaseName=" + dataSource.getDatabase();
-            default:
-                throw new IllegalArgumentException("Unsupported data source type: " + type);
-        }
-    }
-
-    /**
-     * 获取驱动类名
-     * @param dataSourceType 数据源类型
-     * @return 驱动类名
-     */
-    private String getDriverClassName(String dataSourceType) {
-        switch (dataSourceType) {
-            case DataRsyncConstants.DataSourceType.MYSQL:
-                return "com.mysql.cj.jdbc.Driver";
-            case DataRsyncConstants.DataSourceType.POSTGRESQL:
-                return "org.postgresql.Driver";
-            case DataRsyncConstants.DataSourceType.ORACLE:
-                return "oracle.jdbc.OracleDriver";
-            case DataRsyncConstants.DataSourceType.SQL_SERVER:
-                return "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-            default:
-                throw new IllegalArgumentException("Unsupported data source type: " + dataSourceType);
         }
     }
 
@@ -609,7 +608,7 @@ public class LogListenerServiceImpl implements LogListenerService {
         long startId = (long) shard.get("startId");
         long endId = (long) shard.get("endId");
         
-        return "SELECT * FROM " + tableName + " WHERE " + primaryKey + " >= " + startId + " AND " + primaryKey + " <= " + endId;
+        return DatabaseUtils.buildShardQuery(tableName, primaryKey, startId, endId);
     }
 
     /**

@@ -1,0 +1,7 @@
+com/data/rsync/auth/model/Role.class
+com/data/rsync/auth/model/User.class
+com/data/rsync/auth/model/AuditLog.class
+com/data/rsync/auth/config/AuthConfig.class
+com/data/rsync/auth/service/AuthService.class
+com/data/rsync/auth/model/Permission.class
+com/data/rsync/auth/service/impl/AuthServiceImpl.class

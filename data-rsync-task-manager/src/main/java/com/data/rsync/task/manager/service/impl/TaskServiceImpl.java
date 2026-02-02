@@ -8,11 +8,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.data.rsync.common.utils.DistributedLockUtils;
 
 /**
  * 任务服务实现类
@@ -25,6 +28,24 @@ public class TaskServiceImpl implements TaskService {
 
     // 线程池用于异步执行任务
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
+
+    // 任务执行状态缓存，用于防止并发执行同一任务
+    private final Map<Long, Boolean> taskExecutionMap = new ConcurrentHashMap<>();
+
+    /**
+     * 关闭资源
+     */
+    public void shutdown() {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
 
     @Override
     @Transactional
@@ -138,53 +159,93 @@ public class TaskServiceImpl implements TaskService {
             throw new IllegalArgumentException("任务已禁用");
         }
 
-        // 更新任务状态为运行中
-        taskEntity.setStatus("RUNNING");
-        taskEntity.setStartTime(LocalDateTime.now());
-        taskEntity.setProgress(0);
-        taskRepository.save(taskEntity);
+        // 生成分布式锁键
+        String lockKey = DistributedLockUtils.generateLockKey("task", id);
+        String lockValue = DistributedLockUtils.generateLockValue();
 
-        // 创建任务实体的副本，用于lambda表达式中
-        final Long taskId = id;
+        // 尝试获取分布式锁
+        boolean acquired = DistributedLockUtils.tryAcquireLock(lockKey, lockValue, 60, 3, 1000);
+        if (!acquired) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "任务正在执行中，无法重复触发");
+            result.put("taskId", id);
+            return result;
+        }
 
-        // 异步执行任务
-        executorService.submit(() -> {
-            // 重新查询任务，确保获取最新状态
-            TaskEntity task = taskRepository.findById(taskId).orElse(null);
-            if (task == null) {
-                return;
+        try {
+            // 更新任务状态为运行中
+            taskEntity.setStatus("RUNNING");
+            taskEntity.setStartTime(LocalDateTime.now());
+            taskEntity.setProgress(0);
+            taskRepository.save(taskEntity);
+
+            // 创建任务实体的副本，用于lambda表达式中
+            final Long taskId = id;
+            final String finalLockKey = lockKey;
+            final String finalLockValue = lockValue;
+
+            // 检查任务是否正在执行（本地缓存双重检查）
+            if (taskExecutionMap.containsKey(id) && taskExecutionMap.get(id)) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", false);
+                result.put("message", "任务正在执行中");
+                result.put("taskId", id);
+                return result;
             }
 
-            try {
-                // 执行任务逻辑
-                // TODO: 调用相应的服务执行具体的同步任务
-                // 模拟任务执行
-                Thread.sleep(2000);
+            // 标记任务为正在执行
+            taskExecutionMap.put(id, true);
 
-                // 更新任务状态为成功
-                task.setStatus("SUCCESS");
-                task.setProgress(100);
-                task.setEndTime(LocalDateTime.now());
-                task.setExecCount(task.getExecCount() + 1);
-                task.setErrorMessage(null);
-            } catch (Exception e) {
-                // 更新任务状态为失败
-                task.setStatus("FAILED");
-                task.setEndTime(LocalDateTime.now());
-                task.setErrorMessage(e.getMessage());
-            } finally {
-                // 计算下次执行时间
-                task = calculateNextExecTime(task);
-                // 保存任务状态
-                taskRepository.save(task);
-            }
-        });
+            // 异步执行任务
+            executorService.submit(() -> {
+                // 重新查询任务，确保获取最新状态
+                TaskEntity task = taskRepository.findById(taskId).orElse(null);
+                if (task == null) {
+                    taskExecutionMap.put(taskId, false);
+                    DistributedLockUtils.releaseLock(finalLockKey, finalLockValue);
+                    return;
+                }
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("message", "任务已触发");
-        result.put("taskId", id);
-        return result;
+                try {
+                    // 执行任务逻辑
+                    // TODO: 调用相应的服务执行具体的同步任务
+                    // 模拟任务执行
+                    Thread.sleep(2000);
+
+                    // 更新任务状态为成功
+                    task.setStatus("SUCCESS");
+                    task.setProgress(100);
+                    task.setEndTime(LocalDateTime.now());
+                    task.setExecCount(task.getExecCount() + 1);
+                    task.setErrorMessage(null);
+                } catch (Exception e) {
+                    // 更新任务状态为失败
+                    task.setStatus("FAILED");
+                    task.setEndTime(LocalDateTime.now());
+                    task.setErrorMessage(e.getMessage());
+                } finally {
+                    // 计算下次执行时间
+                    task = calculateNextExecTime(task);
+                    // 保存任务状态
+                    taskRepository.save(task);
+                    // 标记任务执行完成
+                    taskExecutionMap.put(taskId, false);
+                    // 释放分布式锁
+                    DistributedLockUtils.releaseLock(finalLockKey, finalLockValue);
+                }
+            });
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "任务已触发");
+            result.put("taskId", id);
+            return result;
+        } catch (Exception e) {
+            // 释放分布式锁
+            DistributedLockUtils.releaseLock(lockKey, lockValue);
+            throw e;
+        }
     }
 
     @Override
@@ -239,4 +300,106 @@ public class TaskServiceImpl implements TaskService {
             taskRepository.save(taskEntity);
         }
     }
+
+    @Override
+    @Transactional
+    public boolean pauseTask(Long id) {
+        TaskEntity taskEntity = taskRepository.findById(id).orElse(null);
+        if (taskEntity == null) {
+            throw new IllegalArgumentException("任务不存在");
+        }
+
+        // 检查任务状态
+        if (!"RUNNING".equals(taskEntity.getStatus())) {
+            throw new IllegalArgumentException("任务当前状态不允许暂停");
+        }
+
+        // 更新任务状态为暂停
+        taskEntity.setStatus("PAUSED");
+        taskEntity.setPauseTime(LocalDateTime.now());
+        taskRepository.save(taskEntity);
+
+        // TODO: 通知相关服务暂停数据同步
+
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean resumeTask(Long id) {
+        TaskEntity taskEntity = taskRepository.findById(id).orElse(null);
+        if (taskEntity == null) {
+            throw new IllegalArgumentException("任务不存在");
+        }
+
+        // 检查任务状态
+        if (!"PAUSED".equals(taskEntity.getStatus())) {
+            throw new IllegalArgumentException("任务当前状态不允许继续");
+        }
+
+        // 更新任务状态为运行中
+        taskEntity.setStatus("RUNNING");
+        taskEntity.setResumeTime(LocalDateTime.now());
+        taskRepository.save(taskEntity);
+
+        // TODO: 通知相关服务继续数据同步
+
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean rollbackTask(Long id, String rollbackPoint) {
+        TaskEntity taskEntity = taskRepository.findById(id).orElse(null);
+        if (taskEntity == null) {
+            throw new IllegalArgumentException("任务不存在");
+        }
+
+        // 暂停任务
+        if ("RUNNING".equals(taskEntity.getStatus())) {
+            pauseTask(id);
+        }
+
+        // TODO: 实现具体的回滚逻辑
+        // 1. 根据回滚点获取历史数据
+        // 2. 清理当前错误数据
+        // 3. 恢复到回滚点状态
+
+        // 更新任务状态
+        taskEntity.setStatus("ROLLED_BACK");
+        taskEntity.setRollbackPoint(rollbackPoint);
+        taskEntity.setEndTime(LocalDateTime.now());
+        taskRepository.save(taskEntity);
+
+        return true;
+    }
+
+    @Override
+    public List<Map<String, Object>> getTaskVersions(Long id) {
+        TaskEntity taskEntity = taskRepository.findById(id).orElse(null);
+        if (taskEntity == null) {
+            throw new IllegalArgumentException("任务不存在");
+        }
+
+        // TODO: 实现任务版本历史查询
+        // 这里简化处理，返回模拟数据
+        List<Map<String, Object>> versions = new ArrayList<>();
+
+        Map<String, Object> version1 = new HashMap<>();
+        version1.put("version", "1.0");
+        version1.put("timestamp", LocalDateTime.now().minusDays(1));
+        version1.put("description", "初始版本");
+        version1.put("operator", "system");
+        versions.add(version1);
+
+        Map<String, Object> version2 = new HashMap<>();
+        version2.put("version", "1.1");
+        version2.put("timestamp", LocalDateTime.now().minusHours(6));
+        version2.put("description", "更新配置");
+        version2.put("operator", "admin");
+        versions.add(version2);
+
+        return versions;
+    }
+
 }

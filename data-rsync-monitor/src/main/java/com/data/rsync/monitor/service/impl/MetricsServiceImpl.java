@@ -142,8 +142,92 @@ public class MetricsServiceImpl implements MetricsService {
         allMetrics.putAll(collectDatasourceMetrics());
         allMetrics.putAll(collectTaskMetrics());
         allMetrics.putAll(collectMilvusMetrics());
+        allMetrics.putAll(collectBusinessMetrics());
+        allMetrics.putAll(collectDataDelayMetrics());
+        allMetrics.putAll(collectMilvusWriteMetrics());
 
         return allMetrics;
+    }
+
+    @Override
+    public Map<String, Object> collectBusinessMetrics() {
+        Map<String, Object> metrics = new HashMap<>();
+
+        // TODO: 实现业务维度指标采集
+        // 这里可以通过调用相关服务的 API 获取业务维度的指标
+
+        // 同步成功率
+        metrics.put("business.sync.success.rate", 99.9);
+        // 数据同步总量
+        metrics.put("business.sync.total.count", 1000000);
+        // 同步任务平均执行时间
+        metrics.put("business.sync.avg.duration", 1000);
+        // 错误率
+        metrics.put("business.error.rate", 0.1);
+        // 数据处理吞吐量
+        metrics.put("business.process.throughput", 10000);
+
+        return metrics;
+    }
+
+    @Override
+    public Map<String, Object> collectSyncTaskMetrics(Long taskId) {
+        Map<String, Object> metrics = new HashMap<>();
+
+        // TODO: 实现同步任务指标采集
+        // 这里可以通过调用任务管理服务的 API 获取指定任务的指标
+
+        if (taskId != null) {
+            metrics.put("task." + taskId + ".status", "RUNNING");
+            metrics.put("task." + taskId + ".progress", 50);
+            metrics.put("task." + taskId + ".duration", 5000);
+            metrics.put("task." + taskId + ".records.processed", 500);
+            metrics.put("task." + taskId + ".error.count", 0);
+        } else {
+            metrics.put("task.total.count", 10);
+            metrics.put("task.running.count", 2);
+            metrics.put("task.success.count", 8);
+            metrics.put("task.failed.count", 0);
+        }
+
+        return metrics;
+    }
+
+    @Override
+    public Map<String, Object> collectDataDelayMetrics() {
+        Map<String, Object> metrics = new HashMap<>();
+
+        // TODO: 实现数据延迟指标采集
+        // 这里可以通过比较源数据和目标数据的时间戳来计算数据延迟
+
+        // 数据延迟（毫秒）
+        metrics.put("data.delay.avg", 100);
+        metrics.put("data.delay.max", 500);
+        metrics.put("data.delay.min", 10);
+        // 延迟趋势
+        metrics.put("data.delay.trend", "stable");
+
+        return metrics;
+    }
+
+    @Override
+    public Map<String, Object> collectMilvusWriteMetrics() {
+        Map<String, Object> metrics = new HashMap<>();
+
+        // TODO: 实现 Milvus 写入指标采集
+        // 这里可以通过 Milvus 的 API 获取写入相关的指标
+
+        // Milvus 写入 QPS
+        metrics.put("milvus.write.qps", 1000);
+        // 写入延迟（毫秒）
+        metrics.put("milvus.write.latency.avg", 10);
+        metrics.put("milvus.write.latency.max", 50);
+        // 写入成功率
+        metrics.put("milvus.write.success.rate", 99.9);
+        // 批量写入大小
+        metrics.put("milvus.write.batch.size", 100);
+
+        return metrics;
     }
 
 }

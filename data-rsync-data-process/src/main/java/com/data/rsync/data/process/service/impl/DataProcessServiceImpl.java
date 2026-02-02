@@ -2,6 +2,8 @@ package com.data.rsync.data.process.service.impl;
 
 import com.data.rsync.common.constants.DataRsyncConstants;
 import com.data.rsync.common.model.Task;
+import com.data.rsync.common.vectorizer.Vectorizer;
+import com.data.rsync.common.vectorizer.VectorizerFactory;
 import com.data.rsync.data.process.service.DataProcessService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -147,30 +149,21 @@ public class DataProcessServiceImpl implements DataProcessService {
                 return vectorCache.get(cacheKey);
             }
             
-            // 4. 基于文本生成向量
-            // 示例：使用简单的文本特征向量化方法
-            float[] vector = new float[128]; // 假设向量维度为 128
-            
-            // 基于文本长度、字符分布等生成向量
-            int textLength = text.length();
-            float lengthFactor = Math.min(1.0f, (float) textLength / 1000.0f);
-            
-            // 生成向量值
-            for (int i = 0; i < vector.length; i++) {
-                // 基于文本特征生成更有意义的向量
-                if (i < textLength % vector.length) {
-                    vector[i] = (float) (text.charAt(i % textLength) / 255.0) * lengthFactor;
-                } else {
-                    vector[i] = (float) Math.sin(i) * lengthFactor * 0.5f;
-                }
+            // 4. 获取向量化器
+            // 从任务配置中获取向量化器名称，默认为 text_feature
+            String vectorizerName = "text_feature";
+            if (task != null && task.getConfig() != null) {
+                // TODO: 从任务配置中解析向量化器名称
             }
+            
+            // 5. 使用向量化器生成向量
+            Vectorizer vectorizer = VectorizerFactory.getVectorizer(vectorizerName);
+            float[] vector = vectorizer.vectorize(data);
 
-            // TODO: 实际应用中应使用更复杂的向量化模型，如 BERT、Word2Vec 等
-
-            // 5. 更新缓存
+            // 6. 更新缓存
             updateVectorCache(cacheKey, vector);
 
-            log.info("Generated vector with dimension: {}", vector.length);
+            log.info("Generated vector with dimension: {} using vectorizer: {}", vector.length, vectorizerName);
             return vector;
         } catch (Exception e) {
             log.error("Failed to generate vector: {}", e.getMessage(), e);

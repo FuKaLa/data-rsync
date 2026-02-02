@@ -4,55 +4,55 @@ spring:
   
   # Redis 配置
   redis:
-    host: localhost
-    port: 6379
-    password:
-    database: 0
+    host: ${spring.redis.host:localhost}
+    port: ${spring.redis.port:6379}
+    password: ${spring.redis.password:}
+    database: ${spring.redis.database:0}
   
   # Kafka 配置
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${spring.kafka.bootstrap-servers:localhost:9092}
     producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
-      acks: 1
-      batch-size: 16384
-      linger-ms: 1
-      buffer-memory: 33554432
+      key-serializer: ${spring.kafka.producer.key-serializer:org.apache.kafka.common.serialization.StringSerializer}
+      value-serializer: ${spring.kafka.producer.value-serializer:org.apache.kafka.common.serialization.StringSerializer}
+      acks: ${spring.kafka.producer.acks:1}
+      batch-size: ${spring.kafka.producer.batch-size:16384}
+      linger-ms: ${spring.kafka.producer.linger-ms:1}
+      buffer-memory: ${spring.kafka.producer.buffer-memory:33554432}
   
   # Nacos 配置
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
-        namespace: public
+        server-addr: ${spring.cloud.nacos.discovery.server-addr:localhost:8848}
+        namespace: ${spring.cloud.nacos.discovery.namespace:public}
       config:
-        server-addr: localhost:8848
-        namespace: public
-        file-extension: yml
+        server-addr: ${spring.cloud.nacos.config.server-addr:localhost:8848}
+        namespace: ${spring.cloud.nacos.config.namespace:public}
+        file-extension: ${spring.cloud.nacos.config.file-extension:yml}
 
 # 服务器配置
 server:
-  port: 8083
+  port: ${server.port:8083}
   servlet:
-    context-path: /data-process
+    context-path: ${server.servlet.context-path:/data-process}
 
 # 日志配置
 logging:
   level:
-    root: info
-    com.data.rsync.data.process: debug
+    root: ${logging.level.root:info}
+    com.data.rsync.data.process: ${logging.level.com.data.rsync.data.process:debug}
 
 # 数据处理配置
 data-process:
   vector:
-    dimension: 128 # 向量维度
-    cache-size: 10000 # 向量缓存大小
+    dimension: ${data-process.vector.dimension:128} # 向量维度
+    cache-size: ${data-process.vector.cache-size:10000} # 向量缓存大小
   batch:
-    size: 1000 # 批量处理大小
+    size: ${data-process.batch.size:1000} # 批量处理大小
   thread:
-    pool-size: 20 # 线程池大小
+    pool-size: ${data-process.thread.pool-size:20} # 线程池大小
   cleaning:
-    enabled: true # 是否启用数据清洗
+    enabled: ${data-process.cleaning.enabled:true} # 是否启用数据清洗
   transform:
-    enabled: true # 是否启用数据转换
+    enabled: ${data-process.transform.enabled:true} # 是否启用数据转换

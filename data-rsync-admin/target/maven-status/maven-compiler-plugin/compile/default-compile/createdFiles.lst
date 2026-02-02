@@ -1,0 +1,7 @@
+com/data/rsync/admin/DataRsyncAdminApplication.class
+com/data/rsync/admin/controller/SystemController.class
+com/data/rsync/admin/controller/AuthController.class
+com/data/rsync/admin/controller/DataSourceController.class
+com/data/rsync/admin/controller/MilvusController.class
+com/data/rsync/admin/controller/TaskController.class
+com/data/rsync/admin/controller/MonitorController.class

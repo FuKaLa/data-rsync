@@ -185,6 +185,7 @@
         <module>data-rsync-task-manager</module>
         <module>data-rsync-monitor</module>
         <module>data-rsync-common</module>
+        <module>data-rsync-admin</module>
     </modules>
 
     <build>

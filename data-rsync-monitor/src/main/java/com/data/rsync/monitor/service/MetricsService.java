@@ -43,4 +43,29 @@ public interface MetricsService {
      */
     Map<String, Object> collectAllMetrics();
 
+    /**
+     * 采集业务维度指标
+     * @return 业务维度指标
+     */
+    Map<String, Object> collectBusinessMetrics();
+
+    /**
+     * 采集同步任务指标
+     * @param taskId 任务ID
+     * @return 同步任务指标
+     */
+    Map<String, Object> collectSyncTaskMetrics(Long taskId);
+
+    /**
+     * 采集数据延迟指标
+     * @return 数据延迟指标
+     */
+    Map<String, Object> collectDataDelayMetrics();
+
+    /**
+     * 采集 Milvus 写入指标
+     * @return Milvus 写入指标
+     */
+    Map<String, Object> collectMilvusWriteMetrics();
+
 }

@@ -49,4 +49,21 @@ public interface AlertService {
      */
     boolean sendWechatAlert(String webhook, String message);
 
+    /**
+     * 执行异常自愈
+     * @param alertType 告警类型
+     * @param metrics 相关指标
+     * @return 自愈结果
+     */
+    boolean executeSelfHealing(String alertType, Map<String, Object> metrics);
+
+    /**
+     * 检查并执行异常自愈
+     * @param severity 告警级别
+     * @param message 告警消息
+     * @param metrics 相关指标
+     * @return 检查结果
+     */
+    Map<String, Object> checkAndHeal(String severity, String message, Map<String, Object> metrics);
+
 }

@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: data-rsync-common
+  cloud:
+    nacos:
+      config:
+        server-addr: 127.0.0.1:8848
+        namespace: public
+        group: DEFAULT_GROUP
+        file-extension: yml
+      discovery:
+        server-addr: 127.0.0.1:8848
+        namespace: public
+        group: DEFAULT_GROUP
+
+---
+spring:
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      config:
+        namespace: dev
+
+---
+spring:
+  profiles:
+    active: prod
+  cloud:
+    nacos:
+      config:
+        namespace: prod
