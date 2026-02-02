@@ -1,0 +1,6 @@
+com/data/rsync/monitor/service/MetricsService.class
+com/data/rsync/monitor/service/AlertService.class
+com/data/rsync/monitor/controller/MonitorController.class
+com/data/rsync/monitor/service/impl/AlertServiceImpl.class
+com/data/rsync/monitor/service/impl/MetricsServiceImpl.class
+com/data/rsync/monitor/DataRsyncMonitorApplication.class

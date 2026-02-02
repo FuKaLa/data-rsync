@@ -1,0 +1,101 @@
+spring:
+  application:
+    name: data-rsync-monitor
+  
+  # Nacos 配置
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+      config:
+        server-addr: localhost:8848
+        namespace: public
+        file-extension: yaml
+        group: DEFAULT_GROUP
+
+# 服务器配置
+server:
+  port: 8085
+  servlet:
+    context-path: /
+
+# 健康检查配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        all:
+          enabled: true
+    export:
+      prometheus:
+        enabled: true
+
+# 监控配置
+monitor:
+  # 告警配置
+  alert:
+    enabled: true
+    # 告警级别
+    levels:
+      - severity: critical
+        threshold: 90
+        message: 系统关键指标超过阈值
+      - severity: warning
+        threshold: 70
+        message: 系统指标接近阈值
+      - severity: info
+        threshold: 50
+        message: 系统指标正常
+    # 告警渠道
+    channels:
+      email:
+        enabled: true
+        from: alert@data-rsync.com
+        to: admin@data-rsync.com
+        smtp:
+          host: smtp.data-rsync.com
+          port: 25
+          username: alert@data-rsync.com
+          password: password
+      dingtalk:
+        enabled: false
+        webhook: https://oapi.dingtalk.com/robot/send?access_token=your_token
+      wechat:
+        enabled: false
+        webhook: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your_key
+  
+  # 指标采集配置
+  metrics:
+    # JVM 指标
+    jvm:
+      enabled: true
+    # 系统指标
+    system:
+      enabled: true
+    # 数据源指标
+    datasource:
+      enabled: true
+    # 任务指标
+    task:
+      enabled: true
+    # Milvus 指标
+    milvus:
+      enabled: true
+
+# 日志配置
+logging:
+  level:
+    root: info
+    com.data.rsync.monitor: debug
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /data/applogs/data-rsync-monitor/data-rsync-monitor.log

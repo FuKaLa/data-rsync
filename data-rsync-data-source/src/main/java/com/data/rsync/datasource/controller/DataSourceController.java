@@ -1,0 +1,211 @@
+package com.data.rsync.datasource.controller;
+
+import com.data.rsync.common.model.DataSource;
+import com.data.rsync.common.model.Response;
+import com.data.rsync.datasource.service.DataSourceService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * 数据源控制器
+ */
+@RestController
+@RequestMapping("/api/data-source")
+@Slf4j
+public class DataSourceController {
+
+    @Autowired
+    private DataSourceService dataSourceService;
+
+    /**
+     * 创建数据源
+     * @param dataSource 数据源模型
+     * @return 创建结果
+     */
+    @PostMapping
+    public Response<DataSource> createDataSource(@RequestBody DataSource dataSource) {
+        log.info("Received request to create data source: {}", dataSource.getName());
+        try {
+            DataSource result = dataSourceService.createDataSource(dataSource);
+            return Response.success("Data source created successfully", result);
+        } catch (Exception e) {
+            log.error("Failed to create data source: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to create data source: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 更新数据源
+     * @param id 数据源ID
+     * @param dataSource 数据源模型
+     * @return 更新结果
+     */
+    @PutMapping("/{id}")
+    public Response<DataSource> updateDataSource(@PathVariable Long id, @RequestBody DataSource dataSource) {
+        log.info("Received request to update data source: {}", id);
+        try {
+            DataSource result = dataSourceService.updateDataSource(id, dataSource);
+            return Response.success("Data source updated successfully", result);
+        } catch (Exception e) {
+            log.error("Failed to update data source: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to update data source: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 删除数据源
+     * @param id 数据源ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/{id}")
+    public Response<Void> deleteDataSource(@PathVariable Long id) {
+        log.info("Received request to delete data source: {}", id);
+        try {
+            dataSourceService.deleteDataSource(id);
+            return Response.success("Data source deleted successfully", null);
+        } catch (Exception e) {
+            log.error("Failed to delete data source: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to delete data source: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取数据源
+     * @param id 数据源ID
+     * @return 数据源
+     */
+    @GetMapping("/{id}")
+    public Response<DataSource> getDataSource(@PathVariable Long id) {
+        log.info("Received request to get data source: {}", id);
+        try {
+            DataSource result = dataSourceService.getDataSource(id);
+            return Response.success(result);
+        } catch (Exception e) {
+            log.error("Failed to get data source: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to get data source: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取所有数据源
+     * @return 数据源列表
+     */
+    @GetMapping
+    public Response<List<DataSource>> getAllDataSources() {
+        log.info("Received request to get all data sources");
+        try {
+            List<DataSource> result = dataSourceService.getAllDataSources();
+            return Response.success(result);
+        } catch (Exception e) {
+            log.error("Failed to get all data sources: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to get all data sources: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 根据类型获取数据源
+     * @param type 数据源类型
+     * @return 数据源列表
+     */
+    @GetMapping("/type/{type}")
+    public Response<List<DataSource>> getDataSourcesByType(@PathVariable String type) {
+        log.info("Received request to get data sources by type: {}", type);
+        try {
+            List<DataSource> result = dataSourceService.getDataSourcesByType(type);
+            return Response.success(result);
+        } catch (Exception e) {
+            log.error("Failed to get data sources by type: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to get data sources by type: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 根据启用状态获取数据源
+     * @param enabled 启用状态
+     * @return 数据源列表
+     */
+    @GetMapping("/enabled/{enabled}")
+    public Response<List<DataSource>> getDataSourcesByEnabled(@PathVariable Boolean enabled) {
+        log.info("Received request to get data sources by enabled: {}", enabled);
+        try {
+            List<DataSource> result = dataSourceService.getDataSourcesByEnabled(enabled);
+            return Response.success(result);
+        } catch (Exception e) {
+            log.error("Failed to get data sources by enabled: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to get data sources by enabled: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 启用/禁用数据源
+     * @param id 数据源ID
+     * @param enabled 启用状态
+     * @return 更新结果
+     */
+    @PutMapping("/{id}/enable")
+    public Response<DataSource> enableDataSource(@PathVariable Long id, @RequestParam Boolean enabled) {
+        log.info("Received request to enable data source: {} to {}", id, enabled);
+        try {
+            DataSource result = dataSourceService.enableDataSource(id, enabled);
+            return Response.success("Data source enabled successfully", result);
+        } catch (Exception e) {
+            log.error("Failed to enable data source: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to enable data source: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 测试数据源连接
+     * @param id 数据源ID
+     * @return 测试结果
+     */
+    @PostMapping("/{id}/test-connection")
+    public Response<Boolean> testDataSourceConnection(@PathVariable Long id) {
+        log.info("Received request to test data source connection: {}", id);
+        try {
+            boolean connected = dataSourceService.testDataSourceConnection(id);
+            String message = connected ? "Connection successful" : "Connection failed";
+            return Response.success(message, connected);
+        } catch (Exception e) {
+            log.error("Failed to test data source connection: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to test data source connection: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 检查数据源健康状态
+     * @param id 数据源ID
+     * @return 健康状态
+     */
+    @GetMapping("/{id}/health")
+    public Response<String> checkDataSourceHealth(@PathVariable Long id) {
+        log.info("Received request to check data source health: {}", id);
+        try {
+            String healthStatus = dataSourceService.checkDataSourceHealth(id);
+            return Response.success("Health status checked successfully", healthStatus);
+        } catch (Exception e) {
+            log.error("Failed to check data source health: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to check data source health: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量检查数据源健康状态
+     * @return 检查结果
+     */
+    @PostMapping("/batch-check-health")
+    public Response<Void> batchCheckDataSourceHealth() {
+        log.info("Received request to batch check data source health");
+        try {
+            dataSourceService.batchCheckDataSourceHealth();
+            return Response.success("Batch health check completed successfully", null);
+        } catch (Exception e) {
+            log.error("Failed to batch check data source health: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to batch check data source health: " + e.getMessage());
+        }
+    }
+
+}

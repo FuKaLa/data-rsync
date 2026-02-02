@@ -1,0 +1,5 @@
+com/data/rsync/task/manager/service/impl/TaskServiceImpl.class
+com/data/rsync/task/manager/controller/TaskController.class
+com/data/rsync/task/manager/entity/TaskEntity.class
+com/data/rsync/task/manager/service/TaskService.class
+com/data/rsync/task/manager/repository/TaskRepository.class

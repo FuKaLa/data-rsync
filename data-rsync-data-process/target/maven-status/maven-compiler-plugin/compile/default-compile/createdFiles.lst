@@ -1,0 +1,3 @@
+com/data/rsync/data/process/service/DataProcessService.class
+com/data/rsync/data/process/service/impl/DataProcessServiceImpl.class
+com/data/rsync/data/process/DataRsyncDataProcessApplication.class

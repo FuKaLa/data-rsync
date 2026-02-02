@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: data-rsync-auth
+  
+  # Redis 配置
+  redis:
+    host: localhost
+    port: 6379
+    password:
+    database: 0
+  
+  # Nacos 配置
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+      config:
+        server-addr: localhost:8848
+        namespace: public
+        file-extension: yml
+
+# 服务器配置
+server:
+  port: 8085
+  servlet:
+    context-path: /auth
+
+# 日志配置
+logging:
+  level:
+    root: info
+    com.data.rsync.auth: debug
+
+# 认证配置
+auth:
+  jwt:
+    secret: your-secret-key # JWT 密钥
+    expiration: 3600 # JWT 过期时间（秒）
+    refresh-expiration: 86400 # 刷新令牌过期时间（秒）
+    issuer: data-rsync-system # JWT 发行者
+  rbac:
+    enabled: true # 是否启用 RBAC
+    super-admin-role: ADMIN # 超级管理员角色
+  user:
+    default-password: 123456 # 默认密码
+    password-encryption: bcrypt # 密码加密方式
+  token:
+    redis-key-prefix: auth:token: # 令牌 Redis 键前缀
+    blacklist-key-prefix: auth:blacklist: # 黑名单 Redis 键前缀
+  health-check:
+    interval: 60000 # 健康检查间隔（毫秒）
