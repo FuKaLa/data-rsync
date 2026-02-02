@@ -7,21 +7,19 @@ import com.data.rsync.common.constants.DataRsyncConstants;
  */
 public class TaskManagerException extends DataRsyncException {
 
-    public static final String ERROR_TYPE = "TASK_MANAGER_ERROR";
-
     public TaskManagerException(String message) {
-        super(DataRsyncConstants.ErrorCode.TASK_MANAGER_ERROR, message, ERROR_TYPE, false);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.TASK_MANAGER_ERROR), message);
     }
 
     public TaskManagerException(String message, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.TASK_MANAGER_ERROR, message, ERROR_TYPE, false, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.TASK_MANAGER_ERROR), message, cause);
     }
 
     public TaskManagerException(String message, boolean retryable) {
-        super(DataRsyncConstants.ErrorCode.TASK_MANAGER_ERROR, message, ERROR_TYPE, retryable);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.TASK_MANAGER_ERROR), message, retryable);
     }
 
     public TaskManagerException(String message, boolean retryable, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.TASK_MANAGER_ERROR, message, ERROR_TYPE, retryable, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.TASK_MANAGER_ERROR), message, cause, retryable);
     }
 }

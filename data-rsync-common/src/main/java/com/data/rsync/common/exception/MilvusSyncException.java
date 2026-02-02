@@ -7,21 +7,19 @@ import com.data.rsync.common.constants.DataRsyncConstants;
  */
 public class MilvusSyncException extends DataRsyncException {
 
-    public static final String ERROR_TYPE = "MILVUS_SYNC_ERROR";
-
     public MilvusSyncException(String message) {
-        super(DataRsyncConstants.ErrorCode.MILVUS_SYNC_ERROR, message, ERROR_TYPE, false);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.MILVUS_SYNC_ERROR), message);
     }
 
     public MilvusSyncException(String message, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.MILVUS_SYNC_ERROR, message, ERROR_TYPE, false, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.MILVUS_SYNC_ERROR), message, cause);
     }
 
     public MilvusSyncException(String message, boolean retryable) {
-        super(DataRsyncConstants.ErrorCode.MILVUS_SYNC_ERROR, message, ERROR_TYPE, retryable);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.MILVUS_SYNC_ERROR), message, retryable);
     }
 
     public MilvusSyncException(String message, boolean retryable, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.MILVUS_SYNC_ERROR, message, ERROR_TYPE, retryable, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.MILVUS_SYNC_ERROR), message, cause, retryable);
     }
 }

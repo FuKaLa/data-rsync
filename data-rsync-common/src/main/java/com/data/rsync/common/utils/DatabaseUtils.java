@@ -82,12 +82,9 @@ public class DatabaseUtils {
         props.setProperty("user", dataSource.getUsername());
         props.setProperty("password", dataSource.getPassword());
         
-        // 从Nacos配置获取连接超时设置
-        NacosConfig.DatabaseConfig dbConfig = ConfigUtils.getDatabaseConfig();
-        if (dbConfig != null) {
-            props.setProperty("connectTimeout", String.valueOf(dbConfig.getConnectionTimeout()));
-            props.setProperty("socketTimeout", String.valueOf(dbConfig.getSocketTimeout()));
-        }
+        // 设置默认连接超时设置
+        props.setProperty("connectTimeout", "5000");
+        props.setProperty("socketTimeout", "10000");
         
         return DriverManager.getConnection(url, props);
     }

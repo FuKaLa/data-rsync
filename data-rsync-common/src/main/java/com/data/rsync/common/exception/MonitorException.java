@@ -7,21 +7,19 @@ import com.data.rsync.common.constants.DataRsyncConstants;
  */
 public class MonitorException extends DataRsyncException {
 
-    public static final String ERROR_TYPE = "MONITOR_ERROR";
-
     public MonitorException(String message) {
-        super(DataRsyncConstants.ErrorCode.MONITOR_ERROR, message, ERROR_TYPE, false);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.MONITOR_ERROR), message);
     }
 
     public MonitorException(String message, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.MONITOR_ERROR, message, ERROR_TYPE, false, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.MONITOR_ERROR), message, cause);
     }
 
     public MonitorException(String message, boolean retryable) {
-        super(DataRsyncConstants.ErrorCode.MONITOR_ERROR, message, ERROR_TYPE, retryable);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.MONITOR_ERROR), message, retryable);
     }
 
     public MonitorException(String message, boolean retryable, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.MONITOR_ERROR, message, ERROR_TYPE, retryable, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.MONITOR_ERROR), message, cause, retryable);
     }
 }

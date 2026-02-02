@@ -36,16 +36,23 @@ export const dataSourceApi = {
 
 // 任务相关
 export const taskApi = {
-  getList: () => api.get('/task/list'),
-  getDetail: (id: number) => api.get(`/task/detail/${id}`),
-  create: (data: any) => api.post('/task/create', data),
-  update: (data: any) => api.put('/task/update', data),
-  delete: (id: number) => api.delete(`/task/delete/${id}`),
-  start: (id: number) => api.post(`/task/start/${id}`),
-  pause: (id: number) => api.post(`/task/pause/${id}`),
-  resume: (id: number) => api.post(`/task/resume/${id}`),
-  rollback: (id: number, rollbackPoint: string) => api.post(`/task/rollback/${id}`, { rollbackPoint }),
-  getVersions: (id: number) => api.get(`/task/versions/${id}`)
+  getList: () => api.get('/tasks'),
+  getDetail: (id: number) => api.get(`/tasks/${id}`),
+  create: (data: any) => api.post('/tasks', data),
+  update: (data: any) => api.put('/tasks', data),
+  delete: (id: number) => api.delete(`/tasks/${id}`),
+  start: (id: number) => api.post(`/tasks/${id}/trigger`),
+  pause: (id: number) => api.post(`/tasks/${id}/pause`),
+  resume: (id: number) => api.post(`/tasks/${id}/resume`),
+  rollback: (id: number, rollbackPoint: string) => api.post(`/tasks/${id}/rollback?rollbackPoint=${rollbackPoint}`),
+  getVersions: (id: number) => api.get(`/tasks/${id}/versions`),
+  saveNodes: (taskId: number, nodes: any[]) => api.post(`/tasks/${taskId}/nodes`, nodes),
+  saveConnections: (taskId: number, connections: any[]) => api.post(`/tasks/${taskId}/connections`, connections),
+  saveDependency: (taskId: number, dependency: any) => api.post(`/tasks/${taskId}/dependency`, dependency),
+  getNodes: (taskId: number) => api.get(`/tasks/${taskId}/nodes`),
+  getConnections: (taskId: number) => api.get(`/tasks/${taskId}/connections`),
+  getDependencies: (taskId: number) => api.get(`/tasks/${taskId}/dependencies`),
+  validateFlow: (taskId: number) => api.post(`/tasks/${taskId}/validate-flow`)
 }
 
 // 监控相关

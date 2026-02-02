@@ -2,7 +2,6 @@ package com.data.rsync.admin.handler;
 
 import com.data.rsync.common.exception.DataRsyncException;
 import com.data.rsync.common.model.Response;
-import com.data.rsync.common.utils.ExceptionUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -22,8 +21,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DataRsyncException.class)
     public Response<?> handleDataRsyncException(DataRsyncException e) {
-        log.error("DataRsyncException: [{}] {}", e.getErrorType(), e.getErrorMessage(), e);
-        return Response.error(e.getErrorCode(), e.getErrorMessage());
+        log.error("DataRsyncException: [{}] {}", e.getErrorCode(), e.getErrorMessage(), e);
+        return Response.failure(Integer.parseInt(e.getErrorCode()), e.getErrorMessage());
     }
 
     /**
@@ -35,7 +34,7 @@ public class GlobalExceptionHandler {
     public Response<?> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
         String errorMessage = e.getBindingResult().getFieldError().getDefaultMessage();
         log.warn("MethodArgumentNotValidException: {}", errorMessage);
-        return Response.error(400, errorMessage);
+        return Response.failure(400, errorMessage);
     }
 
     /**
@@ -45,8 +44,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public Response<?> handleException(Exception e) {
-        String errorMessage = ExceptionUtils.handleException(e);
+        String errorMessage = e.getMessage();
         log.error("System Exception", e);
-        return Response.error(500, errorMessage);
+        return Response.failure(500, errorMessage);
     }
 }

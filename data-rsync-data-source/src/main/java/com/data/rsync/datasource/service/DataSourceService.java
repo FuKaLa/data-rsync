@@ -4,7 +4,11 @@ import com.data.rsync.common.exception.DataSourceException;
 import com.data.rsync.common.model.DataSource;
 import com.data.rsync.common.utils.EncryptUtils;
 import com.data.rsync.datasource.entity.DataSourceEntity;
+import com.data.rsync.datasource.entity.DataSourceDiagnoseReportEntity;
+import com.data.rsync.datasource.entity.DataSourceTemplateEntity;
+import com.data.rsync.datasource.repository.DataSourceDiagnoseReportRepository;
 import com.data.rsync.datasource.repository.DataSourceRepository;
+import com.data.rsync.datasource.repository.DataSourceTemplateRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +37,12 @@ public class DataSourceService {
 
     @Autowired
     private DataSourceRepository dataSourceRepository;
+
+    @Autowired
+    private DataSourceTemplateRepository dataSourceTemplateRepository;
+
+    @Autowired
+    private DataSourceDiagnoseReportRepository diagnoseReportRepository;
 
     /**
      * 数据源恢复状态跟踪
@@ -318,6 +328,8 @@ public class DataSourceService {
      */
     private boolean testConnection(DataSourceEntity entity, int maxRetries, long retryIntervalMs) {
         Connection connection = null;
+        String lastFailureReason = null;
+        long startTime = System.currentTimeMillis();
         try {
             for (int i = 0; i < maxRetries; i++) {
                 try {
@@ -335,9 +347,15 @@ public class DataSourceService {
 
                     // 测试连接
                     if (connection.isValid(5)) {
+                        long heartbeatTime = System.currentTimeMillis() - startTime;
+                        entity.setHeartbeatTime((int) heartbeatTime);
+                        entity.setLastHeartbeatTime(LocalDateTime.now());
+                        entity.setFailureCount(0);
+                        entity.setLastFailureReason(null);
                         return true;
                     }
                 } catch (Exception e) {
+                    lastFailureReason = e.getMessage();
                     log.warn("Attempt {} failed to test connection for data source: {}", i + 1, entity.getName(), e);
                     if (i < maxRetries - 1) {
                         Thread.sleep(retryIntervalMs);
@@ -352,10 +370,17 @@ public class DataSourceService {
                     }
                 }
             }
+            // 连接失败，更新失败信息
+            entity.setLastFailureReason(lastFailureReason);
+            entity.setFailureCount(entity.getFailureCount() != null ? entity.getFailureCount() + 1 : 1);
+            entity.setLastHeartbeatTime(LocalDateTime.now());
             return false;
         } catch (InterruptedException e) {
             log.error("Connection test interrupted", e);
             Thread.currentThread().interrupt();
+            entity.setLastFailureReason("Connection test interrupted");
+            entity.setFailureCount(entity.getFailureCount() != null ? entity.getFailureCount() + 1 : 1);
+            entity.setLastHeartbeatTime(LocalDateTime.now());
             return false;
         }
     }
@@ -403,7 +428,28 @@ public class DataSourceService {
 
         // 测试连接
         boolean connected = testDataSourceConnection(id);
-        return connected ? "HEALTHY" : "UNHEALTHY";
+        DataSourceEntity entity = dataSourceRepository.findById(id).orElse(null);
+        if (entity == null) {
+            return "UNKNOWN";
+        }
+        
+        // 根据连接状态和心跳检测耗时设置健康状态
+        if (connected) {
+            // 连接成功
+            if (entity.getHeartbeatTime() != null && entity.getHeartbeatTime() > 2000) {
+                // 心跳检测耗时超过2秒，标记为连接不稳定
+                entity.setHealthStatus("UNSTABLE");
+            } else {
+                // 连接正常
+                entity.setHealthStatus("HEALTHY");
+            }
+        } else {
+            // 连接失败
+            entity.setHealthStatus("UNHEALTHY");
+        }
+        
+        dataSourceRepository.save(entity);
+        return entity.getHealthStatus();
     }
 
     /**
@@ -552,6 +598,361 @@ public class DataSourceService {
             recoveryExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    /**
+     * 获取所有数据源模板
+     * @return 模板列表
+     */
+    public List<DataSourceTemplateEntity> getAllTemplates() {
+        log.info("Getting all data source templates");
+        return dataSourceTemplateRepository.findAll();
+    }
+
+    /**
+     * 根据数据源类型获取模板
+     * @param dataSourceType 数据源类型
+     * @return 模板列表
+     */
+    public List<DataSourceTemplateEntity> getTemplatesByType(String dataSourceType) {
+        log.info("Getting data source templates by type: {}", dataSourceType);
+        return dataSourceTemplateRepository.findByDataSourceType(dataSourceType);
+    }
+
+    /**
+     * 获取系统预设模板
+     * @return 模板列表
+     */
+    public List<DataSourceTemplateEntity> getSystemTemplates() {
+        log.info("Getting system data source templates");
+        return dataSourceTemplateRepository.findByIsSystem(true);
+    }
+
+    /**
+     * 创建数据源模板
+     * @param template 模板实体
+     * @return 创建的模板
+     */
+    @Transactional
+    public DataSourceTemplateEntity createTemplate(DataSourceTemplateEntity template) {
+        log.info("Creating data source template: {}", template.getName());
+        
+        template.setCreateTime(LocalDateTime.now());
+        template.setUpdateTime(LocalDateTime.now());
+        
+        return dataSourceTemplateRepository.save(template);
+    }
+
+    /**
+     * 更新数据源模板
+     * @param id 模板ID
+     * @param template 模板实体
+     * @return 更新后的模板
+     */
+    @Transactional
+    public DataSourceTemplateEntity updateTemplate(Long id, DataSourceTemplateEntity template) {
+        log.info("Updating data source template: {}", id);
+        
+        DataSourceTemplateEntity existingTemplate = dataSourceTemplateRepository.findById(id)
+                .orElseThrow(() -> new DataSourceException("Template not found: " + id));
+        
+        BeanUtils.copyProperties(template, existingTemplate, "id", "createTime", "isSystem");
+        existingTemplate.setUpdateTime(LocalDateTime.now());
+        
+        return dataSourceTemplateRepository.save(existingTemplate);
+    }
+
+    /**
+     * 删除数据源模板
+     * @param id 模板ID
+     */
+    @Transactional
+    public void deleteTemplate(Long id) {
+        log.info("Deleting data source template: {}", id);
+        
+        DataSourceTemplateEntity template = dataSourceTemplateRepository.findById(id)
+                .orElseThrow(() -> new DataSourceException("Template not found: " + id));
+        
+        // 系统预设模板不可删除
+        if (template.getIsSystem()) {
+            throw new DataSourceException("System templates cannot be deleted");
+        }
+        
+        dataSourceTemplateRepository.delete(template);
+    }
+
+    /**
+     * 初始化系统预设模板
+     */
+    @Transactional
+    public void initSystemTemplates() {
+        log.info("Initializing system data source templates");
+        
+        // 检查是否已存在系统模板
+        List<DataSourceTemplateEntity> existingSystemTemplates = dataSourceTemplateRepository.findByIsSystem(true);
+        if (!existingSystemTemplates.isEmpty()) {
+            log.info("System templates already exist, skipping initialization");
+            return;
+        }
+        
+        // 创建MySQL模板
+        DataSourceTemplateEntity mysqlTemplate = new DataSourceTemplateEntity();
+        mysqlTemplate.setName("MySQL 模板");
+        mysqlTemplate.setDataSourceType("MYSQL");
+        mysqlTemplate.setDriverClass("com.mysql.cj.jdbc.Driver");
+        mysqlTemplate.setLogMonitorType("BINLOG");
+        mysqlTemplate.setDefaultPort(3306);
+        mysqlTemplate.setConnectionTimeout(30000);
+        mysqlTemplate.setDescription("MySQL 数据库默认配置模板");
+        mysqlTemplate.setIsSystem(true);
+        mysqlTemplate.setCreateTime(LocalDateTime.now());
+        mysqlTemplate.setUpdateTime(LocalDateTime.now());
+        dataSourceTemplateRepository.save(mysqlTemplate);
+        
+        // 创建PostgreSQL模板
+        DataSourceTemplateEntity postgresqlTemplate = new DataSourceTemplateEntity();
+        postgresqlTemplate.setName("PostgreSQL 模板");
+        postgresqlTemplate.setDataSourceType("POSTGRESQL");
+        postgresqlTemplate.setDriverClass("org.postgresql.Driver");
+        postgresqlTemplate.setLogMonitorType("WAL");
+        postgresqlTemplate.setDefaultPort(5432);
+        postgresqlTemplate.setConnectionTimeout(30000);
+        postgresqlTemplate.setDescription("PostgreSQL 数据库默认配置模板");
+        postgresqlTemplate.setIsSystem(true);
+        postgresqlTemplate.setCreateTime(LocalDateTime.now());
+        postgresqlTemplate.setUpdateTime(LocalDateTime.now());
+        dataSourceTemplateRepository.save(postgresqlTemplate);
+        
+        // 创建Oracle模板
+        DataSourceTemplateEntity oracleTemplate = new DataSourceTemplateEntity();
+        oracleTemplate.setName("Oracle 模板");
+        oracleTemplate.setDataSourceType("ORACLE");
+        oracleTemplate.setDriverClass("oracle.jdbc.OracleDriver");
+        oracleTemplate.setLogMonitorType("CDC");
+        oracleTemplate.setDefaultPort(1521);
+        oracleTemplate.setConnectionTimeout(60000);
+        oracleTemplate.setDescription("Oracle 数据库默认配置模板");
+        oracleTemplate.setIsSystem(true);
+        oracleTemplate.setCreateTime(LocalDateTime.now());
+        oracleTemplate.setUpdateTime(LocalDateTime.now());
+        dataSourceTemplateRepository.save(oracleTemplate);
+        
+        // 创建MongoDB模板
+        DataSourceTemplateEntity mongodbTemplate = new DataSourceTemplateEntity();
+        mongodbTemplate.setName("MongoDB 模板");
+        mongodbTemplate.setDataSourceType("MONGODB");
+        mongodbTemplate.setDriverClass("mongodb.driver.MongoDriver");
+        mongodbTemplate.setLogMonitorType("CDC");
+        mongodbTemplate.setDefaultPort(27017);
+        mongodbTemplate.setConnectionTimeout(30000);
+        mongodbTemplate.setDescription("MongoDB 数据库默认配置模板");
+        mongodbTemplate.setIsSystem(true);
+        mongodbTemplate.setCreateTime(LocalDateTime.now());
+        mongodbTemplate.setUpdateTime(LocalDateTime.now());
+        dataSourceTemplateRepository.save(mongodbTemplate);
+        
+        log.info("System data source templates initialized successfully");
+    }
+
+    /**
+     * 诊断数据源
+     * @param id 数据源ID
+     * @return 诊断报告
+     */
+    @Transactional
+    public DataSourceDiagnoseReportEntity diagnoseDataSource(Long id) {
+        log.info("Diagnosing data source: {}", id);
+        
+        // 查询数据源
+        DataSourceEntity entity = dataSourceRepository.findById(id)
+                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
+        
+        long startTime = System.currentTimeMillis();
+        
+        // 创建诊断报告
+        DataSourceDiagnoseReportEntity report = new DataSourceDiagnoseReportEntity();
+        report.setDataSourceId(id);
+        report.setDiagnoseTime(LocalDateTime.now());
+        
+        // 诊断网络连通性
+        String networkStatus = diagnoseNetworkConnectivity(entity);
+        report.setNetworkStatus(networkStatus);
+        
+        // 诊断账号权限
+        String authenticationStatus = diagnoseAuthentication(entity);
+        report.setAuthenticationStatus(authenticationStatus);
+        
+        // 诊断日志监听端口
+        String logMonitorStatus = diagnoseLogMonitor(entity);
+        report.setLogMonitorStatus(logMonitorStatus);
+        
+        // 诊断数据库连接
+        String connectionStatus = diagnoseConnection(entity);
+        report.setConnectionStatus(connectionStatus);
+        
+        // 计算整体状态
+        String overallStatus = calculateOverallStatus(networkStatus, authenticationStatus, logMonitorStatus, connectionStatus);
+        report.setOverallStatus(overallStatus);
+        
+        // 计算诊断耗时
+        long duration = System.currentTimeMillis() - startTime;
+        report.setDiagnoseDuration((int) duration);
+        
+        // 保存诊断报告
+        report = diagnoseReportRepository.save(report);
+        
+        log.info("Diagnosed data source: {} with overall status: {}", id, overallStatus);
+        return report;
+    }
+
+    /**
+     * 诊断网络连通性
+     * @param entity 数据源实体
+     * @return 诊断结果
+     */
+    private String diagnoseNetworkConnectivity(DataSourceEntity entity) {
+        try {
+            // 从URL中提取主机名
+            String url = entity.getUrl();
+            String host = url.replaceAll(".*//(.*?):.*", "$1");
+            int port = entity.getPort();
+            
+            // 测试网络连通性
+            java.net.Socket socket = new java.net.Socket();
+            socket.connect(new java.net.InetSocketAddress(host, port), 5000);
+            socket.close();
+            return "SUCCESS";
+        } catch (Exception e) {
+            log.warn("Network connectivity diagnosis failed for data source: {}", entity.getName(), e);
+            return "FAILED";
+        }
+    }
+
+    /**
+     * 诊断账号权限
+     * @param entity 数据源实体
+     * @return 诊断结果
+     */
+    private String diagnoseAuthentication(DataSourceEntity entity) {
+        try {
+            // 尝试连接数据库
+            Connection connection = null;
+            try {
+                // 解密密码
+                String password = EncryptUtils.decrypt(entity.getPassword());
+                
+                // 加载驱动
+                Class.forName(getDriverClassName(entity.getType()));
+                
+                // 建立连接
+                connection = DriverManager.getConnection(entity.getUrl(), entity.getUsername(), password);
+                return "SUCCESS";
+            } finally {
+                if (connection != null) {
+                    try {
+                        connection.close();
+                    } catch (SQLException e) {
+                        log.error("Failed to close connection", e);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Authentication diagnosis failed for data source: {}", entity.getName(), e);
+            return "FAILED";
+        }
+    }
+
+    /**
+     * 诊断日志监听端口
+     * @param entity 数据源实体
+     * @return 诊断结果
+     */
+    private String diagnoseLogMonitor(DataSourceEntity entity) {
+        try {
+            // 根据数据源类型检查对应的日志监听端口
+            String type = entity.getType();
+            int logPort = entity.getPort();
+            
+            // 对于MySQL，检查3306端口
+            if ("MYSQL".equals(type)) {
+                logPort = 3306;
+            }
+            // 对于PostgreSQL，检查5432端口
+            else if ("POSTGRESQL".equals(type)) {
+                logPort = 5432;
+            }
+            // 对于Oracle，检查1521端口
+            else if ("ORACLE".equals(type)) {
+                logPort = 1521;
+            }
+            // 对于MongoDB，检查27017端口
+            else if ("MONGODB".equals(type)) {
+                logPort = 27017;
+            }
+            
+            // 测试端口可用性
+            java.net.Socket socket = new java.net.Socket();
+            socket.connect(new java.net.InetSocketAddress(entity.getHost(), logPort), 5000);
+            socket.close();
+            return "SUCCESS";
+        } catch (Exception e) {
+            log.warn("Log monitor diagnosis failed for data source: {}", entity.getName(), e);
+            return "FAILED";
+        }
+    }
+
+    /**
+     * 诊断数据库连接
+     * @param entity 数据源实体
+     * @return 诊断结果
+     */
+    private String diagnoseConnection(DataSourceEntity entity) {
+        try {
+            // 测试连接
+            boolean connected = testConnection(entity);
+            return connected ? "SUCCESS" : "FAILED";
+        } catch (Exception e) {
+            log.warn("Connection diagnosis failed for data source: {}", entity.getName(), e);
+            return "FAILED";
+        }
+    }
+
+    /**
+     * 计算整体诊断状态
+     * @param networkStatus 网络状态
+     * @param authenticationStatus 认证状态
+     * @param logMonitorStatus 日志监听状态
+     * @param connectionStatus 连接状态
+     * @return 整体状态
+     */
+    private String calculateOverallStatus(String networkStatus, String authenticationStatus, String logMonitorStatus, String connectionStatus) {
+        if ("FAILED".equals(networkStatus) || "FAILED".equals(authenticationStatus) || "FAILED".equals(connectionStatus)) {
+            return "FAILED";
+        } else if ("FAILED".equals(logMonitorStatus)) {
+            return "WARNING";
+        } else {
+            return "SUCCESS";
+        }
+    }
+
+    /**
+     * 获取数据源的诊断报告
+     * @param id 数据源ID
+     * @return 诊断报告列表
+     */
+    public List<DataSourceDiagnoseReportEntity> getDiagnoseReports(Long id) {
+        log.info("Getting diagnose reports for data source: {}", id);
+        return diagnoseReportRepository.findByDataSourceId(id);
+    }
+
+    /**
+     * 获取数据源的最新诊断报告
+     * @param id 数据源ID
+     * @return 最新的诊断报告
+     */
+    public DataSourceDiagnoseReportEntity getLatestDiagnoseReport(Long id) {
+        log.info("Getting latest diagnose report for data source: {}", id);
+        return diagnoseReportRepository.findTopByDataSourceIdOrderByDiagnoseTimeDesc(id);
     }
 
 }

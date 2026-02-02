@@ -16,7 +16,7 @@ import javax.annotation.PostConstruct;
 public class RedisConfig {
 
     @Autowired
-    private RedisTemplate<String, String> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
 
     @PostConstruct
     public void init() {

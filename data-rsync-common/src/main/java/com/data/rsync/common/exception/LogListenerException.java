@@ -7,21 +7,19 @@ import com.data.rsync.common.constants.DataRsyncConstants;
  */
 public class LogListenerException extends DataRsyncException {
 
-    public static final String ERROR_TYPE = "LOG_LISTENER_ERROR";
-
     public LogListenerException(String message) {
-        super(DataRsyncConstants.ErrorCode.LOG_LISTENER_ERROR, message, ERROR_TYPE, false);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.LOG_LISTENER_ERROR), message);
     }
 
     public LogListenerException(String message, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.LOG_LISTENER_ERROR, message, ERROR_TYPE, false, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.LOG_LISTENER_ERROR), message, cause);
     }
 
     public LogListenerException(String message, boolean retryable) {
-        super(DataRsyncConstants.ErrorCode.LOG_LISTENER_ERROR, message, ERROR_TYPE, retryable);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.LOG_LISTENER_ERROR), message, retryable);
     }
 
     public LogListenerException(String message, boolean retryable, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.LOG_LISTENER_ERROR, message, ERROR_TYPE, retryable, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.LOG_LISTENER_ERROR), message, cause, retryable);
     }
 }

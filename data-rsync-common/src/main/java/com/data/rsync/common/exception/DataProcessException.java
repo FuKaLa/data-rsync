@@ -7,21 +7,19 @@ import com.data.rsync.common.constants.DataRsyncConstants;
  */
 public class DataProcessException extends DataRsyncException {
 
-    public static final String ERROR_TYPE = "DATA_PROCESS_ERROR";
-
     public DataProcessException(String message) {
-        super(DataRsyncConstants.ErrorCode.DATA_PROCESS_ERROR, message, ERROR_TYPE, false);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.DATA_PROCESS_ERROR), message);
     }
 
     public DataProcessException(String message, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.DATA_PROCESS_ERROR, message, ERROR_TYPE, false, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.DATA_PROCESS_ERROR), message, cause);
     }
 
     public DataProcessException(String message, boolean retryable) {
-        super(DataRsyncConstants.ErrorCode.DATA_PROCESS_ERROR, message, ERROR_TYPE, retryable);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.DATA_PROCESS_ERROR), message, retryable);
     }
 
     public DataProcessException(String message, boolean retryable, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.DATA_PROCESS_ERROR, message, ERROR_TYPE, retryable, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.DATA_PROCESS_ERROR), message, cause, retryable);
     }
 }

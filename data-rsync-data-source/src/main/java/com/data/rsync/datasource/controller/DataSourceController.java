@@ -2,6 +2,7 @@ package com.data.rsync.datasource.controller;
 
 import com.data.rsync.common.model.DataSource;
 import com.data.rsync.common.model.Response;
+import com.data.rsync.datasource.entity.DataSourceTemplateEntity;
 import com.data.rsync.datasource.service.DataSourceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -205,6 +206,174 @@ public class DataSourceController {
         } catch (Exception e) {
             log.error("Failed to batch check data source health: {}", e.getMessage(), e);
             return Response.failure(500, "Failed to batch check data source health: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取所有数据源模板
+     * @return 模板列表
+     */
+    @GetMapping("/templates")
+    public Response<List<DataSourceTemplateEntity>> getAllTemplates() {
+        log.info("Received request to get all data source templates");
+        try {
+            List<DataSourceTemplateEntity> templates = dataSourceService.getAllTemplates();
+            return Response.success(templates);
+        } catch (Exception e) {
+            log.error("Failed to get data source templates: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to get data source templates: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 根据类型获取数据源模板
+     * @param type 数据源类型
+     * @return 模板列表
+     */
+    @GetMapping("/templates/type/{type}")
+    public Response<List<DataSourceTemplateEntity>> getTemplatesByType(@PathVariable String type) {
+        log.info("Received request to get data source templates by type: {}", type);
+        try {
+            List<DataSourceTemplateEntity> templates = dataSourceService.getTemplatesByType(type);
+            return Response.success(templates);
+        } catch (Exception e) {
+            log.error("Failed to get data source templates by type: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to get data source templates by type: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取系统预设模板
+     * @return 模板列表
+     */
+    @GetMapping("/templates/system")
+    public Response<List<DataSourceTemplateEntity>> getSystemTemplates() {
+        log.info("Received request to get system data source templates");
+        try {
+            List<DataSourceTemplateEntity> templates = dataSourceService.getSystemTemplates();
+            return Response.success(templates);
+        } catch (Exception e) {
+            log.error("Failed to get system data source templates: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to get system data source templates: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 创建数据源模板
+     * @param template 模板实体
+     * @return 创建结果
+     */
+    @PostMapping("/templates")
+    public Response<DataSourceTemplateEntity> createTemplate(@RequestBody DataSourceTemplateEntity template) {
+        log.info("Received request to create data source template: {}", template.getName());
+        try {
+            DataSourceTemplateEntity result = dataSourceService.createTemplate(template);
+            return Response.success("Template created successfully", result);
+        } catch (Exception e) {
+            log.error("Failed to create data source template: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to create data source template: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 更新数据源模板
+     * @param id 模板ID
+     * @param template 模板实体
+     * @return 更新结果
+     */
+    @PutMapping("/templates/{id}")
+    public Response<DataSourceTemplateEntity> updateTemplate(@PathVariable Long id, @RequestBody DataSourceTemplateEntity template) {
+        log.info("Received request to update data source template: {}", id);
+        try {
+            DataSourceTemplateEntity result = dataSourceService.updateTemplate(id, template);
+            return Response.success("Template updated successfully", result);
+        } catch (Exception e) {
+            log.error("Failed to update data source template: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to update data source template: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 删除数据源模板
+     * @param id 模板ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/templates/{id}")
+    public Response<Void> deleteTemplate(@PathVariable Long id) {
+        log.info("Received request to delete data source template: {}", id);
+        try {
+            dataSourceService.deleteTemplate(id);
+            return Response.success("Template deleted successfully", null);
+        } catch (Exception e) {
+            log.error("Failed to delete data source template: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to delete data source template: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 初始化系统预设模板
+     * @return 初始化结果
+     */
+    @PostMapping("/templates/init-system")
+    public Response<Void> initSystemTemplates() {
+        log.info("Received request to initialize system data source templates");
+        try {
+            dataSourceService.initSystemTemplates();
+            return Response.success("System templates initialized successfully", null);
+        } catch (Exception e) {
+            log.error("Failed to initialize system data source templates: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to initialize system data source templates: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 诊断数据源
+     * @param id 数据源ID
+     * @return 诊断结果
+     */
+    @PostMapping("/{id}/diagnose")
+    public Response<DataSourceDiagnoseReportEntity> diagnoseDataSource(@PathVariable Long id) {
+        log.info("Received request to diagnose data source: {}", id);
+        try {
+            DataSourceDiagnoseReportEntity report = dataSourceService.diagnoseDataSource(id);
+            return Response.success("Data source diagnosed successfully", report);
+        } catch (Exception e) {
+            log.error("Failed to diagnose data source: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to diagnose data source: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取数据源的诊断报告
+     * @param id 数据源ID
+     * @return 诊断报告列表
+     */
+    @GetMapping("/{id}/diagnose-reports")
+    public Response<List<DataSourceDiagnoseReportEntity>> getDiagnoseReports(@PathVariable Long id) {
+        log.info("Received request to get diagnose reports for data source: {}", id);
+        try {
+            List<DataSourceDiagnoseReportEntity> reports = dataSourceService.getDiagnoseReports(id);
+            return Response.success(reports);
+        } catch (Exception e) {
+            log.error("Failed to get diagnose reports: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to get diagnose reports: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取数据源的最新诊断报告
+     * @param id 数据源ID
+     * @return 最新的诊断报告
+     */
+    @GetMapping("/{id}/latest-diagnose-report")
+    public Response<DataSourceDiagnoseReportEntity> getLatestDiagnoseReport(@PathVariable Long id) {
+        log.info("Received request to get latest diagnose report for data source: {}", id);
+        try {
+            DataSourceDiagnoseReportEntity report = dataSourceService.getLatestDiagnoseReport(id);
+            return Response.success(report);
+        } catch (Exception e) {
+            log.error("Failed to get latest diagnose report: {}", e.getMessage(), e);
+            return Response.failure(500, "Failed to get latest diagnose report: " + e.getMessage());
         }
     }
 

@@ -3,6 +3,7 @@ package com.data.rsync.milvus.sync.service.impl;
 import com.data.rsync.common.constants.DataRsyncConstants;
 import com.data.rsync.common.config.NacosConfig;
 import com.data.rsync.common.model.Task;
+import com.data.rsync.common.kafka.DeadLetterQueueHandler;
 import com.data.rsync.common.utils.ConfigUtils;
 import com.data.rsync.common.utils.MilvusUtils;
 import com.data.rsync.milvus.sync.service.MilvusSyncService;
@@ -38,6 +39,9 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
+
+    @Autowired
+    private DeadLetterQueueHandler deadLetterQueueHandler;
 
     /**
      * Milvus 客户端
@@ -91,6 +95,8 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
             // 1. 检查 Milvus 连接
             if (!checkMilvusConnection()) {
                 log.error("Milvus connection is not available");
+                // 发送到死信队列
+                sendToDeadLetterQueue(taskId, data, "Milvus connection is not available");
                 return false;
             }
 
@@ -100,6 +106,8 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
             // 3. 检查集合是否存在
             if (!hasCollection(collectionName)) {
                 log.error("Collection {} does not exist", collectionName);
+                // 发送到死信队列
+                sendToDeadLetterQueue(taskId, data, "Collection " + collectionName + " does not exist");
                 return false;
             }
 
@@ -138,6 +146,8 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
             R<?> response = milvusClient.insert(insertParam);
             if (response.getStatus() != R.Status.Success.getCode()) {
                 log.error("Failed to insert data: {}", response.getMessage());
+                // 发送到死信队列
+                sendToDeadLetterQueue(taskId, data, "Failed to insert data: " + response.getMessage());
                 return false;
             }
 
@@ -147,7 +157,27 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
             log.error("Failed to write data to Milvus for task {}: {}", taskId, e.getMessage(), e);
             syncStatusMap.put(taskId, "FAILED");
             redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.MILVUS_SYNC_PREFIX + taskId, "FAILED");
+            // 发送到死信队列
+            sendToDeadLetterQueue(taskId, data, "Exception: " + e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * 发送数据到死信队列
+     * @param taskId 任务ID
+     * @param data 数据
+     * @param errorMessage 错误信息
+     */
+    private void sendToDeadLetterQueue(Long taskId, Map<String, Object> data, String errorMessage) {
+        try {
+            String originalTopic = "milvus_sync_topic";
+            String originalKey = taskId + "-" + System.currentTimeMillis();
+            String message = data.toString();
+            deadLetterQueueHandler.sendToDeadLetterQueue(originalTopic, originalKey, message, errorMessage);
+            log.info("Sent data to dead letter queue for task: {}", taskId);
+        } catch (Exception e) {
+            log.error("Failed to send data to dead letter queue: {}", e.getMessage(), e);
         }
     }
 
@@ -164,6 +194,8 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
             // 1. 检查 Milvus 连接
             if (!checkMilvusConnection()) {
                 log.error("Milvus connection is not available");
+                // 发送到死信队列
+                sendBatchToDeadLetterQueue(taskId, dataList, "Milvus connection is not available");
                 return false;
             }
 
@@ -173,6 +205,8 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
             // 3. 检查集合是否存在
             if (!hasCollection(collectionName)) {
                 log.error("Collection {} does not exist", collectionName);
+                // 发送到死信队列
+                sendBatchToDeadLetterQueue(taskId, dataList, "Collection " + collectionName + " does not exist");
                 return false;
             }
 
@@ -191,6 +225,9 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
                     maxRetries = milvusConfig.getMaxRetries();
                 }
             }
+            
+            // 动态调整批量大小
+            batchSize = adjustBatchSize(batchSize);
             
             int totalInserted = 0;
             int processedCount = 0;
@@ -272,6 +309,8 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
                 
                 if (!inserted) {
                     log.error("Failed to insert batch data after {} retries", maxRetries);
+                    // 发送到死信队列
+                    sendBatchToDeadLetterQueue(taskId, batch, "Failed to insert batch data after " + maxRetries + " retries");
                     return false;
                 }
                 
@@ -291,8 +330,54 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
             log.error("Failed to batch write data to Milvus for task {}: {}", taskId, e.getMessage(), e);
             syncStatusMap.put(taskId, "FAILED");
             redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.MILVUS_SYNC_PREFIX + taskId, "FAILED");
+            // 发送到死信队列
+            sendBatchToDeadLetterQueue(taskId, dataList, "Exception: " + e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * 批量发送数据到死信队列
+     * @param taskId 任务ID
+     * @param dataList 数据列表
+     * @param errorMessage 错误信息
+     */
+    private void sendBatchToDeadLetterQueue(Long taskId, List<Map<String, Object>> dataList, String errorMessage) {
+        try {
+            for (Map<String, Object> data : dataList) {
+                sendToDeadLetterQueue(taskId, data, errorMessage);
+            }
+            log.info("Sent batch data to dead letter queue for task: {}", taskId);
+        } catch (Exception e) {
+            log.error("Failed to send batch data to dead letter queue: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 动态调整批量大小
+     * @param baseBatchSize 基础批量大小
+     * @return 调整后的批量大小
+     */
+    private int adjustBatchSize(int baseBatchSize) {
+        try {
+            // 从Redis获取Milvus写入延迟指标
+            String latencyStr = redisTemplate.opsForValue().get("milvus:write:latency");
+            if (latencyStr != null) {
+                long latencyMs = Long.parseLong(latencyStr);
+                
+                // 根据延迟动态调整批量大小
+                if (latencyMs > 500) {
+                    // 延迟高，减小批量大小
+                    return Math.max(baseBatchSize / 2, 200);
+                } else if (latencyMs < 100) {
+                    // 延迟低，增大批量大小
+                    return Math.min(baseBatchSize * 2, 2000);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to adjust batch size: {}", e.getMessage());
+        }
+        return baseBatchSize;
     }
 
     /**

@@ -4,6 +4,7 @@ import com.data.rsync.common.constants.DataRsyncConstants;
 import com.data.rsync.common.model.DataSource;
 import com.data.rsync.common.model.Task;
 import com.data.rsync.common.utils.DatabaseUtils;
+import com.data.rsync.common.utils.ThreadPoolManager;
 import com.data.rsync.log.listener.service.LogListenerService;
 import io.debezium.config.Configuration;
 import io.debezium.embedded.EmbeddedEngine;
@@ -37,6 +38,9 @@ public class LogListenerServiceImpl implements LogListenerService {
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
 
+    @Autowired
+    private ThreadPoolManager threadPoolManager;
+
     /**
      * 监听任务状态缓存
      */
@@ -46,11 +50,6 @@ public class LogListenerServiceImpl implements LogListenerService {
      * Debezium 引擎缓存
      */
     private final Map<Long, EmbeddedEngine> debeziumEngineMap = new ConcurrentHashMap<>();
-
-    /**
-     * 执行器服务
-     */
-    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     /**
      * 关闭资源
@@ -72,21 +71,7 @@ public class LogListenerServiceImpl implements LogListenerService {
         }
         debeziumEngineMap.clear();
         
-        // 2. 关闭线程池
-        log.info("Shutting down executor service");
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(30, TimeUnit.SECONDS)) {
-                log.warn("Executor service did not terminate in 30 seconds, forcing shutdown");
-                executorService.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            log.error("Interrupted while shutting down executor service", e);
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-        
-        // 3. 清理状态缓存
+        // 2. 清理状态缓存
         listenerStatusMap.clear();
         
         log.info("Log listener service shut down successfully");
@@ -135,7 +120,7 @@ public class LogListenerServiceImpl implements LogListenerService {
                     .build();
 
             // 6. 启动引擎
-            executorService.submit(() -> {
+            threadPoolManager.submitCoreTask(() -> {
                 try {
                     engine.run();
                 } catch (Exception e) {
@@ -257,7 +242,7 @@ public class LogListenerServiceImpl implements LogListenerService {
             for (int i = 0; i < shards.size(); i++) {
                 final int shardIndex = i;
                 final Map<String, Object> shard = shards.get(i);
-                executorService.submit(() -> {
+                threadPoolManager.submitBatchTask(() -> {
                     try {
                         // 执行分片扫描
                         executeShardScan(task, shard, shardIndex);

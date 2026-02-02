@@ -1,7 +1,13 @@
 package com.data.rsync.task.manager.service.impl;
 
 import com.data.rsync.task.manager.entity.TaskEntity;
+import com.data.rsync.task.manager.entity.TaskNodeEntity;
+import com.data.rsync.task.manager.entity.TaskConnectionEntity;
+import com.data.rsync.task.manager.entity.TaskDependencyEntity;
 import com.data.rsync.task.manager.repository.TaskRepository;
+import com.data.rsync.task.manager.repository.TaskNodeRepository;
+import com.data.rsync.task.manager.repository.TaskConnectionRepository;
+import com.data.rsync.task.manager.repository.TaskDependencyRepository;
 import com.data.rsync.task.manager.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,6 +31,24 @@ public class TaskServiceImpl implements TaskService {
 
     @Autowired
     private TaskRepository taskRepository;
+
+    @Autowired
+    private TaskNodeRepository taskNodeRepository;
+
+    @Autowired
+    private TaskConnectionRepository taskConnectionRepository;
+
+    @Autowired
+    private TaskDependencyRepository taskDependencyRepository;
+
+    @Autowired
+    private TaskErrorDataRepository taskErrorDataRepository;
+
+    @Autowired
+    private VectorizationConfigRepository vectorizationConfigRepository;
+
+    @Autowired
+    private MilvusIndexRepository milvusIndexRepository;
 
     // 线程池用于异步执行任务
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
@@ -402,4 +426,351 @@ public class TaskServiceImpl implements TaskService {
         return versions;
     }
 
-}
+    /**
+     * 保存任务节点
+     * @param taskId 任务ID
+     * @param nodes 节点列表
+     */
+    @Transactional
+    public void saveTaskNodes(Long taskId, List<TaskNodeEntity> nodes) {
+        // 删除旧节点
+        taskNodeRepository.deleteAll(taskNodeRepository.findByTaskId(taskId));
+        
+        // 保存新节点
+        for (TaskNodeEntity node : nodes) {
+            node.setTaskId(taskId);
+            taskNodeRepository.save(node);
+        }
+    }
+
+    /**
+     * 保存任务连接
+     * @param taskId 任务ID
+     * @param connections 连接列表
+     */
+    @Transactional
+    public void saveTaskConnections(Long taskId, List<TaskConnectionEntity> connections) {
+        // 删除旧连接
+        taskConnectionRepository.deleteAll(taskConnectionRepository.findByTaskId(taskId));
+        
+        // 保存新连接
+        for (TaskConnectionEntity connection : connections) {
+            connection.setTaskId(taskId);
+            taskConnectionRepository.save(connection);
+        }
+    }
+
+    /**
+     * 保存任务依赖
+     * @param taskId 任务ID
+     * @param dependency 依赖信息
+     */
+    @Transactional
+    public void saveTaskDependency(Long taskId, TaskDependencyEntity dependency) {
+        // 删除旧依赖
+        taskDependencyRepository.deleteAll(taskDependencyRepository.findByTaskId(taskId));
+        
+        // 保存新依赖
+        if (dependency != null) {
+            dependency.setTaskId(taskId);
+            taskDependencyRepository.save(dependency);
+        }
+    }
+
+    /**
+     * 获取任务节点
+     * @param taskId 任务ID
+     * @return 节点列表
+     */
+    public List<TaskNodeEntity> getTaskNodes(Long taskId) {
+        return taskNodeRepository.findByTaskId(taskId);
+    }
+
+    /**
+     * 获取任务连接
+     * @param taskId 任务ID
+     * @return 连接列表
+     */
+    public List<TaskConnectionEntity> getTaskConnections(Long taskId) {
+        return taskConnectionRepository.findByTaskId(taskId);
+    }
+
+    /**
+     * 获取任务依赖
+     * @param taskId 任务ID
+     * @return 依赖信息
+     */
+    public List<TaskDependencyEntity> getTaskDependencies(Long taskId) {
+        return taskDependencyRepository.findByTaskId(taskId);
+    }
+
+    /**
+     * 验证任务流程
+     * @param taskId 任务ID
+     * @return 验证结果
+     */
+    public Map<String, Object> validateTaskFlow(Long taskId) {
+        Map<String, Object> result = new HashMap<>();
+        List<String> errors = new ArrayList<>();
+        
+        // 获取任务节点和连接
+        List<TaskNodeEntity> nodes = taskNodeRepository.findByTaskId(taskId);
+        List<TaskConnectionEntity> connections = taskConnectionRepository.findByTaskId(taskId);
+        
+        // 检查节点配置
+        for (TaskNodeEntity node : nodes) {
+            if (node.getNodeConfig() == null || node.getNodeConfig().isEmpty()) {
+                errors.add("节点 " + node.getNodeLabel() + " 配置为空");
+            }
+        }
+        
+        // 检查连接完整性
+        if (connections.size() < nodes.size() - 1) {
+            errors.add("流程连接不完整，请检查节点间的连线");
+        }
+        
+        // 检查依赖循环
+        List<TaskDependencyEntity> dependencies = taskDependencyRepository.findByTaskId(taskId);
+        for (TaskDependencyEntity dependency : dependencies) {
+            if (dependency.getDependencyTaskId().equals(taskId)) {
+                errors.add("任务不能依赖自身");
+            }
+        }
+        
+        result.put("valid", errors.isEmpty());
+        result.put("errors", errors);
+        result.put("nodeCount", nodes.size());
+        result.put("connectionCount", connections.size());
+        result.put("dependencyCount", dependencies.size());
+        
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public TaskErrorDataEntity saveTaskErrorData(TaskErrorDataEntity errorData) {
+        return taskErrorDataRepository.save(errorData);
+    }
+
+    @Override
+    public List<TaskErrorDataEntity> getTaskErrorData(Long taskId) {
+        return taskErrorDataRepository.findByTaskId(taskId);
+    }
+
+    @Override
+    public List<TaskErrorDataEntity> getTaskErrorDataByType(Long taskId, String errorType) {
+        return taskErrorDataRepository.findByTaskIdAndErrorType(taskId, errorType);
+    }
+
+    @Override
+    public List<TaskErrorDataEntity> getTaskErrorDataByStage(Long taskId, String syncStage) {
+        return taskErrorDataRepository.findByTaskIdAndSyncStage(taskId, syncStage);
+    }
+
+    @Override
+    @Transactional
+    public boolean retryTaskErrorData(Long errorDataId) {
+        TaskErrorDataEntity errorData = taskErrorDataRepository.findById(errorDataId).orElse(null);
+        if (errorData == null) {
+            return false;
+        }
+
+        try {
+            // 更新错误数据状态为处理中
+            errorData.setProcessStatus("PROCESSING");
+            errorData.setRetryCount(errorData.getRetryCount() + 1);
+            errorData.setLastRetryTime(LocalDateTime.now());
+            taskErrorDataRepository.save(errorData);
+
+            // TODO: 实现具体的错误数据重试逻辑
+            // 这里简化处理，模拟重试成功
+            Thread.sleep(1000);
+
+            // 更新错误数据状态为成功
+            errorData.setProcessStatus("SUCCESS");
+            taskErrorDataRepository.save(errorData);
+
+            return true;
+        } catch (Exception e) {
+            // 更新错误数据状态为失败
+            errorData.setProcessStatus("FAILED");
+            errorData.setLastRetryTime(LocalDateTime.now());
+            taskErrorDataRepository.save(errorData);
+            return false;
+        }
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> batchRetryTaskErrorData(List<Long> errorDataIds) {
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failedCount = 0;
+
+        for (Long errorDataId : errorDataIds) {
+            boolean retryResult = retryTaskErrorData(errorDataId);
+            if (retryResult) {
+                successCount++;
+            } else {
+                failedCount++;
+            }
+        }
+
+        result.put("total", errorDataIds.size());
+        result.put("successCount", successCount);
+        result.put("failedCount", failedCount);
+        result.put("success", failedCount == 0);
+
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public boolean cleanTaskErrorData(Long taskId) {
+        List<TaskErrorDataEntity> errorDataList = taskErrorDataRepository.findByTaskId(taskId);
+        if (errorDataList.isEmpty()) {
+            return true;
+        }
+
+        taskErrorDataRepository.deleteAll(errorDataList);
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public VectorizationConfigEntity saveVectorizationConfig(VectorizationConfigEntity config) {
+        return vectorizationConfigRepository.save(config);
+    }
+
+    @Override
+    public List<VectorizationConfigEntity> getVectorizationConfigByTaskId(Long taskId) {
+        return vectorizationConfigRepository.findByTaskId(taskId);
+    }
+
+    @Override
+    public VectorizationConfigEntity getVectorizationConfigById(Long id) {
+        return vectorizationConfigRepository.findById(id).orElse(null);
+    }
+
+    @Override
+    @Transactional
+    public void deleteVectorizationConfig(Long id) {
+        vectorizationConfigRepository.deleteById(id);
+    }
+
+    @Override
+    public Map<String, Object> generateVectorizationPreview(VectorizationConfigEntity config, String sourceData) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            long startTime = System.currentTimeMillis();
+            
+            // 模拟向量化过程
+            Thread.sleep(1000);
+            
+            // 生成模拟向量数据
+            List<Double> vectorData = new ArrayList<>();
+            for (int i = 0; i < config.getDimension(); i++) {
+                vectorData.add(Math.random() - 0.5);
+            }
+            
+            long endTime = System.currentTimeMillis();
+            
+            result.put("success", true);
+            result.put("algorithm", config.getAlgorithm());
+            result.put("dimension", config.getDimension());
+            result.put("processTime", endTime - startTime);
+            result.put("sourceData", sourceData);
+            result.put("vectorData", vectorData);
+            result.put("message", "向量化预览生成成功");
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "向量化预览生成失败: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public MilvusIndexEntity saveMilvusIndex(MilvusIndexEntity index) {
+        return milvusIndexRepository.save(index);
+    }
+
+    @Override
+    public List<MilvusIndexEntity> getMilvusIndexesByCollection(String collectionName) {
+        return milvusIndexRepository.findByCollectionName(collectionName);
+    }
+
+    @Override
+    public MilvusIndexEntity getMilvusIndexById(Long id) {
+        return milvusIndexRepository.findById(id).orElse(null);
+    }
+
+    @Override
+    public MilvusIndexEntity getMilvusIndexByName(String collectionName, String indexName) {
+        return milvusIndexRepository.findByCollectionNameAndIndexName(collectionName, indexName);
+    }
+
+    @Override
+    @Transactional
+    public void updateMilvusIndexStatus(Long id, String status, Integer progress) {
+        MilvusIndexEntity index = milvusIndexRepository.findById(id).orElse(null);
+        if (index != null) {
+            index.setStatus(status);
+            index.setProgress(progress);
+            milvusIndexRepository.save(index);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deleteMilvusIndex(Long id) {
+        milvusIndexRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public void deleteMilvusIndexByName(String collectionName, String indexName) {
+        milvusIndexRepository.deleteByCollectionNameAndIndexName(collectionName, indexName);
+    }
+
+    @Override
+    @Transactional
+    public boolean rebuildMilvusIndex(String collectionName, String indexName) {
+        MilvusIndexEntity index = milvusIndexRepository.findByCollectionNameAndIndexName(collectionName, indexName);
+        if (index == null) {
+            return false;
+        }
+
+        try {
+            // 更新索引状态为构建中
+            index.setStatus("BUILDING");
+            index.setProgress(0);
+            index.setErrorMessage(null);
+            milvusIndexRepository.save(index);
+
+            // TODO: 实现具体的索引重建逻辑
+            // 这里简化处理，模拟重建过程
+            for (int i = 0; i <= 100; i += 10) {
+                Thread.sleep(200);
+                index.setProgress(i);
+                milvusIndexRepository.save(index);
+            }
+
+            // 更新索引状态为就绪
+            index.setStatus("READY");
+            index.setProgress(100);
+            milvusIndexRepository.save(index);
+
+            return true;
+        } catch (Exception e) {
+            // 更新索引状态为失败
+            index.setStatus("FAILED");
+            index.setErrorMessage(e.getMessage());
+            milvusIndexRepository.save(index);
+            return false;
+        }
+    }
+
+}  

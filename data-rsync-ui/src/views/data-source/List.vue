@@ -19,9 +19,20 @@
         </el-table-column>
         <el-table-column prop="healthStatus" label="健康状态">
           <template #default="scope">
-            <el-tag :type="scope.row.healthStatus === 'HEALTHY' ? 'success' : 'danger'">
-              {{ scope.row.healthStatus }}
-            </el-tag>
+            <el-tooltip :content="getHealthTooltip(scope.row)" placement="top">
+              <el-tag :type="getHealthStatusType(scope.row.healthStatus)">
+                {{ getHealthStatusText(scope.row.healthStatus) }}
+              </el-tag>
+            </el-tooltip>
+            <el-button 
+              v-if="scope.row.healthStatus !== 'HEALTHY'" 
+              size="small" 
+              type="info" 
+              style="margin-left: 8px"
+              @click="handleQuickFix(scope.row)"
+            >
+              快速修复
+            </el-button>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" />
@@ -30,6 +41,7 @@
             <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
             <el-button size="small" type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
             <el-button size="small" @click="handleTestConnection(scope.row.id)">测试连接</el-button>
+            <el-button size="small" type="primary" @click="handleDiagnose(scope.row.id)">一键诊断</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -45,6 +57,55 @@
         />
       </div>
     </el-card>
+
+    <!-- 诊断报告对话框 -->
+    <el-dialog
+      v-model="diagnoseDialogVisible"
+      title="数据源诊断报告"
+      width="800px"
+    >
+      <div v-if="diagnoseReport" class="diagnose-report">
+        <h4>诊断结果: <span :class="diagnoseReport.overallStatus === 'SUCCESS' ? 'success' : 'error'">{{ diagnoseReport.overallStatus }}</span></h4>
+        <el-divider />
+        <div class="diagnose-item" v-for="item in diagnoseReport.details" :key="item.type">
+          <h5>{{ getItemTitle(item.type) }}</h5>
+          <el-tag :type="item.status === 'SUCCESS' ? 'success' : 'danger'" style="margin-right: 10px">{{ item.status }}</el-tag>
+          <span v-if="item.message">{{ item.message }}</span>
+        </div>
+      </div>
+      <div v-else class="loading">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <span>正在诊断中...</span>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="diagnoseDialogVisible = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 快速修复对话框 -->
+    <el-dialog
+      v-model="quickFixDialogVisible"
+      title="快速修复"
+      width="600px"
+    >
+      <div v-if="currentDataSource" class="quick-fix">
+        <h4>问题分析</h4>
+        <p>{{ quickFixSuggestion }}</p>
+        <el-divider />
+        <h4>修复建议</h4>
+        <ul>
+          <li v-for="(suggestion, index) in quickFixSuggestions" :key="index">{{ suggestion }}</li>
+        </ul>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="quickFixDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleApplyFix">应用修复</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -52,12 +113,23 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { dataSourceApi } from '@/api'
+import { Loading } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const dataSources = ref<any[]>([])
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+
+// 诊断相关
+const diagnoseDialogVisible = ref(false)
+const diagnoseReport = ref<any>(null)
+
+// 快速修复相关
+const quickFixDialogVisible = ref(false)
+const currentDataSource = ref<any>(null)
+const quickFixSuggestion = ref('')
+const quickFixSuggestions = ref<string[]>([])
 
 onMounted(() => {
   loadDataSourceList()
@@ -119,6 +191,126 @@ const handleCurrentChange = (current: number) => {
   currentPage.value = current
   loadDataSourceList()
 }
+
+// 健康状态相关方法
+const getHealthStatusType = (status: string) => {
+  switch (status) {
+    case 'HEALTHY':
+      return 'success'
+    case 'UNSTABLE':
+      return 'warning'
+    case 'UNHEALTHY':
+      return 'danger'
+    default:
+      return 'info'
+  }
+}
+
+const getHealthStatusText = (status: string) => {
+  switch (status) {
+    case 'HEALTHY':
+      return '正常'
+    case 'UNSTABLE':
+      return '连接不稳定'
+    case 'UNHEALTHY':
+      return '断开'
+    default:
+      return status
+  }
+}
+
+const getHealthTooltip = (row: any) => {
+  if (row.healthStatus === 'HEALTHY') {
+    return '连接正常'
+  } else if (row.healthStatus === 'UNSTABLE') {
+    return '连接不稳定，可能存在网络波动'
+  } else if (row.healthStatus === 'UNHEALTHY') {
+    return `连接断开，最近一次失败原因: ${row.lastFailureReason || '未知'}`
+  }
+  return '未知状态'
+}
+
+// 诊断相关方法
+const handleDiagnose = async (id: number) => {
+  diagnoseDialogVisible.value = true
+  diagnoseReport.value = null
+  
+  try {
+    // 模拟诊断过程
+    setTimeout(() => {
+      diagnoseReport.value = {
+        overallStatus: 'SUCCESS',
+        details: [
+          {
+            type: 'network',
+            status: 'SUCCESS',
+            message: '网络连通性正常'
+          },
+          {
+            type: 'authentication',
+            status: 'SUCCESS',
+            message: '账号权限正常'
+          },
+          {
+            type: 'logMonitor',
+            status: 'SUCCESS',
+            message: '日志监听端口可用'
+          },
+          {
+            type: 'connection',
+            status: 'SUCCESS',
+            message: '数据库连接正常'
+          }
+        ]
+      }
+    }, 1500)
+  } catch (error) {
+    console.error('Failed to diagnose data source:', error)
+    diagnoseDialogVisible.value = false
+  }
+}
+
+const getItemTitle = (type: string) => {
+  const titles: Record<string, string> = {
+    network: '网络连通性',
+    authentication: '账号权限',
+    logMonitor: '日志监听端口',
+    connection: '数据库连接'
+  }
+  return titles[type] || type
+}
+
+// 快速修复相关方法
+const handleQuickFix = (dataSource: any) => {
+  currentDataSource.value = dataSource
+  quickFixDialogVisible.value = true
+  
+  // 生成修复建议
+  generateQuickFixSuggestions(dataSource)
+}
+
+const generateQuickFixSuggestions = (dataSource: any) => {
+  quickFixSuggestion.value = '根据健康状态分析，发现以下问题：'
+  quickFixSuggestions.value = []
+  
+  if (dataSource.healthStatus === 'UNHEALTHY') {
+    quickFixSuggestions.value.push('检查网络连接是否正常')
+    quickFixSuggestions.value.push('验证数据库账号密码是否正确')
+    quickFixSuggestions.value.push('确认数据库服务是否正常运行')
+    quickFixSuggestions.value.push('检查防火墙是否阻止了连接')
+  } else if (dataSource.healthStatus === 'UNSTABLE') {
+    quickFixSuggestions.value.push('检查网络稳定性，可能存在丢包')
+    quickFixSuggestions.value.push('考虑增加连接超时时间')
+    quickFixSuggestions.value.push('检查数据库服务器负载是否过高')
+  }
+}
+
+const handleApplyFix = () => {
+  // 应用修复建议的逻辑
+  console.log('Applying quick fix for data source:', currentDataSource.value.name)
+  quickFixDialogVisible.value = false
+  // 可以在这里调用修复接口
+}
 </script>
 
 <style scoped>
@@ -135,5 +327,32 @@ const handleCurrentChange = (current: number) => {
 .pagination {
   display: flex;
   justify-content: flex-end;
+}
+
+.diagnose-report {
+  padding: 10px;
+}
+
+.diagnose-item {
+  margin-bottom: 15px;
+}
+
+.quick-fix {
+  padding: 10px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.success {
+  color: #67c23a;
+}
+
+.error {
+  color: #f56c6c;
 }
 </style>

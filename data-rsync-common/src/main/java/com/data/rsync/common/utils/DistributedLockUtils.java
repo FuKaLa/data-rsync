@@ -11,9 +11,9 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class DistributedLockUtils {
 
-    private static RedisTemplate<String, String> redisTemplate;
+    private static RedisTemplate<String, Object> redisTemplate;
 
-    public static void setRedisTemplate(RedisTemplate<String, String> redisTemplate) {
+    public static void setRedisTemplate(RedisTemplate<String, Object> redisTemplate) {
         DistributedLockUtils.redisTemplate = redisTemplate;
     }
 

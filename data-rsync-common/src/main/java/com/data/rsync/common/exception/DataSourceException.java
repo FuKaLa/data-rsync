@@ -7,21 +7,19 @@ import com.data.rsync.common.constants.DataRsyncConstants;
  */
 public class DataSourceException extends DataRsyncException {
 
-    public static final String ERROR_TYPE = "DATA_SOURCE_ERROR";
-
     public DataSourceException(String message) {
-        super(DataRsyncConstants.ErrorCode.DATA_SOURCE_ERROR, message, ERROR_TYPE, false);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.DATA_SOURCE_ERROR), message);
     }
 
     public DataSourceException(String message, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.DATA_SOURCE_ERROR, message, ERROR_TYPE, false, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.DATA_SOURCE_ERROR), message, cause);
     }
 
     public DataSourceException(String message, boolean retryable) {
-        super(DataRsyncConstants.ErrorCode.DATA_SOURCE_ERROR, message, ERROR_TYPE, retryable);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.DATA_SOURCE_ERROR), message, retryable);
     }
 
     public DataSourceException(String message, boolean retryable, Throwable cause) {
-        super(DataRsyncConstants.ErrorCode.DATA_SOURCE_ERROR, message, ERROR_TYPE, retryable, cause);
+        super(Integer.toString(DataRsyncConstants.ErrorCode.DATA_SOURCE_ERROR), message, cause, retryable);
     }
 }

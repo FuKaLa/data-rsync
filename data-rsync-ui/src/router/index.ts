@@ -33,6 +33,11 @@ const router = createRouter({
       component: () => import('@/views/task/Create.vue')
     },
     {
+      path: '/task/error-data/:id',
+      name: 'TaskErrorData',
+      component: () => import('@/views/task/ErrorData.vue')
+    },
+    {
       path: '/monitor/dashboard',
       name: 'MonitorDashboard',
       component: () => import('@/views/monitor/Dashboard.vue')

@@ -83,10 +83,52 @@ public class DataSourceEntity {
     private String healthStatus;
 
     /**
+     * 最近一次连接失败原因
+     */
+    @Column(name = "last_failure_reason")
+    private String lastFailureReason;
+
+    /**
+     * 心跳检测耗时（毫秒）
+     */
+    @Column(name = "heartbeat_time")
+    private Integer heartbeatTime;
+
+    /**
+     * 最近一次心跳检测时间
+     */
+    @Column(name = "last_heartbeat_time")
+    private LocalDateTime lastHeartbeatTime;
+
+    /**
+     * 连续失败次数
+     */
+    @Column(name = "failure_count")
+    private Integer failureCount;
+
+    /**
      * 描述
      */
     @Column(name = "description")
     private String description;
+
+    /**
+     * 驱动类
+     */
+    @Column(name = "driver_class")
+    private String driverClass;
+
+    /**
+     * 日志监听方式
+     */
+    @Column(name = "log_monitor_type")
+    private String logMonitorType;
+
+    /**
+     * 连接超时时间（毫秒）
+     */
+    @Column(name = "connection_timeout")
+    private Integer connectionTimeout;
 
     /**
      * 创建时间
