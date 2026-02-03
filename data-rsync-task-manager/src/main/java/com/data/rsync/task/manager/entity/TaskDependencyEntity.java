@@ -1,6 +1,6 @@
 package com.data.rsync.task.manager.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import lombok.ToString;
 
@@ -11,57 +11,54 @@ import java.time.LocalDateTime;
  */
 @Data
 @ToString
-@Entity
-@Table(name = "task_dependency")
+@TableName("task_dependency")
 public class TaskDependencyEntity {
 
     /**
      * 依赖ID
      */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
      * 任务ID
      */
-    @Column(name = "task_id", nullable = false)
+    @TableField(value = "task_id", exist = true)
     private Long taskId;
 
     /**
      * 依赖任务ID
      */
-    @Column(name = "dependency_task_id", nullable = false)
+    @TableField(value = "dependency_task_id", exist = true)
     private Long dependencyTaskId;
 
     /**
      * 依赖条件（JSON格式）
      */
-    @Column(name = "dependency_condition", columnDefinition = "TEXT")
+    @TableField(value = "dependency_condition", exist = true)
     private String dependencyCondition;
 
     /**
      * 依赖状态
      */
-    @Column(name = "status")
+    @TableField(value = "status", exist = true)
     private String status;
 
     /**
      * 创建时间
      */
-    @Column(name = "create_time", nullable = false)
+    @TableField(value = "create_time", exist = true)
     private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
-    @Column(name = "update_time", nullable = false)
+    @TableField(value = "update_time", exist = true)
     private LocalDateTime updateTime;
 
     /**
      * 初始化创建时间和更新时间
      */
-    @PrePersist
     public void prePersist() {
         LocalDateTime now = LocalDateTime.now();
         if (createTime == null) {
@@ -75,7 +72,6 @@ public class TaskDependencyEntity {
     /**
      * 更新时更新时间
      */
-    @PreUpdate
     public void preUpdate() {
         updateTime = LocalDateTime.now();
     }

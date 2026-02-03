@@ -1,6 +1,9 @@
 package com.data.rsync.auth.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.ToString;
 
@@ -11,84 +14,74 @@ import java.time.LocalDateTime;
  */
 @Data
 @ToString
-@Entity
-@Table(name = "permission")
+@TableName("permission")
 public class Permission {
 
     /**
      * 权限ID
      */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
      * 权限名称
      */
-    @Column(name = "name", nullable = false, unique = true)
+    @TableField("name")
     private String name;
 
     /**
      * 权限编码
      */
-    @Column(name = "code", nullable = false, unique = true)
+    @TableField("code")
     private String code;
 
     /**
      * 权限类型：MENU, BUTTON, API, DATA
      */
-    @Column(name = "type", nullable = false)
+    @TableField("type")
     private String type;
 
     /**
      * 权限描述
      */
-    @Column(name = "description")
+    @TableField("description")
     private String description;
 
     /**
      * 资源路径
      */
-    @Column(name = "resource_path")
+    @TableField("resource_path")
     private String resourcePath;
 
     /**
      * 父权限ID
      */
-    @Column(name = "parent_id")
+    @TableField("parent_id")
     private Long parentId;
 
     /**
      * 排序
      */
-    @Column(name = "sort")
+    @TableField("sort")
     private Integer sort;
 
     /**
      * 状态：ENABLE, DISABLE
      */
-    @Column(name = "status", nullable = false)
+    @TableField("status")
     private String status;
 
     /**
      * 创建时间
      */
-    @Column(name = "create_time", nullable = false)
+    @TableField("create_time")
     private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
-    @Column(name = "update_time", nullable = false)
+    @TableField("update_time")
     private LocalDateTime updateTime;
-
-    /**
-     * 预更新方法
-     */
-    @PreUpdate
-    public void preUpdate() {
-        this.updateTime = LocalDateTime.now();
-    }
 
     /**
      * 构造方法

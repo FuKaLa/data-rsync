@@ -1,16 +1,16 @@
 package com.data.rsync.task.manager.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.data.rsync.task.manager.entity.VectorizationConfigEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
 /**
  * 向量化配置仓库接口
  */
-@Repository
-public interface VectorizationConfigRepository extends JpaRepository<VectorizationConfigEntity, Long> {
+@Mapper
+public interface VectorizationConfigRepository extends BaseMapper<VectorizationConfigEntity> {
 
     /**
      * 根据任务ID查询向量化配置

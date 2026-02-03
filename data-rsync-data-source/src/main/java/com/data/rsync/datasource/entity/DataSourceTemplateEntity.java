@@ -1,6 +1,6 @@
 package com.data.rsync.datasource.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import lombok.ToString;
 
@@ -11,109 +11,85 @@ import java.time.LocalDateTime;
  */
 @Data
 @ToString
-@Entity
-@Table(name = "data_source_template")
+@TableName("data_source_template")
 public class DataSourceTemplateEntity {
 
     /**
      * 模板ID
      */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
      * 模板名称
      */
-    @Column(name = "name", nullable = false, unique = true)
+    @TableField(value = "name", exist = true)
     private String name;
 
     /**
      * 数据源类型
      */
-    @Column(name = "data_source_type", nullable = false)
+    @TableField(value = "data_source_type", exist = true)
     private String dataSourceType;
 
     /**
      * 驱动类
      */
-    @Column(name = "driver_class")
+    @TableField(value = "driver_class", exist = true)
     private String driverClass;
 
     /**
      * 日志监听方式
      */
-    @Column(name = "log_monitor_type")
+    @TableField(value = "log_monitor_type", exist = true)
     private String logMonitorType;
 
     /**
      * 默认端口
      */
-    @Column(name = "default_port")
+    @TableField(value = "default_port", exist = true)
     private Integer defaultPort;
 
     /**
      * 连接超时时间（毫秒）
      */
-    @Column(name = "connection_timeout")
+    @TableField(value = "connection_timeout", exist = true)
     private Integer connectionTimeout;
 
     /**
      * 描述
      */
-    @Column(name = "description")
+    @TableField(value = "description", exist = true)
     private String description;
 
     /**
      * 是否为系统预设模板
      */
-    @Column(name = "is_system", nullable = false)
+    @TableField(value = "is_system", exist = true)
     private Boolean isSystem;
 
     /**
      * 创建时间
      */
-    @Column(name = "create_time", nullable = false)
+    @TableField(value = "create_time", exist = true)
     private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
-    @Column(name = "update_time", nullable = false)
+    @TableField(value = "update_time", exist = true)
     private LocalDateTime updateTime;
 
     /**
      * 创建人
      */
-    @Column(name = "create_by")
+    @TableField(value = "create_by", exist = true)
     private String createBy;
 
     /**
      * 更新人
      */
-    @Column(name = "update_by")
+    @TableField(value = "update_by", exist = true)
     private String updateBy;
-
-    /**
-     * 初始化创建时间和更新时间
-     */
-    @PrePersist
-    public void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
-        if (createTime == null) {
-            createTime = now;
-        }
-        if (updateTime == null) {
-            updateTime = now;
-        }
-    }
-
-    /**
-     * 更新时更新时间
-     */
-    @PreUpdate
-    public void preUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 
 }

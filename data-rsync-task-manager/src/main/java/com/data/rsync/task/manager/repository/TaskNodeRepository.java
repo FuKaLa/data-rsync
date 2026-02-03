@@ -1,16 +1,16 @@
 package com.data.rsync.task.manager.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.data.rsync.task.manager.entity.TaskNodeEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
 /**
  * 任务节点仓库接口
  */
-@Repository
-public interface TaskNodeRepository extends JpaRepository<TaskNodeEntity, Long> {
+@Mapper
+public interface TaskNodeRepository extends BaseMapper<TaskNodeEntity> {
 
     /**
      * 根据任务ID查询节点

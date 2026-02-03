@@ -1,6 +1,6 @@
 package com.data.rsync.datasource.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import lombok.ToString;
 
@@ -11,97 +11,85 @@ import java.time.LocalDateTime;
  */
 @Data
 @ToString
-@Entity
-@Table(name = "data_source_diagnose_report")
+@TableName("data_source_diagnose_report")
 public class DataSourceDiagnoseReportEntity {
 
     /**
      * 报告ID
      */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
      * 数据源ID
      */
-    @Column(name = "data_source_id", nullable = false)
+    @TableField(value = "data_source_id", exist = true)
     private Long dataSourceId;
 
     /**
      * 整体诊断结果
      */
-    @Column(name = "overall_status", nullable = false)
+    @TableField(value = "overall_status", exist = true)
     private String overallStatus;
 
     /**
      * 网络连通性诊断结果
      */
-    @Column(name = "network_status")
+    @TableField(value = "network_status", exist = true)
     private String networkStatus;
 
     /**
      * 网络诊断详情
      */
-    @Column(name = "network_message")
+    @TableField(value = "network_message", exist = true)
     private String networkMessage;
 
     /**
      * 账号权限诊断结果
      */
-    @Column(name = "authentication_status")
+    @TableField(value = "authentication_status", exist = true)
     private String authenticationStatus;
 
     /**
      * 账号权限诊断详情
      */
-    @Column(name = "authentication_message")
+    @TableField(value = "authentication_message", exist = true)
     private String authenticationMessage;
 
     /**
      * 日志监听端口诊断结果
      */
-    @Column(name = "log_monitor_status")
+    @TableField(value = "log_monitor_status", exist = true)
     private String logMonitorStatus;
 
     /**
      * 日志监听端口诊断详情
      */
-    @Column(name = "log_monitor_message")
+    @TableField(value = "log_monitor_message", exist = true)
     private String logMonitorMessage;
 
     /**
      * 数据库连接诊断结果
      */
-    @Column(name = "connection_status")
+    @TableField(value = "connection_status", exist = true)
     private String connectionStatus;
 
     /**
      * 数据库连接诊断详情
      */
-    @Column(name = "connection_message")
+    @TableField(value = "connection_message", exist = true)
     private String connectionMessage;
 
     /**
      * 诊断时间
      */
-    @Column(name = "diagnose_time", nullable = false)
+    @TableField(value = "diagnose_time", exist = true)
     private LocalDateTime diagnoseTime;
 
     /**
      * 诊断耗时（毫秒）
      */
-    @Column(name = "diagnose_duration")
+    @TableField(value = "diagnose_duration", exist = true)
     private Integer diagnoseDuration;
-
-    /**
-     * 初始化诊断时间
-     */
-    @PrePersist
-    public void prePersist() {
-        if (diagnoseTime == null) {
-            diagnoseTime = LocalDateTime.now();
-        }
-    }
 
 }

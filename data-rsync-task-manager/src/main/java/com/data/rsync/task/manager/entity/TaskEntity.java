@@ -4,7 +4,7 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.ToString;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import java.time.LocalDateTime;
 
 /**
@@ -12,15 +12,13 @@ import java.time.LocalDateTime;
  */
 @Data
 @ToString
-@Entity
-@Table(name = "task")
+@TableName("task")
 public class TaskEntity {
 
     /**
      * 任务ID
      */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**
@@ -28,7 +26,7 @@ public class TaskEntity {
      */
     @NotBlank(message = "任务名称不能为空")
     @Size(max = 100, message = "任务名称长度不能超过100个字符")
-    @Column(name = "name", nullable = false, unique = true)
+    @TableField(value = "name", exist = true)
     private String name;
 
     /**
@@ -36,7 +34,7 @@ public class TaskEntity {
      */
     @NotBlank(message = "任务类型不能为空")
     @Pattern(regexp = "^(FULL_SYNC|INCREMENTAL_SYNC|FULL_AND_INCREMENTAL)$", message = "任务类型必须是 FULL_SYNC, INCREMENTAL_SYNC 或 FULL_AND_INCREMENTAL")
-    @Column(name = "type", nullable = false)
+    @TableField(value = "type", exist = true)
     private String type;
 
     /**
@@ -44,34 +42,34 @@ public class TaskEntity {
      */
     @NotNull(message = "数据源ID不能为空")
     @Positive(message = "数据源ID必须大于0")
-    @Column(name = "data_source_id", nullable = false)
+    @TableField(value = "data_source_id", exist = true)
     private Long dataSourceId;
 
     /**
      * 数据库名称
      */
     @Size(max = 100, message = "数据库名称长度不能超过100个字符")
-    @Column(name = "database_name")
+    @TableField(value = "database_name", exist = true)
     private String databaseName;
 
     /**
      * 表名
      */
     @Size(max = 100, message = "表名长度不能超过100个字符")
-    @Column(name = "table_name")
+    @TableField(value = "table_name", exist = true)
     private String tableName;
 
     /**
      * 任务状态：PENDING, RUNNING, SUCCESS, FAILED, STOPPED
      */
     @Pattern(regexp = "^(PENDING|RUNNING|SUCCESS|FAILED|STOPPED|PAUSED|ROLLED_BACK)$", message = "任务状态必须是 PENDING, RUNNING, SUCCESS, FAILED, STOPPED, PAUSED 或 ROLLED_BACK")
-    @Column(name = "status")
+    @TableField(value = "status", exist = true)
     private String status;
 
     /**
      * 任务配置（JSON格式）
      */
-    @Column(name = "config", columnDefinition = "TEXT")
+    @TableField(value = "config", exist = true)
     private String config;
 
     /**
@@ -79,68 +77,68 @@ public class TaskEntity {
      */
     @Min(value = 0, message = "任务进度不能小于0")
     @Max(value = 100, message = "任务进度不能大于100")
-    @Column(name = "progress")
+    @TableField(value = "progress", exist = true)
     private Integer progress;
 
     /**
      * 开始时间
      */
-    @Column(name = "start_time")
+    @TableField(value = "start_time", exist = true)
     private LocalDateTime startTime;
 
     /**
      * 结束时间
      */
-    @Column(name = "end_time")
+    @TableField(value = "end_time", exist = true)
     private LocalDateTime endTime;
 
     /**
      * 错误信息
      */
-    @Column(name = "error_message", columnDefinition = "TEXT")
+    @TableField(value = "error_message", exist = true)
     private String errorMessage;
 
     /**
      * 断点续传位点
      */
-    @Column(name = "breakpoint", columnDefinition = "TEXT")
+    @TableField(value = "breakpoint", exist = true)
     private String breakpoint;
 
     /**
      * 创建时间
      */
-    @Column(name = "create_time", nullable = false)
+    @TableField(value = "create_time", exist = true)
     private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
-    @Column(name = "update_time", nullable = false)
+    @TableField(value = "update_time", exist = true)
     private LocalDateTime updateTime;
 
     /**
      * 启用状态
      */
-    @Column(name = "enabled")
+    @TableField(value = "enabled", exist = true)
     private Boolean enabled;
 
     /**
      * 最后执行时间
      */
-    @Column(name = "last_exec_time")
+    @TableField(value = "last_exec_time", exist = true)
     private LocalDateTime lastExecTime;
 
     /**
      * 执行次数
      */
     @Min(value = 0, message = "执行次数不能小于0")
-    @Column(name = "exec_count")
+    @TableField(value = "exec_count", exist = true)
     private Integer execCount;
 
     /**
      * 下次执行时间
      */
-    @Column(name = "next_exec_time")
+    @TableField(value = "next_exec_time", exist = true)
     private LocalDateTime nextExecTime;
 
     /**
@@ -148,7 +146,7 @@ public class TaskEntity {
      */
     @Min(value = 1, message = "并发度不能小于1")
     @Max(value = 100, message = "并发度不能大于100")
-    @Column(name = "concurrency")
+    @TableField(value = "concurrency", exist = true)
     private Integer concurrency;
 
     /**
@@ -156,7 +154,7 @@ public class TaskEntity {
      */
     @Min(value = 1, message = "批量大小不能小于1")
     @Max(value = 10000, message = "批量大小不能大于10000")
-    @Column(name = "batch_size")
+    @TableField(value = "batch_size", exist = true)
     private Integer batchSize;
 
     /**
@@ -164,7 +162,7 @@ public class TaskEntity {
      */
     @Min(value = 0, message = "重试次数不能小于0")
     @Max(value = 10, message = "重试次数不能大于10")
-    @Column(name = "retry_count")
+    @TableField(value = "retry_count", exist = true)
     private Integer retryCount;
 
     /**
@@ -172,47 +170,47 @@ public class TaskEntity {
      */
     @Min(value = 1, message = "超时时间不能小于1")
     @Max(value = 86400, message = "超时时间不能大于86400")
-    @Column(name = "timeout_seconds")
+    @TableField(value = "timeout_seconds", exist = true)
     private Integer timeoutSeconds;
 
     /**
      * 调度类型：CRON, FIXED_RATE, FIXED_DELAY
      */
     @Pattern(regexp = "^(CRON|FIXED_RATE|FIXED_DELAY)$", message = "调度类型必须是 CRON, FIXED_RATE 或 FIXED_DELAY")
-    @Column(name = "schedule_type")
+    @TableField(value = "schedule_type", exist = true)
     private String scheduleType;
 
     /**
      * 调度表达式（CRON表达式或时间间隔）
      */
     @Size(max = 255, message = "调度表达式长度不能超过255个字符")
-    @Column(name = "schedule_expression")
+    @TableField(value = "schedule_expression", exist = true)
     private String scheduleExpression;
 
     /**
      * 备注
      */
     @Size(max = 500, message = "备注长度不能超过500个字符")
-    @Column(name = "remark")
+    @TableField(value = "remark", exist = true)
     private String remark;
 
     /**
      * 暂停时间
      */
-    @Column(name = "pause_time")
+    @TableField(value = "pause_time", exist = true)
     private LocalDateTime pauseTime;
 
     /**
      * 恢复时间
      */
-    @Column(name = "resume_time")
+    @TableField(value = "resume_time", exist = true)
     private LocalDateTime resumeTime;
 
     /**
      * 回滚点
      */
     @Size(max = 255, message = "回滚点长度不能超过255个字符")
-    @Column(name = "rollback_point")
+    @TableField(value = "rollback_point", exist = true)
     private String rollbackPoint;
 
     /**
@@ -231,9 +229,8 @@ public class TaskEntity {
     }
 
     /**
-     * 预更新方法
+     * 更新前方法
      */
-    @PreUpdate
     public void preUpdate() {
         this.updateTime = LocalDateTime.now();
     }

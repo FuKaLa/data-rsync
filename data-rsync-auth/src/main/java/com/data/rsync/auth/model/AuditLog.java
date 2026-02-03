@@ -1,6 +1,9 @@
 package com.data.rsync.auth.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.ToString;
 
@@ -11,105 +14,103 @@ import java.time.LocalDateTime;
  */
 @Data
 @ToString
-@Entity
-@Table(name = "audit_log")
+@TableName("audit_log")
 public class AuditLog {
 
     /**
      * 日志ID
      */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
      * 操作用户ID
      */
-    @Column(name = "user_id")
+    @TableField("user_id")
     private Long userId;
 
     /**
      * 操作用户名
      */
-    @Column(name = "username", nullable = false)
+    @TableField("username")
     private String username;
 
     /**
      * 操作类型：CREATE, UPDATE, DELETE, QUERY, LOGIN, LOGOUT, EXPORT, IMPORT
      */
-    @Column(name = "operation_type", nullable = false)
+    @TableField("operation_type")
     private String operationType;
 
     /**
      * 操作模块：USER, ROLE, PERMISSION, DATA_SOURCE, TASK, MONITOR, SYSTEM
      */
-    @Column(name = "module", nullable = false)
+    @TableField("module")
     private String module;
 
     /**
      * 操作描述
      */
-    @Column(name = "description", nullable = false)
+    @TableField("description")
     private String description;
 
     /**
      * 操作对象
      */
-    @Column(name = "object_id")
+    @TableField("object_id")
     private Long objectId;
 
     /**
      * 操作对象名称
      */
-    @Column(name = "object_name")
+    @TableField("object_name")
     private String objectName;
 
     /**
      * 操作前数据
      */
-    @Column(name = "before_data", columnDefinition = "TEXT")
+    @TableField("before_data")
     private String beforeData;
 
     /**
      * 操作后数据
      */
-    @Column(name = "after_data", columnDefinition = "TEXT")
+    @TableField("after_data")
     private String afterData;
 
     /**
      * 操作IP
      */
-    @Column(name = "ip", nullable = false)
+    @TableField("ip")
     private String ip;
 
     /**
      * 操作浏览器
      */
-    @Column(name = "browser")
+    @TableField("browser")
     private String browser;
 
     /**
      * 操作系统
      */
-    @Column(name = "os")
+    @TableField("os")
     private String os;
 
     /**
      * 操作结果：SUCCESS, FAIL
      */
-    @Column(name = "result", nullable = false)
+    @TableField("result")
     private String result;
 
     /**
      * 错误信息
      */
-    @Column(name = "error_message", columnDefinition = "TEXT")
+    @TableField("error_message")
     private String errorMessage;
 
     /**
      * 操作时间
      */
-    @Column(name = "operation_time", nullable = false)
+    @TableField("operation_time")
     private LocalDateTime operationTime;
 
     /**

@@ -1,6 +1,6 @@
 package com.data.rsync.task.manager.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import lombok.ToString;
 
@@ -11,87 +11,84 @@ import java.time.LocalDateTime;
  */
 @Data
 @ToString
-@Entity
-@Table(name = "task_error_data")
+@TableName("task_error_data")
 public class TaskErrorDataEntity {
 
     /**
      * 错误数据ID
      */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
      * 任务ID
      */
-    @Column(name = "task_id", nullable = false)
+    @TableField(value = "task_id", exist = true)
     private Long taskId;
 
     /**
      * 源数据（JSON格式）
      */
-    @Column(name = "source_data", columnDefinition = "TEXT", nullable = false)
+    @TableField(value = "source_data", exist = true)
     private String sourceData;
 
     /**
      * 错误原因
      */
-    @Column(name = "error_message", columnDefinition = "TEXT", nullable = false)
+    @TableField(value = "error_message", exist = true)
     private String errorMessage;
 
     /**
      * 错误类型
      */
-    @Column(name = "error_type", nullable = false)
+    @TableField(value = "error_type", exist = true)
     private String errorType;
 
     /**
      * 同步环节
      */
-    @Column(name = "sync_stage", nullable = false)
+    @TableField(value = "sync_stage", exist = true)
     private String syncStage;
 
     /**
      * 错误时间
      */
-    @Column(name = "error_time", nullable = false)
+    @TableField(value = "error_time", exist = true)
     private LocalDateTime errorTime;
 
     /**
      * 处理状态：PENDING, PROCESSING, SUCCESS, FAILED
      */
-    @Column(name = "process_status", nullable = false)
+    @TableField(value = "process_status", exist = true)
     private String processStatus;
 
     /**
      * 重试次数
      */
-    @Column(name = "retry_count", nullable = false)
+    @TableField(value = "retry_count", exist = true)
     private Integer retryCount;
 
     /**
      * 最后重试时间
      */
-    @Column(name = "last_retry_time")
+    @TableField(value = "last_retry_time", exist = true)
     private LocalDateTime lastRetryTime;
 
     /**
      * 创建时间
      */
-    @Column(name = "create_time", nullable = false)
+    @TableField(value = "create_time", exist = true)
     private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
-    @Column(name = "update_time", nullable = false)
+    @TableField(value = "update_time", exist = true)
     private LocalDateTime updateTime;
 
     /**
      * 初始化创建时间和更新时间
      */
-    @PrePersist
     public void prePersist() {
         LocalDateTime now = LocalDateTime.now();
         if (createTime == null) {
@@ -114,7 +111,6 @@ public class TaskErrorDataEntity {
     /**
      * 更新时更新时间
      */
-    @PreUpdate
     public void preUpdate() {
         updateTime = LocalDateTime.now();
     }

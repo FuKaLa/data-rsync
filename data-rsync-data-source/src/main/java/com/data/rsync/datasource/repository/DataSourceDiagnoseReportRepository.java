@@ -1,16 +1,16 @@
 package com.data.rsync.datasource.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.data.rsync.datasource.entity.DataSourceDiagnoseReportEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
 /**
  * 数据源诊断报告仓库接口
  */
-@Repository
-public interface DataSourceDiagnoseReportRepository extends JpaRepository<DataSourceDiagnoseReportEntity, Long> {
+@Mapper
+public interface DataSourceDiagnoseReportRepository extends BaseMapper<DataSourceDiagnoseReportEntity> {
 
     /**
      * 根据数据源ID查询诊断报告

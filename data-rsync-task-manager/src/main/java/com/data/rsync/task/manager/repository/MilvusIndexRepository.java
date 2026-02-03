@@ -1,16 +1,16 @@
 package com.data.rsync.task.manager.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.data.rsync.task.manager.entity.MilvusIndexEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
 /**
  * Milvus索引仓库接口
  */
-@Repository
-public interface MilvusIndexRepository extends JpaRepository<MilvusIndexEntity, Long> {
+@Mapper
+public interface MilvusIndexRepository extends BaseMapper<MilvusIndexEntity> {
 
     /**
      * 根据集合名称查询索引

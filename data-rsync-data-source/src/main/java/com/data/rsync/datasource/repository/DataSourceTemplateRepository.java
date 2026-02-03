@@ -1,16 +1,16 @@
 package com.data.rsync.datasource.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.data.rsync.datasource.entity.DataSourceTemplateEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
 /**
  * 数据源模板仓库接口
  */
-@Repository
-public interface DataSourceTemplateRepository extends JpaRepository<DataSourceTemplateEntity, Long> {
+@Mapper
+public interface DataSourceTemplateRepository extends BaseMapper<DataSourceTemplateEntity> {
 
     /**
      * 根据数据源类型查询模板

@@ -1,6 +1,9 @@
 package com.data.rsync.auth.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.ToString;
 
@@ -12,69 +15,56 @@ import java.util.List;
  */
 @Data
 @ToString
-@Entity
-@Table(name = "role")
+@TableName("role")
 public class Role {
 
     /**
      * 角色ID
      */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
      * 角色名称
      */
-    @Column(name = "name", nullable = false, unique = true)
+    @TableField("name")
     private String name;
 
     /**
      * 角色编码
      */
-    @Column(name = "code", nullable = false, unique = true)
+    @TableField("code")
     private String code;
 
     /**
      * 角色描述
      */
-    @Column(name = "description")
+    @TableField("description")
     private String description;
 
     /**
      * 状态：ENABLE, DISABLE
      */
-    @Column(name = "status", nullable = false)
+    @TableField("status")
     private String status;
 
     /**
      * 创建时间
      */
-    @Column(name = "create_time", nullable = false)
+    @TableField("create_time")
     private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
-    @Column(name = "update_time", nullable = false)
+    @TableField("update_time")
     private LocalDateTime updateTime;
 
     /**
      * 角色关联的权限
      */
-    @ManyToMany
-    @JoinTable(name = "role_permission",
-            joinColumns = @JoinColumn(name = "role_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id"))
+    @TableField(exist = false)
     private List<Permission> permissions;
-
-    /**
-     * 预更新方法
-     */
-    @PreUpdate
-    public void preUpdate() {
-        this.updateTime = LocalDateTime.now();
-    }
 
     /**
      * 构造方法

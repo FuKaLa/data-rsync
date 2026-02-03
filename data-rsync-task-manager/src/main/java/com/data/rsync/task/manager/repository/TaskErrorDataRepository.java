@@ -1,16 +1,16 @@
 package com.data.rsync.task.manager.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.data.rsync.task.manager.entity.TaskErrorDataEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
 /**
  * 任务错误数据仓库接口
  */
-@Repository
-public interface TaskErrorDataRepository extends JpaRepository<TaskErrorDataEntity, Long> {
+@Mapper
+public interface TaskErrorDataRepository extends BaseMapper<TaskErrorDataEntity> {
 
     /**
      * 根据任务ID查询错误数据

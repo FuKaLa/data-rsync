@@ -13,6 +13,36 @@ data:
       connectionTimeout: 30000
       socketTimeout: 60000
 
+    # Druid连接池配置
+    druid:
+      initialSize: 5
+      minIdle: 5
+      maxActive: 20
+      maxWait: 60000
+      timeBetweenEvictionRunsMillis: 60000
+      minEvictableIdleTimeMillis: 300000
+      validationQuery: SELECT 1 FROM DUAL
+      testWhileIdle: true
+      testOnBorrow: false
+      testOnReturn: false
+      poolPreparedStatements: true
+      maxPoolPreparedStatementPerConnectionSize: 20
+      filters: stat,wall,log4j2
+      connectionProperties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
+
+    # MyBatis-Plus配置
+    mybatis-plus:
+      mapperLocations: classpath*:mapper/**/*.xml
+      typeAliasesPackage: com.data.rsync.*.entity
+      configuration:
+        mapUnderscoreToCamelCase: true
+        logImpl: org.apache.ibatis.logging.stdout.StdOutImpl
+      globalConfig:
+        dbConfig:
+          idType: auto
+          logicDeleteValue: 1
+          logicNotDeleteValue: 0
+
     # Milvus向量数据库配置
     milvus:
       host: localhost

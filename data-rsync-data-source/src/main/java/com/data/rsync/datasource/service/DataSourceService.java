@@ -84,7 +84,7 @@ public class DataSourceService {
         entity.setUpdateTime(LocalDateTime.now());
 
         // 保存数据源
-        entity = dataSourceRepository.save(entity);
+        dataSourceRepository.insert(entity);
 
         // 测试连接
         boolean connected = testConnection(entity);
@@ -93,7 +93,7 @@ public class DataSourceService {
         } else {
             entity.setHealthStatus("UNHEALTHY");
         }
-        dataSourceRepository.save(entity);
+        dataSourceRepository.updateById(entity);
 
         // 转换为模型返回
         DataSource result = new DataSource();
@@ -115,8 +115,10 @@ public class DataSourceService {
         log.info("Updating data source: {}", id);
 
         // 查询数据源
-        DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
+        DataSourceEntity entity = dataSourceRepository.selectById(id);
+        if (entity == null) {
+            throw new DataSourceException("Data source not found: " + id);
+        }
 
         // 更新字段
         BeanUtils.copyProperties(dataSource, entity, "id", "createTime", "createBy");
@@ -130,7 +132,7 @@ public class DataSourceService {
         entity.setUpdateTime(LocalDateTime.now());
 
         // 保存数据源
-        entity = dataSourceRepository.save(entity);
+        dataSourceRepository.updateById(entity);
 
         // 测试连接
         boolean connected = testConnection(entity);
@@ -139,7 +141,7 @@ public class DataSourceService {
         } else {
             entity.setHealthStatus("UNHEALTHY");
         }
-        dataSourceRepository.save(entity);
+        dataSourceRepository.updateById(entity);
 
         // 转换为模型返回
         DataSource result = new DataSource();
@@ -159,11 +161,13 @@ public class DataSourceService {
         log.info("Deleting data source: {}", id);
 
         // 查询数据源
-        DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
+        DataSourceEntity entity = dataSourceRepository.selectById(id);
+        if (entity == null) {
+            throw new DataSourceException("Data source not found: " + id);
+        }
 
         // 删除数据源
-        dataSourceRepository.delete(entity);
+        dataSourceRepository.deleteById(id);
 
         log.info("Deleted data source: {}", id);
     }
@@ -177,8 +181,10 @@ public class DataSourceService {
         log.info("Getting data source: {}", id);
 
         // 查询数据源
-        DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
+        DataSourceEntity entity = dataSourceRepository.selectById(id);
+        if (entity == null) {
+            throw new DataSourceException("Data source not found: " + id);
+        }
 
         // 转换为模型返回
         DataSource result = new DataSource();
@@ -197,7 +203,7 @@ public class DataSourceService {
         log.info("Getting all data sources");
 
         // 查询所有数据源
-        List<DataSourceEntity> entities = dataSourceRepository.findAll();
+        List<DataSourceEntity> entities = dataSourceRepository.selectList(null);
 
         // 转换为模型返回
         List<DataSource> result = entities.stream()
@@ -274,13 +280,15 @@ public class DataSourceService {
         log.info("Enabling data source: {} to {}", id, enabled);
 
         // 查询数据源
-        DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
+        DataSourceEntity entity = dataSourceRepository.selectById(id);
+        if (entity == null) {
+            throw new DataSourceException("Data source not found: " + id);
+        }
 
         // 更新启用状态
         entity.setEnabled(enabled);
         entity.setUpdateTime(LocalDateTime.now());
-        dataSourceRepository.save(entity);
+        dataSourceRepository.updateById(entity);
 
         // 转换为模型返回
         DataSource result = new DataSource();
@@ -300,19 +308,21 @@ public class DataSourceService {
         log.info("Testing data source connection: {}", id);
 
         // 查询数据源
-        DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
+        DataSourceEntity entity = dataSourceRepository.selectById(id);
+        if (entity == null) {
+            throw new DataSourceException("Data source not found: " + id);
+        }
 
         // 测试连接
         boolean connected = testConnection(entity);
 
         // 更新健康状态
         String healthStatus = connected ? "HEALTHY" : "UNHEALTHY";
-        DataSourceEntity updatedEntity = dataSourceRepository.findById(id).orElse(null);
+        DataSourceEntity updatedEntity = dataSourceRepository.selectById(id);
         if (updatedEntity != null) {
             updatedEntity.setHealthStatus(healthStatus);
             updatedEntity.setUpdateTime(LocalDateTime.now());
-            dataSourceRepository.save(updatedEntity);
+            dataSourceRepository.updateById(updatedEntity);
         }
 
         log.info("Tested data source connection: {} with result: {}", id, connected);
@@ -428,7 +438,7 @@ public class DataSourceService {
 
         // 测试连接
         boolean connected = testDataSourceConnection(id);
-        DataSourceEntity entity = dataSourceRepository.findById(id).orElse(null);
+        DataSourceEntity entity = dataSourceRepository.selectById(id);
         if (entity == null) {
             return "UNKNOWN";
         }
@@ -448,7 +458,7 @@ public class DataSourceService {
             entity.setHealthStatus("UNHEALTHY");
         }
         
-        dataSourceRepository.save(entity);
+        dataSourceRepository.updateById(entity);
         return entity.getHealthStatus();
     }
 
@@ -468,7 +478,7 @@ public class DataSourceService {
             String healthStatus = connected ? "HEALTHY" : "UNHEALTHY";
             entity.setHealthStatus(healthStatus);
             entity.setUpdateTime(LocalDateTime.now());
-            dataSourceRepository.save(entity);
+            dataSourceRepository.updateById(entity);
             log.info("Checked data source: {} health status: {}", entity.getName(), healthStatus);
 
             // 如果数据源不健康，触发自动恢复
@@ -521,7 +531,7 @@ public class DataSourceService {
 
         try {
             // 查询数据源
-            DataSourceEntity entity = dataSourceRepository.findById(dataSourceId).orElse(null);
+            DataSourceEntity entity = dataSourceRepository.selectById(dataSourceId);
             if (entity == null) {
                 log.error("Data source not found: {}", dataSourceId);
                 recoveryStatusMap.put(dataSourceId, RecoveryStatus.FAILED);
@@ -535,7 +545,7 @@ public class DataSourceService {
                 // 更新数据源状态为健康
                 entity.setHealthStatus("HEALTHY");
                 entity.setUpdateTime(LocalDateTime.now());
-                dataSourceRepository.save(entity);
+                dataSourceRepository.updateById(entity);
                 recoveryStatusMap.put(dataSourceId, RecoveryStatus.RECOVERED);
                 log.info("Successfully recovered data source: {}", entity.getName());
             } else {
@@ -606,7 +616,7 @@ public class DataSourceService {
      */
     public List<DataSourceTemplateEntity> getAllTemplates() {
         log.info("Getting all data source templates");
-        return dataSourceTemplateRepository.findAll();
+        return dataSourceTemplateRepository.selectList(null);
     }
 
     /**
@@ -640,7 +650,8 @@ public class DataSourceService {
         template.setCreateTime(LocalDateTime.now());
         template.setUpdateTime(LocalDateTime.now());
         
-        return dataSourceTemplateRepository.save(template);
+        dataSourceTemplateRepository.insert(template);
+        return template;
     }
 
     /**
@@ -653,13 +664,16 @@ public class DataSourceService {
     public DataSourceTemplateEntity updateTemplate(Long id, DataSourceTemplateEntity template) {
         log.info("Updating data source template: {}", id);
         
-        DataSourceTemplateEntity existingTemplate = dataSourceTemplateRepository.findById(id)
-                .orElseThrow(() -> new DataSourceException("Template not found: " + id));
+        DataSourceTemplateEntity existingTemplate = dataSourceTemplateRepository.selectById(id);
+        if (existingTemplate == null) {
+            throw new DataSourceException("Template not found: " + id);
+        }
         
         BeanUtils.copyProperties(template, existingTemplate, "id", "createTime", "isSystem");
         existingTemplate.setUpdateTime(LocalDateTime.now());
         
-        return dataSourceTemplateRepository.save(existingTemplate);
+        dataSourceTemplateRepository.updateById(existingTemplate);
+        return existingTemplate;
     }
 
     /**
@@ -670,15 +684,17 @@ public class DataSourceService {
     public void deleteTemplate(Long id) {
         log.info("Deleting data source template: {}", id);
         
-        DataSourceTemplateEntity template = dataSourceTemplateRepository.findById(id)
-                .orElseThrow(() -> new DataSourceException("Template not found: " + id));
+        DataSourceTemplateEntity template = dataSourceTemplateRepository.selectById(id);
+        if (template == null) {
+            throw new DataSourceException("Template not found: " + id);
+        }
         
         // 系统预设模板不可删除
         if (template.getIsSystem()) {
             throw new DataSourceException("System templates cannot be deleted");
         }
         
-        dataSourceTemplateRepository.delete(template);
+        dataSourceTemplateRepository.deleteById(id);
     }
 
     /**
@@ -707,7 +723,7 @@ public class DataSourceService {
         mysqlTemplate.setIsSystem(true);
         mysqlTemplate.setCreateTime(LocalDateTime.now());
         mysqlTemplate.setUpdateTime(LocalDateTime.now());
-        dataSourceTemplateRepository.save(mysqlTemplate);
+        dataSourceTemplateRepository.insert(mysqlTemplate);
         
         // 创建PostgreSQL模板
         DataSourceTemplateEntity postgresqlTemplate = new DataSourceTemplateEntity();
@@ -721,7 +737,7 @@ public class DataSourceService {
         postgresqlTemplate.setIsSystem(true);
         postgresqlTemplate.setCreateTime(LocalDateTime.now());
         postgresqlTemplate.setUpdateTime(LocalDateTime.now());
-        dataSourceTemplateRepository.save(postgresqlTemplate);
+        dataSourceTemplateRepository.insert(postgresqlTemplate);
         
         // 创建Oracle模板
         DataSourceTemplateEntity oracleTemplate = new DataSourceTemplateEntity();
@@ -735,7 +751,7 @@ public class DataSourceService {
         oracleTemplate.setIsSystem(true);
         oracleTemplate.setCreateTime(LocalDateTime.now());
         oracleTemplate.setUpdateTime(LocalDateTime.now());
-        dataSourceTemplateRepository.save(oracleTemplate);
+        dataSourceTemplateRepository.insert(oracleTemplate);
         
         // 创建MongoDB模板
         DataSourceTemplateEntity mongodbTemplate = new DataSourceTemplateEntity();
@@ -749,7 +765,7 @@ public class DataSourceService {
         mongodbTemplate.setIsSystem(true);
         mongodbTemplate.setCreateTime(LocalDateTime.now());
         mongodbTemplate.setUpdateTime(LocalDateTime.now());
-        dataSourceTemplateRepository.save(mongodbTemplate);
+        dataSourceTemplateRepository.insert(mongodbTemplate);
         
         log.info("System data source templates initialized successfully");
     }
@@ -764,8 +780,10 @@ public class DataSourceService {
         log.info("Diagnosing data source: {}", id);
         
         // 查询数据源
-        DataSourceEntity entity = dataSourceRepository.findById(id)
-                .orElseThrow(() -> new DataSourceException("Data source not found: " + id));
+        DataSourceEntity entity = dataSourceRepository.selectById(id);
+        if (entity == null) {
+            throw new DataSourceException("Data source not found: " + id);
+        }
         
         long startTime = System.currentTimeMillis();
         
@@ -799,7 +817,7 @@ public class DataSourceService {
         report.setDiagnoseDuration((int) duration);
         
         // 保存诊断报告
-        report = diagnoseReportRepository.save(report);
+        diagnoseReportRepository.insert(report);
         
         log.info("Diagnosed data source: {} with overall status: {}", id, overallStatus);
         return report;

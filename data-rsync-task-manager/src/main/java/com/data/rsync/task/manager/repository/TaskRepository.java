@@ -1,10 +1,8 @@
 package com.data.rsync.task.manager.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.data.rsync.task.manager.entity.TaskEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,8 +10,8 @@ import java.util.List;
 /**
  * 任务仓库接口
  */
-@Repository
-public interface TaskRepository extends JpaRepository<TaskEntity, Long> {
+@Mapper
+public interface TaskRepository extends BaseMapper<TaskEntity> {
 
     /**
      * 根据状态查询任务
@@ -48,8 +46,7 @@ public interface TaskRepository extends JpaRepository<TaskEntity, Long> {
      * @param now 当前时间
      * @return 任务列表
      */
-    @Query("SELECT t FROM TaskEntity t WHERE t.enabled = true AND t.nextExecTime <= :now")
-    List<TaskEntity> findTasksToExecute(@Param("now") LocalDateTime now);
+    List<TaskEntity> findTasksToExecute(LocalDateTime now);
 
     /**
      * 根据任务名称查询任务

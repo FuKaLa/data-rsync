@@ -13,12 +13,12 @@
 | 模块名称 | 功能描述 | 技术栈 |
 |---------|---------|--------|
 | data-rsync-gateway | API 网关，负责路由、鉴权、限流 | Spring Cloud Gateway + Nacos + Sentinel |
-| data-rsync-auth | 认证授权服务，负责用户认证、权限管理 | Spring Boot + Spring Security + JWT + Nacos |
-| data-rsync-data-source | 数据源管理服务，负责数据源配置、生命周期管理 | Spring Boot + JPA + MySQL + Redis + Nacos |
+| data-rsync-auth | 认证授权服务，负责用户认证、权限管理 | Spring Boot + Spring Security + JWT + MyBatis-Plus + MySQL + Druid + Nacos |
+| data-rsync-data-source | 数据源管理服务，负责数据源配置、生命周期管理 | Spring Boot + MyBatis-Plus + MySQL + Redis + Druid + Nacos |
 | data-rsync-log-listener | 日志监听服务，负责多源数据库日志监听、CDC 捕获 | Spring Boot + Debezium + Kafka + Redis + Nacos |
 | data-rsync-data-process | 数据处理服务，负责数据转换、向量化处理 | Spring Boot + Kafka + Redis + Nacos |
 | data-rsync-milvus-sync | Milvus 同步服务，负责数据写入、索引管理 | Spring Boot + Milvus Java SDK + Kafka + Redis + Nacos |
-| data-rsync-task-manager | 任务管理服务，负责任务配置、调度、监控 | Spring Boot + XXL-Job + JPA + MySQL + Redis + Nacos |
+| data-rsync-task-manager | 任务管理服务，负责任务配置、调度、监控 | Spring Boot + XXL-Job + MyBatis-Plus + MySQL + Redis + Druid + Nacos |
 | data-rsync-monitor | 监控服务，负责系统监控、告警、日志收集 | Spring Boot + Prometheus + Grafana + ELK + Nacos |
 | data-rsync-common | 公共模块，包含工具类、常量定义、数据模型 | Spring Boot |
 

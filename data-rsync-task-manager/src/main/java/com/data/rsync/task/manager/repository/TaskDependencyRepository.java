@@ -1,16 +1,16 @@
 package com.data.rsync.task.manager.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.data.rsync.task.manager.entity.TaskDependencyEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
 /**
  * 任务依赖仓库接口
  */
-@Repository
-public interface TaskDependencyRepository extends JpaRepository<TaskDependencyEntity, Long> {
+@Mapper
+public interface TaskDependencyRepository extends BaseMapper<TaskDependencyEntity> {
 
     /**
      * 根据任务ID查询依赖

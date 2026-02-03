@@ -1,6 +1,9 @@
 package com.data.rsync.auth.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.ToString;
 
@@ -12,87 +15,74 @@ import java.util.List;
  */
 @Data
 @ToString
-@Entity
-@Table(name = "user")
+@TableName("user")
 public class User {
 
     /**
      * 用户ID
      */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
      * 用户名
      */
-    @Column(name = "username", nullable = false, unique = true)
+    @TableField("username")
     private String username;
 
     /**
      * 密码
      */
-    @Column(name = "password", nullable = false)
+    @TableField("password")
     private String password;
 
     /**
      * 姓名
      */
-    @Column(name = "name", nullable = false)
+    @TableField("name")
     private String name;
 
     /**
      * 邮箱
      */
-    @Column(name = "email", unique = true)
+    @TableField("email")
     private String email;
 
     /**
      * 手机号
      */
-    @Column(name = "phone", unique = true)
+    @TableField("phone")
     private String phone;
 
     /**
      * 状态：ENABLE, DISABLE
      */
-    @Column(name = "status", nullable = false)
+    @TableField("status")
     private String status;
 
     /**
      * 最后登录时间
      */
-    @Column(name = "last_login_time")
+    @TableField("last_login_time")
     private LocalDateTime lastLoginTime;
 
     /**
      * 创建时间
      */
-    @Column(name = "create_time", nullable = false)
+    @TableField("create_time")
     private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
-    @Column(name = "update_time", nullable = false)
+    @TableField("update_time")
     private LocalDateTime updateTime;
 
     /**
      * 用户关联的角色
      */
-    @ManyToMany
-    @JoinTable(name = "user_role",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id"))
+    @TableField(exist = false)
     private List<Role> roles;
-
-    /**
-     * 预更新方法
-     */
-    @PreUpdate
-    public void preUpdate() {
-        this.updateTime = LocalDateTime.now();
-    }
 
     /**
      * 构造方法
