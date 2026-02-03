@@ -1,7 +1,11 @@
-com/data/rsync/admin/DataRsyncAdminApplication.class
+com/data/rsync/admin/config/MyBatisPlusConfig.class
+com/data/rsync/admin/controller/v1/DataSourceControllerV1.class
 com/data/rsync/admin/controller/SystemController.class
-com/data/rsync/admin/controller/AuthController.class
 com/data/rsync/admin/controller/DataSourceController.class
-com/data/rsync/admin/controller/MilvusController.class
 com/data/rsync/admin/controller/TaskController.class
+com/data/rsync/admin/DataRsyncAdminApplication.class
+com/data/rsync/admin/handler/GlobalExceptionHandler.class
+com/data/rsync/admin/controller/v2/DataSourceControllerV2.class
+com/data/rsync/admin/controller/AuthController.class
+com/data/rsync/admin/controller/MilvusController.class
 com/data/rsync/admin/controller/MonitorController.class

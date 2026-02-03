@@ -1,65 +1,24 @@
+# 基本配置
+server:
+  port: 8082
+  servlet:
+    context-path: /log-listener
+
 spring:
   application:
     name: data-rsync-log-listener
-  
-  # Redis 配置
-  redis:
-    host: ${spring.redis.host:localhost}
-    port: ${spring.redis.port:6379}
-    password: ${spring.redis.password:}
-    database: ${spring.redis.database:0}
-  
-  # Kafka 配置
-  kafka:
-    bootstrap-servers: ${spring.kafka.bootstrap-servers:localhost:9092}
-    producer:
-      key-serializer: ${spring.kafka.producer.key-serializer:org.apache.kafka.common.serialization.StringSerializer}
-      value-serializer: ${spring.kafka.producer.value-serializer:org.apache.kafka.common.serialization.StringSerializer}
-      acks: ${spring.kafka.producer.acks:1}
-      batch-size: ${spring.kafka.producer.batch-size:16384}
-      linger-ms: ${spring.kafka.producer.linger-ms:1}
-      buffer-memory: ${spring.kafka.producer.buffer-memory:33554432}
-  
-  # Nacos 配置
+  profiles:
+    active: dev
   cloud:
     nacos:
       discovery:
-        server-addr: ${spring.cloud.nacos.discovery.server-addr:localhost:8848}
-        namespace: ${spring.cloud.nacos.discovery.namespace:public}
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
       config:
-        server-addr: ${spring.cloud.nacos.config.server-addr:localhost:8848}
-        namespace: ${spring.cloud.nacos.config.namespace:public}
-        file-extension: ${spring.cloud.nacos.config.file-extension:yml}
-
-# 服务器配置
-server:
-  port: ${server.port:8082}
-  servlet:
-    context-path: ${server.servlet.context-path:/log-listener}
-
-# 日志配置
-logging:
-  level:
-    root: ${logging.level.root:info}
-    com.data.rsync.log.listener: ${logging.level.com.data.rsync.log.listener:debug}
-
-# 日志监听配置
-log-listener:
-  debezium:
-    offset:
-      storage: ${log-listener.debezium.offset.storage:/tmp/debezium/offsets}
-      flush-interval: ${log-listener.debezium.offset.flush-interval:60000} # 偏移量刷新间隔（毫秒）
-    history:
-      storage: ${log-listener.debezium.history.storage:/tmp/debezium/history}
-  full-scan:
-    enabled: ${log-listener.full-scan.enabled:true} # 是否启用全量扫描
-    shard:
-      max-count: ${log-listener.full-scan.shard.max-count:10} # 最大分片数
-      batch-size: ${log-listener.full-scan.shard.batch-size:1000} # 分片批量大小
-  breakpoint:
-    enabled: ${log-listener.breakpoint.enabled:true} # 是否启用断点续传
-    redis-key-prefix: ${log-listener.breakpoint.redis-key-prefix:breakpoint:} # 断点续传 Redis 键前缀
-  thread:
-    pool-size: ${log-listener.thread.pool-size:10} # 线程池大小
-  health-check:
-    interval: ${log-listener.health-check.interval:60000} # 健康检查间隔（毫秒）
+        server-addr: localhost:8848
+        file-extension: yml
+        namespace: ${spring.profiles.active}
+        group: DEFAULT_GROUP
+        username: nacos
+        password: nacos

@@ -97,6 +97,7 @@ public class DataRsyncConstants {
     public static class RedisKey {
         public static final String DATA_SOURCE_PREFIX = "data_source:";
         public static final String TASK_PREFIX = "task:";
+        public static final String TASK_CONFIG_PREFIX = "task_config:";
         public static final String TASK_PROGRESS_PREFIX = "task_progress:";
         public static final String LOG_LISTENER_PREFIX = "log_listener:";
         public static final String DATA_PROCESS_PREFIX = "data_process:";

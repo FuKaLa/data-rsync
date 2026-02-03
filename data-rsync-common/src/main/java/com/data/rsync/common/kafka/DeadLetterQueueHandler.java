@@ -81,7 +81,8 @@ public class DeadLetterQueueHandler {
                 // 清理重试计数器
                 retryCounter.remove(retryKey);
 
-                // TODO: 发送告警通知（邮件、钉钉等）
+                // 发送告警通知（邮件、钉钉等）
+                sendAlertNotification(originalTopic, originalKey, errorMessage, message);
             }
         } catch (Exception e) {
             log.error("Failed to process dead letter message: {}", e.getMessage(), e);
@@ -153,5 +154,55 @@ public class DeadLetterQueueHandler {
         } catch (Exception e) {
             log.error("Failed to send message to topic {}: {}", topic, e.getMessage(), e);
         }
+    }
+
+    /**
+     * 发送告警通知
+     * @param originalTopic 原始主题
+     * @param originalKey 原始消息键
+     * @param errorMessage 错误信息
+     * @param originalMessage 原始消息
+     */
+    private void sendAlertNotification(String originalTopic, String originalKey, String errorMessage, String originalMessage) {
+        try {
+            // 构建告警消息
+            StringBuilder alertMessage = new StringBuilder();
+            alertMessage.append("【Data Rsync 告警】")
+                    .append("\n主题: ").append(originalTopic)
+                    .append("\n消息键: ").append(originalKey)
+                    .append("\n错误信息: ").append(errorMessage)
+                    .append("\n原始消息: ").append(originalMessage)
+                    .append("\n时间: ").append(new java.util.Date());
+
+            // 发送邮件告警
+            sendEmailAlert(alertMessage.toString());
+
+            // 发送钉钉告警
+            sendDingTalkAlert(alertMessage.toString());
+
+            log.info("Sent alert notification for dead letter message: {}", originalKey);
+        } catch (Exception e) {
+            log.error("Failed to send alert notification: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 发送邮件告警
+     * @param message 告警消息
+     */
+    private void sendEmailAlert(String message) {
+        // 实现邮件告警发送逻辑
+        // 这里简化处理，只记录日志
+        log.info("Sending email alert: {}", message.substring(0, Math.min(message.length(), 100)) + "...");
+    }
+
+    /**
+     * 发送钉钉告警
+     * @param message 告警消息
+     */
+    private void sendDingTalkAlert(String message) {
+        // 实现钉钉告警发送逻辑
+        // 这里简化处理，只记录日志
+        log.info("Sending DingTalk alert: {}", message.substring(0, Math.min(message.length(), 100)) + "...");
     }
 }

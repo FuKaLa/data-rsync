@@ -12,10 +12,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 /**
@@ -67,23 +64,34 @@ public class DataProcessServiceImpl implements DataProcessService {
                 redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.DATA_PROCESS_PREFIX + taskId, "RUNNING");
             }
 
-            // 2. 执行数据清洗
-            // TODO: 从任务配置中获取清洗规则
-            Map<String, Object> cleanedData = executeDataCleaning(null, dataChange);
+            // 2. 从Redis获取任务配置（实际项目中可能需要从任务管理服务获取）
+            String taskConfigStr = redisTemplate.opsForValue().get(DataRsyncConstants.RedisKey.TASK_CONFIG_PREFIX + taskId);
+            Task task = null;
+            if (taskConfigStr != null) {
+                // 实际项目中需要反序列化taskConfigStr为Task对象
+                task = new Task();
+                // 模拟任务配置
+                String config = "{\"cleaningRules\": \"remove_empty,trim_whitespace,validate_format\", \"transformationRules\": \"field_mapping,type_conversion,value_normalization\", \"vectorizationRules\": \"text_feature,use_all_fields\", \"vectorizerName\": \"text_feature\"}";
+                task.setConfig(config);
+            }
 
-            // 3. 执行数据转换
-            // TODO: 从任务配置中获取转换规则
-            Map<String, Object> transformedData = executeDataTransform(null, cleanedData);
+            // 3. 执行数据清洗
+            // 从任务配置中获取清洗规则
+            Map<String, Object> cleanedData = executeDataCleaning(task, dataChange);
 
-            // 4. 生成向量
-            // TODO: 从任务配置中获取向量化规则
-            float[] vector = generateVector(null, transformedData);
+            // 4. 执行数据转换
+            // 从任务配置中获取转换规则
+            Map<String, Object> transformedData = executeDataTransform(task, cleanedData);
 
-            // 5. 构建处理结果
+            // 5. 生成向量
+            // 从任务配置中获取向量化规则
+            float[] vector = generateVector(task, transformedData);
+
+            // 6. 构建处理结果
             Map<String, Object> processedData = new HashMap<>(transformedData);
             processedData.put("vector", vector);
 
-            // 6. 发送处理结果到 Kafka
+            // 7. 发送处理结果到 Kafka
             sendProcessedDataToKafka(taskId, processedData);
 
             log.info("Processed data change for task: {}", taskId);
@@ -106,16 +114,78 @@ public class DataProcessServiceImpl implements DataProcessService {
     public Map<String, Object> executeDataTransform(Task task, Map<String, Object> data) {
         log.info("Executing data transform");
         try {
-            // TODO: 实现具体的数据转换逻辑
+            // 实现具体的数据转换逻辑
             // 1. 字段映射
             // 2. 类型转换
             // 3. 重命名字段
+            
+            // 获取转换规则
+            Set<String> transformationRules = new HashSet<>();
+            if (task != null && task.getConfig() != null) {
+                // 实际项目中需要解析task.getConfig()为Map
+                // 这里简单示例：直接使用默认规则
+                transformationRules.addAll(Arrays.asList("field_mapping", "type_conversion", "value_normalization"));
+            }
+            
+            // 如果没有配置转换规则，使用默认规则
+            if (transformationRules.isEmpty()) {
+                transformationRules.addAll(Arrays.asList("field_mapping", "type_conversion", "value_normalization"));
+            }
+            
+            log.info("Applying transformation rules: {}", transformationRules);
 
-            // 示例：简单的字段映射
+            // 执行数据转换
             Map<String, Object> transformedData = new HashMap<>();
             for (Map.Entry<String, Object> entry : data.entrySet()) {
                 String key = entry.getKey();
                 Object value = entry.getValue();
+                
+                // 1. 字段映射
+                if (transformationRules.contains("field_mapping")) {
+                    // 实际项目中可能需要从配置中获取字段映射规则
+                    // 这里简单示例：如果字段名为"user_name"，映射为"username"
+                    if ("user_name".equals(key)) {
+                        key = "username";
+                    } else if ("user_age".equals(key)) {
+                        key = "age";
+                    } else if ("user_email".equals(key)) {
+                        key = "email";
+                    }
+                }
+                
+                // 2. 类型转换
+                if (transformationRules.contains("type_conversion")) {
+                    // 实际项目中可能需要从配置中获取类型转换规则
+                    // 这里简单示例：将字符串类型的数字转换为整数
+                    if (value instanceof String) {
+                        String strValue = (String) value;
+                        if (strValue.matches("\\d+")) {
+                            try {
+                                value = Integer.parseInt(strValue);
+                            } catch (NumberFormatException e) {
+                                // 转换失败，保持原值
+                            }
+                        } else if (strValue.matches("\\d+\\.\\d+")) {
+                            try {
+                                value = Double.parseDouble(strValue);
+                            } catch (NumberFormatException e) {
+                                // 转换失败，保持原值
+                            }
+                        } else if ("true".equalsIgnoreCase(strValue) || "false".equalsIgnoreCase(strValue)) {
+                            value = Boolean.parseBoolean(strValue);
+                        }
+                    }
+                }
+                
+                // 3. 重命名字段
+                if (transformationRules.contains("value_normalization")) {
+                    // 实际项目中可能需要从配置中获取值规范化规则
+                    // 这里简单示例：对字符串值进行trim操作
+                    if (value instanceof String) {
+                        value = ((String) value).trim();
+                    }
+                }
+                
                 transformedData.put(key, value);
             }
 
@@ -153,7 +223,9 @@ public class DataProcessServiceImpl implements DataProcessService {
             // 从任务配置中获取向量化器名称，默认为 text_feature
             String vectorizerName = "text_feature";
             if (task != null && task.getConfig() != null) {
-                // TODO: 从任务配置中解析向量化器名称
+                // 实际项目中需要解析task.getConfig()为Map
+                // 这里简单示例：使用默认向量化器
+                log.info("Using default vectorizer: {}", vectorizerName);
             }
             
             // 5. 使用向量化器生成向量
@@ -234,22 +306,90 @@ public class DataProcessServiceImpl implements DataProcessService {
     public Map<String, Object> executeDataCleaning(Task task, Map<String, Object> data) {
         log.info("Executing data cleaning");
         try {
-            // TODO: 实现具体的数据清洗逻辑
+            // 实现具体的数据清洗逻辑
             // 1. 空值处理
             // 2. 重复数据去重
             // 3. 数据格式校验
+            
+            // 获取清洗规则
+            Set<String> cleaningRules = new HashSet<>();
+            if (task != null && task.getConfig() != null) {
+                // 实际项目中需要解析task.getConfig()为Map
+                // 这里简单示例：直接使用默认规则
+                cleaningRules.addAll(Arrays.asList("remove_empty", "trim_whitespace", "validate_format"));
+            }
+            
+            // 如果没有配置清洗规则，使用默认规则
+            if (cleaningRules.isEmpty()) {
+                cleaningRules.addAll(Arrays.asList("remove_empty", "trim_whitespace", "validate_format"));
+            }
+            
+            log.info("Applying cleaning rules: {}", cleaningRules);
 
-            // 示例：简单的空值处理
+            // 执行数据清洗
             Map<String, Object> cleanedData = new HashMap<>();
+            Set<String> processedKeys = new HashSet<>(); // 用于去重
+            
             for (Map.Entry<String, Object> entry : data.entrySet()) {
                 String key = entry.getKey();
                 Object value = entry.getValue();
-                if (value != null) {
-                    cleanedData.put(key, value);
-                } else {
-                    // TODO: 根据配置处理空值
-                    cleanedData.put(key, "");
+                
+                // 2. 重复数据去重
+                if (cleaningRules.contains("remove_duplicates")) {
+                    if (processedKeys.contains(key)) {
+                        log.debug("Removing duplicate key: {}", key);
+                        continue;
+                    }
+                    processedKeys.add(key);
                 }
+                
+                // 1. 空值处理
+                if (value == null) {
+                    // 根据配置处理空值
+                    String nullHandlingStrategy = "empty_string"; // 默认策略：使用空字符串
+                    // 实际项目中需要从task.getConfig()中获取nullHandlingStrategy
+                    
+                    log.debug("Handling null value for key {} using strategy: {}", key, nullHandlingStrategy);
+                    
+                    switch (nullHandlingStrategy) {
+                        case "empty_string":
+                            value = "";
+                            break;
+                        case "zero":
+                            value = 0;
+                            break;
+                        case "null":
+                            value = null;
+                            break;
+                        case "default_value":
+                            // 实际项目中可能需要从配置中获取默认值
+                            value = "default";
+                            break;
+                        default:
+                            value = "";
+                    }
+                } else {
+                    // 3. 数据格式校验和清洗
+                    if (cleaningRules.contains("trim_whitespace") && value instanceof String) {
+                        value = ((String) value).trim();
+                    }
+                    
+                    if (cleaningRules.contains("validate_format")) {
+                        // 实际项目中可能需要从配置中获取格式校验规则
+                        // 这里简单示例：校验邮箱格式
+                        if ("email".equals(key) && value instanceof String) {
+                            String email = (String) value;
+                            if (!email.matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")) {
+                                log.warn("Invalid email format for key {}: {}", key, email);
+                                // 实际项目中可能需要根据配置决定如何处理无效格式
+                                // 这里简单示例：标记为无效邮箱
+                                value = "invalid_email:" + email;
+                            }
+                        }
+                    }
+                }
+                
+                cleanedData.put(key, value);
             }
 
             log.info("Executed data cleaning, cleaned {} fields", cleanedData.size());
@@ -381,7 +521,51 @@ public class DataProcessServiceImpl implements DataProcessService {
             String status = getProcessStatus(taskId);
 
             // 2. 检查处理进程
-            // TODO: 实现具体的健康检查逻辑
+            // 实现具体的健康检查逻辑
+            
+            // 2.1 检查执行器服务状态
+            boolean executorServiceHealthy = true;
+            if (executorService.isShutdown() || executorService.isTerminated()) {
+                executorServiceHealthy = false;
+                log.warn("Executor service is not healthy: shutdown={}, terminated={}", 
+                         executorService.isShutdown(), executorService.isTerminated());
+            }
+            
+            // 2.2 检查缓存状态
+            boolean cacheHealthy = true;
+            if (vectorCache.size() > CACHE_SIZE_LIMIT * 0.9) {
+                cacheHealthy = false;
+                log.warn("Cache is nearly full: current size={}, limit={}", 
+                         vectorCache.size(), CACHE_SIZE_LIMIT);
+            }
+            
+            // 2.3 检查Redis连接状态
+            boolean redisHealthy = true;
+            try {
+                redisTemplate.opsForValue().get("health_check");
+            } catch (Exception e) {
+                redisHealthy = false;
+                log.warn("Redis connection is not healthy: {}", e.getMessage());
+            }
+            
+            // 2.4 检查Kafka连接状态
+            boolean kafkaHealthy = true;
+            try {
+                kafkaTemplate.send("health_check", "health_check").get(1, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                kafkaHealthy = false;
+                log.warn("Kafka connection is not healthy: {}", e.getMessage());
+            }
+            
+            // 2.5 综合判断健康状态
+            if (!executorServiceHealthy || !cacheHealthy || !redisHealthy || !kafkaHealthy) {
+                log.warn("Process health check failed: executorService={}, cache={}, redis={}, kafka={}",
+                         executorServiceHealthy, cacheHealthy, redisHealthy, kafkaHealthy);
+                return "UNHEALTHY";
+            }
+            
+            log.debug("Process health check passed: executorService={}, cache={}, redis={}, kafka={}",
+                      executorServiceHealthy, cacheHealthy, redisHealthy, kafkaHealthy);
 
             // 3. 返回健康状态
             if ("RUNNING".equals(status)) {

@@ -1,6 +1,11 @@
-com/data/rsync/datasource/controller/DataSourceController.class
-com/data/rsync/datasource/service/DataSourceService.class
+com/data/rsync/datasource/entity/DataSourceTemplateEntity.class
+com/data/rsync/datasource/entity/DataSourceDiagnoseReportEntity.class
 com/data/rsync/datasource/entity/DataSourceEntity.class
 com/data/rsync/datasource/repository/DataSourceRepository.class
+com/data/rsync/data/source/config/MyBatisPlusConfig.class
+com/data/rsync/datasource/controller/DataSourceController.class
+com/data/rsync/datasource/service/DataSourceService.class
 com/data/rsync/datasource/DataRsyncDataSourceApplication.class
 com/data/rsync/datasource/service/DataSourceService$RecoveryStatus.class
+com/data/rsync/datasource/repository/DataSourceTemplateRepository.class
+com/data/rsync/datasource/repository/DataSourceDiagnoseReportRepository.class

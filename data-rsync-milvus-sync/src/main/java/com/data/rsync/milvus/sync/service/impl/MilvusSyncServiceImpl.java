@@ -926,14 +926,41 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
     @Override
     public boolean checkMilvusConnection() {
         log.debug("Checking Milvus connection");
+        if (milvusClient == null) {
+            log.warn("Milvus client is null, connection check failed");
+            return false;
+        }
+
+        // 执行一个简单的操作来检查连接
+        // 实现具体的连接检查逻辑
+        
+        // 尝试一个简单的操作来检查连接
         try {
-            if (milvusClient == null) {
+            // 对于不同版本的Milvus SDK，使用不同的方法检查连接
+            // 这里使用一个通用的方法，尝试获取连接状态
+            // 注意：具体实现可能需要根据实际使用的Milvus SDK版本进行调整
+            log.debug("Milvus connection check in progress");
+            // 由于不同版本的Milvus SDK API可能不同，这里使用一个简单的异常捕获来判断连接状态
+            // 实际项目中，应该根据具体的Milvus SDK版本使用相应的API
+            if (milvusClient != null) {
+                // 尝试检查一个不存在的集合（最基本的连接检查）
+                String testCollectionName = "test_connection_check";
+                HasCollectionParam hasCollectionParam = HasCollectionParam.newBuilder()
+                        .withCollectionName(testCollectionName)
+                        .build();
+                R<Boolean> hasCollectionResponse = milvusClient.hasCollection(hasCollectionParam);
+                if (hasCollectionResponse.getStatus() == R.Status.Success.getCode()) {
+                    log.debug("Milvus connection check successful, collection {} exists: {}", 
+                             testCollectionName, hasCollectionResponse.getData());
+                    return true;
+                } else {
+                    log.warn("Milvus connection check failed: {}", hasCollectionResponse.getMessage());
+                    return false;
+                }
+            } else {
+                log.warn("Milvus client is null, connection check failed");
                 return false;
             }
-
-            // 执行一个简单的操作来检查连接
-            // TODO: 实现具体的连接检查逻辑
-            return true;
         } catch (Exception e) {
             log.error("Failed to check Milvus connection: {}", e.getMessage(), e);
             return false;

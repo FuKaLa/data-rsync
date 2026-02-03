@@ -3,6 +3,43 @@
 ## 项目概述
 本文档总结了data-rsync项目中每个模块在Nacos中需要的配置信息，按照环境和模块进行组织。
 
+## 配置结构变更说明
+
+最近，我们对项目的配置结构进行了调整，所有模块的本地配置文件现在只保留基本配置，剩下的所有配置都从Nacos中读取。这样可以实现配置的集中管理，便于在不同环境中统一配置。
+
+## 本地配置文件结构
+
+所有模块的本地配置文件（application.yml）现在只保留以下基本配置：
+
+```yaml
+# 基本配置
+server:
+  port: {模块端口}
+  servlet:
+    context-path: /{模块上下文路径}
+
+spring:
+  application:
+    name: {模块名称}
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+      config:
+        server-addr: localhost:8848
+        file-extension: yml
+        namespace: ${spring.profiles.active}
+        group: DEFAULT_GROUP
+        username: nacos
+        password: nacos
+```
+
+所有其他配置（如数据源配置、MyBatis-Plus配置、业务特定配置等）都从Nacos中读取。
+
 ## 配置结构
 每个模块在Nacos中的配置应该按照以下格式组织：
 - 命名空间：dev（开发环境）、test（测试环境）、prod（生产环境）
@@ -492,8 +529,41 @@ gateway:
 - 测试环境：每日更新
 - 生产环境：按照发布计划更新，需经过审批
 
+## Nacos认证配置
+
+### 认证配置说明
+
+为了确保Nacos的安全性，我们需要配置Nacos的认证信息。根据之前的配置操作，我们已经设置了以下认证配置：
+
+```yaml
+nacos:
+  core:
+    auth:
+      plugin:
+        nacos:
+          token:
+            secret:
+              key: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
+      server:
+        identity:
+          key: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
+          value: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
+```
+
+### 如何获取这些配置
+
+1. 启动Nacos服务后，首次登录控制台时，系统会提示设置token.secret.key
+2. 按照提示，输入一个长度大于32的字符串，系统会自动将其转换为Base64编码
+3. 同时，系统会提示设置identity.key和identity.value
+4. 记录下这些配置值，并在所有模块的配置中使用相同的值
+
+### 配置生效方式
+
+这些配置会在Nacos服务启动时生效，所有客户端在连接Nacos时需要提供正确的认证信息。
+
 ## 注意事项
 1. 生产环境的数据库密码、Redis密码等敏感信息应使用Nacos的加密功能进行加密
 2. 不同环境的配置应分开管理，避免混淆
 3. 配置变更应记录变更历史，便于追溯
 4. 定期备份Nacos中的配置信息，防止配置丢失
+5. Nacos的认证配置（token.secret.key和identity配置）应在所有环境中保持一致，确保所有模块能够正确连接到Nacos

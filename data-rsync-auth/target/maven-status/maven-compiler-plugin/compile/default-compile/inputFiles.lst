@@ -1,7 +1,11 @@
 /Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/service/AuthService.java
 /Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/model/AuditLog.java
 /Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/model/User.java
+/Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/mapper/AuditLogMapper.java
 /Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/model/Permission.java
 /Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/model/Role.java
+/Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/mapper/PermissionMapper.java
+/Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/mapper/UserMapper.java
 /Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/service/impl/AuthServiceImpl.java
 /Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/config/AuthConfig.java
+/Users/mcc/IdeaProjects/data-rsync/data-rsync-auth/src/main/java/com/data/rsync/auth/mapper/RoleMapper.java
