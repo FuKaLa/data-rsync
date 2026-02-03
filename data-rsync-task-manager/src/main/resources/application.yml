@@ -13,11 +13,15 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
+        username: nacos
+        password: nacos
       config:
         server-addr: localhost:8848
         file-extension: yml
         namespace: ${spring.profiles.active}
         group: DEFAULT_GROUP
+        username: nacos
+        password: nacos
   # 数据源配置
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource

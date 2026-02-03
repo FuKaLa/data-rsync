@@ -1,17 +1,21 @@
 spring:
   application:
     name: data-rsync-gateway
-  
-  # Nacos 配置
+  profiles:
+    active: dev
   cloud:
     nacos:
       discovery:
         server-addr: localhost:8848
-        namespace: public
+        username: nacos
+        password: nacos
       config:
         server-addr: localhost:8848
-        namespace: public
         file-extension: yml
+        namespace: ${spring.profiles.active}
+        group: DEFAULT_GROUP
+        username: nacos
+        password: nacos
     gateway:
       discovery:
         locator:

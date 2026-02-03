@@ -13,10 +13,28 @@ spring:
           - dataId: data-rsync.yml
             group: DEFAULT_GROUP
             refresh: true
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+
+# Nacos认证配置
+nacos:
+  core:
+    auth:
+      plugin:
+        nacos:
+          token:
+            secret:
+              key: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
+      server:
+        identity:
+          key: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
+          value: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
 
 # 环境变量配置
 ---
