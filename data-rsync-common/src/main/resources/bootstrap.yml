@@ -1,32 +1,35 @@
+# Bootstrap配置文件
 spring:
   application:
     name: data-rsync-common
   cloud:
     nacos:
       config:
-        server-addr: 127.0.0.1:8848
-        namespace: public
-        group: DEFAULT_GROUP
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
         file-extension: yml
+        shared-configs:
+          - dataId: data-rsync.yml
+            group: DEFAULT_GROUP
+            refresh: true
       discovery:
-        server-addr: 127.0.0.1:8848
-        namespace: public
-        group: DEFAULT_GROUP
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
 
+# 环境变量配置
 ---
 spring:
   profiles:
     active: dev
-  cloud:
-    nacos:
-      config:
-        namespace: dev
 
 ---
 spring:
   profiles:
     active: prod
-  cloud:
-    nacos:
-      config:
-        namespace: prod
+
+---
+spring:
+  profiles:
+    active: test

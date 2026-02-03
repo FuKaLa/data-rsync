@@ -4,6 +4,9 @@ import com.data.rsync.task.manager.entity.TaskEntity;
 import com.data.rsync.task.manager.entity.TaskNodeEntity;
 import com.data.rsync.task.manager.entity.TaskConnectionEntity;
 import com.data.rsync.task.manager.entity.TaskDependencyEntity;
+import com.data.rsync.task.manager.entity.TaskErrorDataEntity;
+import com.data.rsync.task.manager.entity.VectorizationConfigEntity;
+import com.data.rsync.task.manager.entity.MilvusIndexEntity;
 import java.util.List;
 import java.util.Map;
 

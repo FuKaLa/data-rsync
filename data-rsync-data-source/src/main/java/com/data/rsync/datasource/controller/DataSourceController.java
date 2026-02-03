@@ -3,6 +3,7 @@ package com.data.rsync.datasource.controller;
 import com.data.rsync.common.model.DataSource;
 import com.data.rsync.common.model.Response;
 import com.data.rsync.datasource.entity.DataSourceTemplateEntity;
+import com.data.rsync.datasource.entity.DataSourceDiagnoseReportEntity;
 import com.data.rsync.datasource.service.DataSourceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
