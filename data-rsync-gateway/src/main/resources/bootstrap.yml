@@ -1,11 +1,21 @@
-# 基本配置
 server:
   port: 8080
   servlet:
     context-path: /
-
 spring:
   application:
     name: data-rsync-gateway
-  profiles:
-    active: dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
+      config:
+        server-addr: localhost:8848
+        file-extension: yml
+        group: DEFAULT_GROUP
+        username: nacos
+        password: nacos
+        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
