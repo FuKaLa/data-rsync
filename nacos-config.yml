@@ -82,6 +82,20 @@ spring:
         namespace: public
         group: DEFAULT_GROUP
 
+# Nacos认证配置
+nacos:
+  core:
+    auth:
+      plugin:
+        nacos:
+          token:
+            secret:
+              key: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
+      server:
+        identity:
+          key: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
+          value: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
+
 # 服务器配置
 server:
   port: 8080
