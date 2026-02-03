@@ -22,32 +22,8 @@ spring:
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
 
-# Nacos认证配置
-nacos:
-  core:
-    auth:
-      plugin:
-        nacos:
-          token:
-            secret:
-              key: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
-      server:
-        identity:
-          key: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
-          value: dGhpcyBpcyBhIHRlc3QgY2xhdmUga2V5IGZvciBuYWNvcyAxMjM0NTY=
-
 # 环境变量配置
 ---
 spring:
   profiles:
     active: dev
-
----
-spring:
-  profiles:
-    active: prod
-
----
-spring:
-  profiles:
-    active: test

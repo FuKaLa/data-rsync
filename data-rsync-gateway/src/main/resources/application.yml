@@ -1,3 +1,9 @@
+# 基本配置
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
 spring:
   application:
     name: data-rsync-gateway
@@ -16,80 +22,3 @@ spring:
         group: DEFAULT_GROUP
         username: nacos
         password: nacos
-    gateway:
-      discovery:
-        locator:
-          enabled: true
-          lower-case-service-id: true
-      routes:
-        # 数据源管理路由
-        - id: data-source-route
-          uri: lb://data-rsync-data-source
-          predicates:
-            - Path=/data-source/**
-          filters:
-            - StripPrefix=1
-        # 日志监听路由
-        - id: log-listener-route
-          uri: lb://data-rsync-log-listener
-          predicates:
-            - Path=/log-listener/**
-          filters:
-            - StripPrefix=1
-        # 数据处理路由
-        - id: data-process-route
-          uri: lb://data-rsync-data-process
-          predicates:
-            - Path=/data-process/**
-          filters:
-            - StripPrefix=1
-        # Milvus 同步路由
-        - id: milvus-sync-route
-          uri: lb://data-rsync-milvus-sync
-          predicates:
-            - Path=/milvus-sync/**
-          filters:
-            - StripPrefix=1
-        # 认证路由
-        - id: auth-route
-          uri: lb://data-rsync-auth
-          predicates:
-            - Path=/auth/**
-          filters:
-            - StripPrefix=1
-        # 监控路由
-        - id: monitor-route
-          uri: lb://data-rsync-monitor
-          predicates:
-            - Path=/monitor/**
-          filters:
-            - StripPrefix=1
-
-# 服务器配置
-server:
-  port: 8080
-  servlet:
-    context-path: /
-
-# 日志配置
-logging:
-  level:
-    root: info
-    org.springframework.cloud.gateway: debug
-
-# 网关配置
-gateway:
-  filter:
-    rate-limit:
-      enabled: true
-      redis-rate-limiter:
-        replenish-rate: 10 # 每秒允许的请求数
-        burst-capacity: 20 # 令牌桶的容量
-        requested-tokens: 1 # 每个请求消耗的令牌数
-  security:
-    enabled: true
-    auth-url: /auth/login # 认证URL
-    token-header: Authorization # 令牌头
-    token-prefix: Bearer # 令牌前缀
-  health-check:
-    interval: 60000 # 健康检查间隔（毫秒）
