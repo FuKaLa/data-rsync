@@ -5,6 +5,7 @@ import com.data.rsync.common.model.Task;
 import com.data.rsync.common.vectorizer.Vectorizer;
 import com.data.rsync.common.vectorizer.VectorizerFactory;
 import com.data.rsync.data.process.service.DataProcessService;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -22,10 +23,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DataProcessServiceImpl implements DataProcessService {
 
-    @Autowired
+    @Resource
     private RedisTemplate<String, String> redisTemplate;
 
-    @Autowired
+    @Resource
     private KafkaTemplate<String, String> kafkaTemplate;
 
     /**

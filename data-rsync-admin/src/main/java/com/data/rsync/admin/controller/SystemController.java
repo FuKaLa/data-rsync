@@ -3,6 +3,7 @@ package com.data.rsync.admin.controller;
 import com.data.rsync.auth.model.User;
 import com.data.rsync.auth.service.AuthService;
 import com.data.rsync.common.model.Response;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,7 +16,7 @@ import java.util.List;
 @RequestMapping("/system")
 public class SystemController {
 
-    @Autowired
+    @Resource
     private AuthService authService;
 
     /**

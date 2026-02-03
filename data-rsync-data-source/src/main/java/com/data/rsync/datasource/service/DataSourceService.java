@@ -9,6 +9,7 @@ import com.data.rsync.datasource.entity.DataSourceTemplateEntity;
 import com.data.rsync.datasource.repository.DataSourceDiagnoseReportRepository;
 import com.data.rsync.datasource.repository.DataSourceRepository;
 import com.data.rsync.datasource.repository.DataSourceTemplateRepository;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,13 +36,13 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DataSourceService {
 
-    @Autowired
+    @Resource
     private DataSourceRepository dataSourceRepository;
 
-    @Autowired
+    @Resource
     private DataSourceTemplateRepository dataSourceTemplateRepository;
 
-    @Autowired
+    @Resource
     private DataSourceDiagnoseReportRepository diagnoseReportRepository;
 
     /**

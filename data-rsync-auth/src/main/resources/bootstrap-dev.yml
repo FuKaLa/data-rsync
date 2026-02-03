@@ -1,14 +1,4 @@
-# 基本配置
-server:
-  port: 8082
-  servlet:
-    context-path: /log-listener
-
 spring:
-  application:
-    name: data-rsync-log-listener
-  profiles:
-    active: dev
   cloud:
     nacos:
       discovery:
@@ -18,7 +8,7 @@ spring:
       config:
         server-addr: localhost:8848
         file-extension: yml
-        namespace: ${spring.profiles.active}
+        namespace: dev
         group: DEFAULT_GROUP
         username: nacos
         password: nacos

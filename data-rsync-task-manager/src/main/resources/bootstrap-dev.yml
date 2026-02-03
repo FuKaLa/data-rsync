@@ -1,14 +1,4 @@
-# 基本配置
-server:
-  port: 8084
-  servlet:
-    context-path: /milvus-sync
-
 spring:
-  application:
-    name: data-rsync-milvus-sync
-  profiles:
-    active: dev
   cloud:
     nacos:
       discovery:
@@ -18,7 +8,7 @@ spring:
       config:
         server-addr: localhost:8848
         file-extension: yml
-        namespace: ${spring.profiles.active}
+        namespace: dev
         group: DEFAULT_GROUP
         username: nacos
         password: nacos

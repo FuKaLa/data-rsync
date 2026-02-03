@@ -2,7 +2,7 @@ package com.data.rsync.common.config;
 
 import com.data.rsync.common.utils.CacheUtils;
 import com.data.rsync.common.utils.DistributedLockUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -15,7 +15,7 @@ import javax.annotation.PostConstruct;
 @Configuration
 public class RedisConfig {
 
-    @Autowired
+    @Resource
     private RedisTemplate<String, Object> redisTemplate;
 
     @PostConstruct

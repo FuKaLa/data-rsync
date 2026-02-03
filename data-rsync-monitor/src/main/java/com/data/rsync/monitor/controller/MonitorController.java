@@ -3,6 +3,7 @@ package com.data.rsync.monitor.controller;
 import com.data.rsync.common.model.Response;
 import com.data.rsync.monitor.service.AlertService;
 import com.data.rsync.monitor.service.MetricsService;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,10 +16,10 @@ import java.util.Map;
 @RequestMapping("/api/monitor")
 public class MonitorController {
 
-    @Autowired
+    @Resource
     private MetricsService metricsService;
 
-    @Autowired
+    @Resource
     private AlertService alertService;
 
     /**

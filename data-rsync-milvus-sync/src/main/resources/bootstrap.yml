@@ -1,0 +1,11 @@
+# 基本配置
+server:
+  port: 8084
+  servlet:
+    context-path: /milvus-sync
+
+spring:
+  application:
+    name: data-rsync-milvus-sync
+  profiles:
+    active: dev

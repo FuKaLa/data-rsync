@@ -1,0 +1,11 @@
+# 基本配置
+server:
+  port: 8086
+  servlet:
+    context-path: /monitor
+
+spring:
+  application:
+    name: data-rsync-monitor
+  profiles:
+    active: dev

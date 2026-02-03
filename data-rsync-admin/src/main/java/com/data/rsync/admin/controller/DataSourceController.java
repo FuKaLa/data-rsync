@@ -3,6 +3,7 @@ package com.data.rsync.admin.controller;
 import com.data.rsync.common.model.DataSource;
 import com.data.rsync.common.model.Response;
 import com.data.rsync.datasource.service.DataSourceService;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,7 +16,7 @@ import java.util.List;
 @RequestMapping("/data-source")
 public class DataSourceController {
 
-    @Autowired
+    @Resource
     private DataSourceService dataSourceService;
 
     /**

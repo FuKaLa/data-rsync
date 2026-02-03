@@ -1,0 +1,11 @@
+# Bootstrap配置文件
+server:
+  port: 8080
+  servlet:
+    context-path: /admin
+
+spring:
+  application:
+    name: data-rsync-admin
+  profiles:
+    active: dev

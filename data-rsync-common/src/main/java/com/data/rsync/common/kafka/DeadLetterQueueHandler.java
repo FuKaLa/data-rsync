@@ -1,6 +1,7 @@
 package com.data.rsync.common.kafka;
 
 import com.data.rsync.common.constants.DataRsyncConstants;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class DeadLetterQueueHandler {
 
-    @Autowired
+    @Resource
     private KafkaTemplate<String, String> kafkaTemplate;
 
     /**

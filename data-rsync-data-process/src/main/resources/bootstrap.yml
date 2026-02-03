@@ -1,0 +1,11 @@
+# 基本配置
+server:
+  port: 8083
+  servlet:
+    context-path: /data-process
+
+spring:
+  application:
+    name: data-rsync-data-process
+  profiles:
+    active: dev

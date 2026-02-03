@@ -3,6 +3,7 @@ package com.data.rsync.admin.controller;
 import com.data.rsync.common.model.Response;
 import com.data.rsync.task.manager.entity.TaskEntity;
 import com.data.rsync.task.manager.service.TaskService;
+import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,7 @@ import java.util.Map;
 @RequestMapping("/task")
 public class TaskController {
 
-    @Autowired
+    @Resource
     private TaskService taskService;
 
     /**

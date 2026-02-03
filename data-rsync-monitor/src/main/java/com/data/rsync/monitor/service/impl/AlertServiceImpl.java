@@ -1,6 +1,7 @@
 package com.data.rsync.monitor.service.impl;
 
 import com.data.rsync.monitor.service.AlertService;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,10 +24,10 @@ import java.util.Map;
 @Slf4j
 public class AlertServiceImpl implements AlertService {
 
-    @Autowired
+    @Resource
     private JavaMailSender javaMailSender;
     
-    @Autowired
+    @Resource
     private RestTemplate restTemplate;
 
     // 邮件配置

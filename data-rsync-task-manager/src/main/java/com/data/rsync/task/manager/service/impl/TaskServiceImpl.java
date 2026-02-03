@@ -17,6 +17,7 @@ import com.data.rsync.task.manager.repository.VectorizationConfigRepository;
 import com.data.rsync.task.manager.repository.MilvusIndexRepository;
 import com.data.rsync.task.manager.service.TaskService;
 import io.milvus.client.MilvusClient;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,25 +41,25 @@ import com.data.rsync.common.utils.MilvusUtils;
 @Slf4j
 public class TaskServiceImpl implements TaskService {
 
-    @Autowired
+    @Resource
     private TaskRepository taskRepository;
 
-    @Autowired
+    @Resource
     private TaskNodeRepository taskNodeRepository;
 
-    @Autowired
+    @Resource
     private TaskConnectionRepository taskConnectionRepository;
 
-    @Autowired
+    @Resource
     private TaskDependencyRepository taskDependencyRepository;
 
-    @Autowired
+    @Resource
     private TaskErrorDataRepository taskErrorDataRepository;
 
-    @Autowired
+    @Resource
     private VectorizationConfigRepository vectorizationConfigRepository;
 
-    @Autowired
+    @Resource
     private MilvusIndexRepository milvusIndexRepository;
 
     // 线程池用于异步执行任务

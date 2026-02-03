@@ -10,6 +10,7 @@ import com.data.rsync.auth.model.Role;
 import com.data.rsync.auth.model.Permission;
 import com.data.rsync.auth.model.AuditLog;
 import com.data.rsync.auth.service.AuthService;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,19 +27,19 @@ import java.util.Map;
 @Service
 public class AuthServiceImpl implements AuthService {
 
-    @Autowired
+    @Resource
     private UserMapper userMapper;
 
-    @Autowired
+    @Resource
     private RoleMapper roleMapper;
 
-    @Autowired
+    @Resource
     private PermissionMapper permissionMapper;
 
-    @Autowired
+    @Resource
     private AuditLogMapper auditLogMapper;
 
-    @Autowired
+    @Resource
     private PasswordEncoder passwordEncoder;
 
     // ==================== 用户管理 ====================

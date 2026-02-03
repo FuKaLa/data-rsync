@@ -5,6 +5,7 @@ import com.data.rsync.common.utils.MilvusUtils;
 import io.milvus.client.MilvusClient;
 import io.milvus.param.*;
 import io.milvus.param.dml.QueryParam;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -21,7 +22,7 @@ import java.util.concurrent.*;
 @Slf4j
 public class DataSyncCompensateService {
 
-    @Autowired
+    @Resource
     private RedisTemplate<String, String> redisTemplate;
 
     /**

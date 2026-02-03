@@ -5,6 +5,7 @@ import com.data.rsync.common.model.Response;
 import com.data.rsync.datasource.entity.DataSourceTemplateEntity;
 import com.data.rsync.datasource.entity.DataSourceDiagnoseReportEntity;
 import com.data.rsync.datasource.service.DataSourceService;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +20,7 @@ import java.util.List;
 @Slf4j
 public class DataSourceController {
 
-    @Autowired
+    @Resource
     private DataSourceService dataSourceService;
 
     /**

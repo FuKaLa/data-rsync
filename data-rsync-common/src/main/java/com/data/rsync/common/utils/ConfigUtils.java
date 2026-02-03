@@ -1,6 +1,7 @@
 package com.data.rsync.common.utils;
 
 import com.data.rsync.common.config.NacosConfig;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -9,7 +10,7 @@ public class ConfigUtils {
 
     private static NacosConfig nacosConfig;
 
-    @Autowired
+    @Resource
     public void setNacosConfig(NacosConfig nacosConfig) {
         ConfigUtils.nacosConfig = nacosConfig;
     }

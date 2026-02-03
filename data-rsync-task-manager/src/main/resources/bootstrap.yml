@@ -1,0 +1,11 @@
+# 基本配置
+server:
+  port: 8087
+  servlet:
+    context-path: /task-manager
+
+spring:
+  application:
+    name: data-rsync-task-manager
+  profiles:
+    active: dev

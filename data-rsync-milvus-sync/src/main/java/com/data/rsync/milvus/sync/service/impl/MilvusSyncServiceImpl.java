@@ -22,6 +22,7 @@ import io.milvus.param.dml.SearchParam;
 import io.milvus.param.index.CreateIndexParam;
 import io.milvus.param.index.DescribeIndexParam;
 import io.milvus.param.index.DropIndexParam;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -37,10 +38,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class MilvusSyncServiceImpl implements MilvusSyncService {
 
-    @Autowired
+    @Resource
     private RedisTemplate<String, String> redisTemplate;
 
-    @Autowired
+    @Resource
     private DeadLetterQueueHandler deadLetterQueueHandler;
 
     /**

@@ -9,6 +9,7 @@ import com.data.rsync.task.manager.entity.TaskErrorDataEntity;
 import com.data.rsync.task.manager.entity.VectorizationConfigEntity;
 import com.data.rsync.task.manager.entity.MilvusIndexEntity;
 import com.data.rsync.task.manager.service.TaskService;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +23,7 @@ import java.util.Map;
 @RequestMapping("/api/tasks")
 public class TaskController {
 
-    @Autowired
+    @Resource
     private TaskService taskService;
 
     /**

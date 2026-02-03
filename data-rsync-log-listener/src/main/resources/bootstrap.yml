@@ -1,0 +1,11 @@
+# 基本配置
+server:
+  port: 8082
+  servlet:
+    context-path: /log-listener
+
+spring:
+  application:
+    name: data-rsync-log-listener
+  profiles:
+    active: dev

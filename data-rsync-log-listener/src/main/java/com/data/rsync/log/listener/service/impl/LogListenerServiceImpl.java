@@ -8,6 +8,7 @@ import com.data.rsync.common.utils.ThreadPoolManager;
 import com.data.rsync.log.listener.service.LogListenerService;
 import io.debezium.config.Configuration;
 import io.debezium.embedded.EmbeddedEngine;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -32,13 +33,13 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class LogListenerServiceImpl implements LogListenerService {
 
-    @Autowired
+    @Resource
     private RedisTemplate<String, String> redisTemplate;
 
-    @Autowired
+    @Resource
     private KafkaTemplate<String, String> kafkaTemplate;
 
-    @Autowired
+    @Resource
     private ThreadPoolManager threadPoolManager;
 
     /**
