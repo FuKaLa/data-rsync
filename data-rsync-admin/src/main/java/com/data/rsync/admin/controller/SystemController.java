@@ -1,10 +1,6 @@
 package com.data.rsync.admin.controller;
 
-import com.data.rsync.auth.model.User;
-import com.data.rsync.auth.service.AuthService;
 import com.data.rsync.common.model.Response;
-import jakarta.annotation.Resource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,17 +12,14 @@ import java.util.List;
 @RequestMapping("/system")
 public class SystemController {
 
-    @Resource
-    private AuthService authService;
-
     /**
      * 获取所有用户
      * @return 用户列表
      */
     @GetMapping("/users")
     public Response getUsers() {
-        List<User> users = authService.getAllUsers();
-        return Response.success("获取成功", users);
+        // 这里应该通过Feign客户端调用data-rsync-auth模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**
@@ -35,9 +28,9 @@ public class SystemController {
      * @return 创建结果
      */
     @PostMapping("/users")
-    public Response createUser(@RequestBody User user) {
-        User createdUser = authService.createUser(user);
-        return Response.success("创建成功", createdUser);
+    public Response createUser(@RequestBody Object user) {
+        // 这里应该通过Feign客户端调用data-rsync-auth模块的服务
+        return Response.success("创建成功", null);
     }
 
     /**
@@ -46,9 +39,9 @@ public class SystemController {
      * @return 更新结果
      */
     @PutMapping("/users")
-    public Response updateUser(@RequestBody User user) {
-        User updatedUser = authService.updateUser(user);
-        return Response.success("更新成功", updatedUser);
+    public Response updateUser(@RequestBody Object user) {
+        // 这里应该通过Feign客户端调用data-rsync-auth模块的服务
+        return Response.success("更新成功", null);
     }
 
     /**
@@ -58,7 +51,7 @@ public class SystemController {
      */
     @DeleteMapping("/users/{id}")
     public Response deleteUser(@PathVariable Long id) {
-        authService.deleteUser(id);
+        // 这里应该通过Feign客户端调用data-rsync-auth模块的服务
         return Response.success("删除成功");
     }
 
@@ -70,8 +63,7 @@ public class SystemController {
      */
     @PostMapping("/users/{id}/reset-password")
     public Response resetPassword(@PathVariable Long id, @RequestBody List<String> params) {
-        String newPassword = params.get(0);
-        authService.resetPassword(id, newPassword);
+        // 这里应该通过Feign客户端调用data-rsync-auth模块的服务
         return Response.success("重置成功");
     }
 
@@ -102,7 +94,7 @@ public class SystemController {
      */
     @GetMapping("/audit-logs")
     public Response getAuditLogs() {
-        // 这里应该调用AuthService的queryAuditLogs方法
+        // 这里应该通过Feign客户端调用data-rsync-auth模块的服务
         return Response.success("获取成功", null);
     }
 

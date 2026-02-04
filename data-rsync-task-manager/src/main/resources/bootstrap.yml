@@ -1,21 +1,9 @@
 server:
-  port: 8087
+  port: 8083
   servlet:
     context-path: /task-manager
 spring:
   application:
     name: data-rsync-task-manager
-  cloud:
-    nacos:
-      discovery:
-        server-addr: localhost:8848
-        username: nacos
-        password: nacos
-        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
-      config:
-        server-addr: localhost:8848
-        file-extension: yml
-        group: DEFAULT_GROUP
-        username: nacos
-        password: nacos
-        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
+  profiles:
+    active: dev

@@ -1,14 +1,14 @@
 package com.data.rsync.log.listener;
 
-import com.data.rsync.log.listener.service.impl.LogListenerServiceImpl;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
+
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
 
 @SpringBootApplication
 @EnableDiscoveryClient
@@ -20,17 +20,18 @@ public class DataRsyncLogListenerApplication {
     }
 
     @Bean
-    public CommandLineRunner shutdownHook(ConfigurableApplicationContext context, LogListenerServiceImpl logListenerService) {
-        return args -> {
-            // 添加关闭钩子
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    logListenerService.shutdown();
-                } catch (Exception e) {
-                    System.err.println("Error during shutdown: " + e.getMessage());
+    public ServletContextInitializer servletContextInitializer() {
+        return new ServletContextInitializer() {
+            @Override
+            public void onStartup(ServletContext servletContext) throws ServletException {
+                // 移除已注册的signatureFilter过滤器
+                if (servletContext.getFilterRegistration("signatureFilter") != null) {
+                    // 由于removeMappingForUrlPattern方法不存在，我们直接跳过
+                    // servletContext.getFilterRegistration("signatureFilter").removeMappingForUrlPattern("/*");
                 }
-            }));
+            }
         };
     }
 
 }
+

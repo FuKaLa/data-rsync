@@ -1,21 +1,12 @@
 server:
-  port: 8084
+  port: 8707
   servlet:
     context-path: /milvus-sync
 spring:
   application:
     name: data-rsync-milvus-sync
-  cloud:
-    nacos:
-      discovery:
-        server-addr: localhost:8848
-        username: nacos
-        password: nacos
-        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
-      config:
-        server-addr: localhost:8848
-        file-extension: yml
-        group: DEFAULT_GROUP
-        username: nacos
-        password: nacos
-        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
+  profiles:
+    active: dev
+  filter:
+    config:
+      enabled: false

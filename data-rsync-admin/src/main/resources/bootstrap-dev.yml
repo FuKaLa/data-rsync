@@ -1,24 +1,18 @@
 spring:
-  application:
-    name: data-rsync-admin
-  profiles:
-    active: dev
   cloud:
     nacos:
       config:
         server-addr: localhost:8848
+        namespace: dev
+        group: DEFAULT_GROUP
         file-extension: yml
+        username: nacos
+        password: nacos
+      discovery:
+        server-addr: localhost:8848
+        namespace: dev
         group: DEFAULT_GROUP
         username: nacos
         password: nacos
-        namespace: ${spring.profiles.active}
-      discovery:
-        server-addr: localhost:8848
-        username: nacos
-        password: nacos
-        namespace: ${spring.profiles.active}
 
-server:
-  port: 8088
-  servlet:
-    context-path: /admin
+

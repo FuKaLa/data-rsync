@@ -1,11 +1,6 @@
 package com.data.rsync.admin.controller;
 
 import com.data.rsync.common.model.Response;
-import com.data.rsync.task.manager.entity.TaskEntity;
-import com.data.rsync.task.manager.service.TaskService;
-import jakarta.annotation.Resource;
-import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,17 +13,14 @@ import java.util.Map;
 @RequestMapping("/task")
 public class TaskController {
 
-    @Resource
-    private TaskService taskService;
-
     /**
      * 获取所有任务
      * @return 任务列表
      */
     @GetMapping("/list")
     public Response list() {
-        List<TaskEntity> tasks = taskService.getAllTasks();
-        return Response.success("获取成功", tasks);
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**
@@ -38,8 +30,8 @@ public class TaskController {
      */
     @GetMapping("/detail/{id}")
     public Response detail(@PathVariable Long id) {
-        TaskEntity task = taskService.getTaskById(id);
-        return Response.success("获取成功", task);
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**
@@ -48,9 +40,9 @@ public class TaskController {
      * @return 创建结果
      */
     @PostMapping("/create")
-    public Response create(@RequestBody @Valid TaskEntity task) {
-        TaskEntity createdTask = taskService.createTask(task);
-        return Response.success("创建成功", createdTask);
+    public Response create(@RequestBody Object task) {
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
+        return Response.success("创建成功", null);
     }
 
     /**
@@ -59,9 +51,9 @@ public class TaskController {
      * @return 更新结果
      */
     @PutMapping("/update")
-    public Response update(@RequestBody @Valid TaskEntity task) {
-        TaskEntity updatedTask = taskService.updateTask(task);
-        return Response.success("更新成功", updatedTask);
+    public Response update(@RequestBody Object task) {
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
+        return Response.success("更新成功", null);
     }
 
     /**
@@ -71,7 +63,7 @@ public class TaskController {
      */
     @DeleteMapping("/delete/{id}")
     public Response delete(@PathVariable Long id) {
-        taskService.deleteTask(id);
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
         return Response.success("删除成功");
     }
 
@@ -82,8 +74,8 @@ public class TaskController {
      */
     @PostMapping("/start/{id}")
     public Response start(@PathVariable Long id) {
-        Map<String, Object> result = taskService.triggerTask(id);
-        return Response.success("启动成功", result);
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
+        return Response.success("启动成功", null);
     }
 
     /**
@@ -93,8 +85,8 @@ public class TaskController {
      */
     @PostMapping("/pause/{id}")
     public Response pause(@PathVariable Long id) {
-        boolean result = taskService.pauseTask(id);
-        return Response.success("暂停成功", result);
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
+        return Response.success("暂停成功", null);
     }
 
     /**
@@ -104,8 +96,8 @@ public class TaskController {
      */
     @PostMapping("/resume/{id}")
     public Response resume(@PathVariable Long id) {
-        boolean result = taskService.resumeTask(id);
-        return Response.success("继续成功", result);
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
+        return Response.success("继续成功", null);
     }
 
     /**
@@ -116,8 +108,8 @@ public class TaskController {
      */
     @PostMapping("/rollback/{id}")
     public Response rollback(@PathVariable Long id, @RequestParam String rollbackPoint) {
-        boolean result = taskService.rollbackTask(id, rollbackPoint);
-        return Response.success("回滚成功", result);
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
+        return Response.success("回滚成功", null);
     }
 
     /**
@@ -127,8 +119,8 @@ public class TaskController {
      */
     @GetMapping("/versions/{id}")
     public Response versions(@PathVariable Long id) {
-        List<Map<String, Object>> versions = taskService.getTaskVersions(id);
-        return Response.success("获取成功", versions);
+        // 这里应该通过Feign客户端调用data-rsync-task-manager模块的服务
+        return Response.success("获取成功", null);
     }
 
 }

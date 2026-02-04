@@ -5,22 +5,18 @@ spring:
   cloud:
     nacos:
       config:
-        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
-        namespace: ${NACOS_NAMESPACE:public}
-        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        server-addr: localhost:8848
+        namespace: dev
+        group: DEFAULT_GROUP
         file-extension: yml
-        shared-configs:
-          - dataId: data-rsync.yml
-            group: DEFAULT_GROUP
-            refresh: true
-        username: ${NACOS_USERNAME:nacos}
-        password: ${NACOS_PASSWORD:nacos}
+        username: nacos
+        password: nacos
       discovery:
-        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
-        namespace: ${NACOS_NAMESPACE:public}
-        group: ${NACOS_GROUP:DEFAULT_GROUP}
-        username: ${NACOS_USERNAME:nacos}
-        password: ${NACOS_PASSWORD:nacos}
+        server-addr: localhost:8848
+        namespace: dev
+        group: DEFAULT_GROUP
+        username: nacos
+        password: nacos
 
 # 环境变量配置
 ---

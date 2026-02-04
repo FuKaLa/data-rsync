@@ -1,10 +1,6 @@
 package com.data.rsync.admin.controller;
 
 import com.data.rsync.common.model.Response;
-import com.data.rsync.monitor.service.AlertService;
-import com.data.rsync.monitor.service.MetricsService;
-import jakarta.annotation.Resource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -19,20 +15,14 @@ import java.util.Map;
 @RequestMapping("/monitor")
 public class MonitorController {
 
-    @Resource
-    private MetricsService metricsService;
-
-    @Resource
-    private AlertService alertService;
-
     /**
      * 获取系统指标
      * @return 系统指标
      */
     @GetMapping("/metrics")
     public Response getMetrics() {
-        Map<String, Object> metrics = metricsService.collectSystemMetrics();
-        return Response.success("获取成功", metrics);
+        // 这里应该通过Feign客户端调用data-rsync-monitor模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**
@@ -41,8 +31,8 @@ public class MonitorController {
      */
     @GetMapping("/business-metrics")
     public Response getBusinessMetrics() {
-        Map<String, Object> metrics = metricsService.collectBusinessMetrics();
-        return Response.success("获取成功", metrics);
+        // 这里应该通过Feign客户端调用data-rsync-monitor模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**
@@ -51,8 +41,8 @@ public class MonitorController {
      */
     @GetMapping("/dashboard")
     public Response getDashboard() {
-        Map<String, Object> dashboardData = metricsService.collectAllMetrics();
-        return Response.success("获取成功", dashboardData);
+        // 这里应该通过Feign客户端调用data-rsync-monitor模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**
@@ -61,8 +51,8 @@ public class MonitorController {
      */
     @GetMapping("/datasource-metrics")
     public Response getDatasourceMetrics() {
-        Map<String, Object> metrics = metricsService.collectDatasourceMetrics();
-        return Response.success("获取成功", metrics);
+        // 这里应该通过Feign客户端调用data-rsync-monitor模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**
@@ -71,8 +61,8 @@ public class MonitorController {
      */
     @GetMapping("/task-metrics")
     public Response getTaskMetrics() {
-        Map<String, Object> metrics = metricsService.collectTaskMetrics();
-        return Response.success("获取成功", metrics);
+        // 这里应该通过Feign客户端调用data-rsync-monitor模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**
@@ -81,8 +71,8 @@ public class MonitorController {
      */
     @GetMapping("/milvus-metrics")
     public Response getMilvusMetrics() {
-        Map<String, Object> metrics = metricsService.collectMilvusMetrics();
-        return Response.success("获取成功", metrics);
+        // 这里应该通过Feign客户端调用data-rsync-monitor模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**
@@ -91,8 +81,8 @@ public class MonitorController {
      */
     @GetMapping("/delay-metrics")
     public Response getDelayMetrics() {
-        Map<String, Object> metrics = metricsService.collectDataDelayMetrics();
-        return Response.success("获取成功", metrics);
+        // 这里应该通过Feign客户端调用data-rsync-monitor模块的服务
+        return Response.success("获取成功", null);
     }
 
     /**

@@ -71,9 +71,10 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
     }
 
     /**
-     * 构造方法，初始化 Milvus 客户端
+     * 初始化方法，在依赖注入完成后执行
      */
-    public MilvusSyncServiceImpl() {
+    @jakarta.annotation.PostConstruct
+    public void init() {
         try {
             // 初始化 Milvus 客户端（从Nacos配置）
             milvusClient = MilvusUtils.createMilvusClient();
@@ -81,6 +82,13 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
         } catch (Exception e) {
             log.error("Failed to initialize Milvus client: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * 构造方法
+     */
+    public MilvusSyncServiceImpl() {
+        log.info("Creating MilvusSyncServiceImpl instance");
     }
 
     /**

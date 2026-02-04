@@ -121,7 +121,7 @@ public class DeadLetterQueueHandler {
                     .build();
 
             // 发送到死信队列
-            kafkaTemplate.send(deadLetterMessage);
+            kafkaTemplate.send(DataRsyncConstants.KafkaTopic.ERROR_TOPIC, originalKey, message);
             log.info("Sent message to dead letter queue: {}", originalKey);
         } catch (Exception e) {
             log.error("Failed to send message to dead letter queue: {}", e.getMessage(), e);

@@ -1,12 +1,8 @@
 package com.data.rsync.admin.controller;
 
-import com.data.rsync.auth.model.User;
-import com.data.rsync.auth.service.AuthService;
 import com.data.rsync.common.model.Response;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
 import java.util.Map;
 
 /**
@@ -15,9 +11,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
-
-    @Resource
-    private AuthService authService;
 
     /**
      * 登录
@@ -32,15 +25,9 @@ public class AuthController {
         // 这里应该调用AuthService的登录方法，验证用户名和密码
         // 然后生成JWT token并返回
         
-        User user = authService.getUserByUsername(username);
-        if (user == null) {
-            return Response.failure("用户不存在");
-        }
+        // 暂时返回成功，后续通过Feign客户端调用data-rsync-auth模块的服务
         
-        // 这里应该验证密码，但是由于密码是加密存储的，需要使用PasswordEncoder
-        // 暂时返回成功，后续完善
-        
-        return Response.success("登录成功", user);
+        return Response.success("登录成功", null);
     }
 
     /**

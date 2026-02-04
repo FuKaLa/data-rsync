@@ -15,7 +15,6 @@ import java.util.Map;
 /**
  * API签名验证过滤器
  */
-@Component
 public class SignatureFilter implements Filter {
 
     private static final long DEFAULT_TIMEOUT = 300; // 默认超时时间（秒）

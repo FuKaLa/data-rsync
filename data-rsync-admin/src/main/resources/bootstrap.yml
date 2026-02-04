@@ -1,21 +1,7 @@
-server:
-  port: 8088
-  servlet:
-    context-path: /admin
 spring:
   application:
     name: data-rsync-admin
-  cloud:
-    nacos:
-      discovery:
-        server-addr: localhost:8848
-        username: nacos
-        password: nacos
-        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
-      config:
-        server-addr: localhost:8848
-        file-extension: yml
-        group: DEFAULT_GROUP
-        username: nacos
-        password: nacos
-        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
+  profiles:
+    active: dev
+    server:
+      port: 8703

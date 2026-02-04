@@ -4,6 +4,7 @@ import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -18,6 +19,7 @@ public class GatewayConfig {
      * 基于路径的限流键解析器
      */
     @Bean
+    @Primary
     public KeyResolver pathKeyResolver() {
         return exchange -> Mono.just(exchange.getRequest().getURI().getPath());
     }

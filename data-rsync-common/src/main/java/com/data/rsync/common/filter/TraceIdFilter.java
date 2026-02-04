@@ -11,7 +11,6 @@ import java.io.IOException;
 /**
  * 链路ID过滤器
  */
-@Component
 public class TraceIdFilter implements Filter {
 
     @Override
