@@ -1,0 +1,22 @@
+spring:
+  cloud:
+    nacos:
+      config:
+        server-addr: localhost:8848
+        namespace: nacos
+        group: DEFAULT_GROUP
+        file-extension: yml
+        username: nacos
+        password: nacos
+        shared-configs:
+          - dataId: data-rsync-task-manager.yml
+            group: DEFAULT_GROUP
+            refresh: true
+      discovery:
+        server-addr: localhost:8848
+        namespace: nacos
+        group: DEFAULT_GROUP
+        username: nacos
+        password: nacos
+
+
