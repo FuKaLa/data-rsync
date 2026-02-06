@@ -174,7 +174,9 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public TaskEntity getTaskByName(String name) {
-        return taskRepository.findByName(name);
+        QueryWrapper<TaskEntity> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("name", name);
+        return taskRepository.selectOne(queryWrapper);
     }
 
     @Override

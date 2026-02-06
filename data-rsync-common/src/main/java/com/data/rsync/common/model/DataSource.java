@@ -58,6 +58,21 @@ public class DataSource {
     private String url;
 
     /**
+     * 驱动类
+     */
+    private String driverClass;
+
+    /**
+     * 日志监听方式
+     */
+    private String logMonitorType;
+
+    /**
+     * 连接超时时间（毫秒）
+     */
+    private Integer connectionTimeout;
+
+    /**
      * 状态：启用/禁用
      */
     private Boolean enabled;
@@ -66,6 +81,26 @@ public class DataSource {
      * 健康状态
      */
     private String healthStatus;
+
+    /**
+     * 最近一次连接失败原因
+     */
+    private String lastFailureReason;
+
+    /**
+     * 心跳检测耗时（毫秒）
+     */
+    private Integer heartbeatTime;
+
+    /**
+     * 最近一次心跳检测时间
+     */
+    private LocalDateTime lastHeartbeatTime;
+
+    /**
+     * 连续失败次数
+     */
+    private Integer failureCount;
 
     /**
      * 描述
@@ -91,6 +126,11 @@ public class DataSource {
      * 更新人
      */
     private String updateBy;
+
+    /**
+     * 版本号
+     */
+    private Integer version;
 
     /**
      * 获取数据库名称（别名方法）

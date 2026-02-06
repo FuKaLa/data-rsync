@@ -840,21 +840,228 @@ body {
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
+  background: rgba(15, 23, 42, 0.8) !important;
 }
 
-.el-table__header-wrapper {
-  background: linear-gradient(90deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+/* 表头容器样式 - 最高优先级 */
+.el-table__header-wrapper,
+.el-table__header-wrapper.is-scrolling-none,
+.el-table__header-wrapper.is-scrolling-left,
+.el-table__header-wrapper.is-scrolling-right {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%) !important;
+  border-bottom: 2px solid var(--primary-color) !important;
+  z-index: 10;
 }
 
-.el-table__header th {
+/* 表头行样式 */
+.el-table__header,
+.el-table__header thead {
+  background: transparent !important;
+}
+
+/* 表头单元格样式 - 覆盖所有可能的选择器 */
+.el-table__header th,
+.el-table__header th.el-table__cell,
+.el-table th.el-table__cell,
+.el-table__header th.is-leaf,
+.el-table__header th.is-sortable,
+.el-table__header th.is-filterable {
   font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
-  background: transparent;
-  border-bottom: 2px solid var(--primary-color);
+  color: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-bottom: 2px solid var(--primary-color) !important;
+  border-right: 1px solid rgba(59, 130, 246, 0.2) !important;
+  padding: 18px 16px !important;
+  font-size: 14px !important;
+  position: relative;
+  z-index: 11;
+}
+
+/* 表头单元格内容样式 */
+.el-table__header-cell,
+.el-table__header-cell.is-leaf,
+.el-table__header-cell.is-sortable,
+.el-table__header-cell.is-filterable {
+  color: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(15, 23, 42, 0.9) !important;
+}
+
+.el-table__header-cell .cell,
+.el-table__header-cell.is-leaf .cell,
+.el-table__header-cell.is-sortable .cell,
+.el-table__header-cell.is-filterable .cell {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: var(--font-weight-semibold) !important;
+}
+
+/* 表头排序图标样式 */
+.el-table__sort-wrapper {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.el-table__sort-wrapper:hover {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 表头排序图标具体样式 */
+.el-table__sort-icon {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.el-table__sort-icon:hover {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 确保最后一个表头单元格没有右边框 */
+.el-table__header th:last-child,
+.el-table__header th.el-table__cell:last-child {
+  border-right: none !important;
+}
+
+/* 确保表头覆盖Element Plus的所有默认样式 */
+:root {
+  --el-table-header-bg-color: rgba(15, 23, 42, 0.9) !important;
+  --el-table-header-text-color: rgba(255, 255, 255, 0.9) !important;
+  --el-table-header-border-color: var(--primary-color) !important;
+}
+
+/* 直接覆盖Element Plus的CSS变量 */
+.el-table {
+  --el-table-header-bg-color: rgba(15, 23, 42, 0.9) !important;
+  --el-table-header-text-color: rgba(255, 255, 255, 0.9) !important;
+  --el-table-header-border-color: var(--primary-color) !important;
+  --el-table-row-hover-bg-color: rgba(59, 130, 246, 0.1) !important;
+  --el-table-row-stripe-bg-color: rgba(59, 130, 246, 0.05) !important;
+  --el-table-border-color: rgba(59, 130, 246, 0.1) !important;
+  --el-table-text-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.el-table__body-wrapper {
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+.el-table__row {
+  background: rgba(15, 23, 42, 0.8) !important;
 }
 
 .el-table__row:hover {
-  background: rgba(64, 158, 255, 0.05) !important;
+  background: rgba(64, 158, 255, 0.1) !important;
+}
+
+.el-table__row.el-table__row--striped {
+  background: rgba(59, 130, 246, 0.05) !important;
+}
+
+.el-table__empty-block {
+  background: rgba(15, 23, 42, 0.9) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.el-table__empty-text {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.el-table__cell {
+  color: rgba(255, 255, 255, 0.8) !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.1) !important;
+}
+
+/* 确保表头覆盖所有可能的样式 */
+.el-table__header-wrapper,
+.el-table__header-wrapper * {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 确保表头单元格内容覆盖 */
+.el-table__header-cell > .cell,
+.el-table__header-cell > .cell * {
+  color: rgba(255, 255, 255, 0.9) !important;
+  background: transparent !important;
+}
+
+/* 分页组件样式 - 完整覆盖 */
+.el-pagination,
+.el-pagination * {
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* 分页按钮样式 */
+.el-pagination__item,
+.el-pagination__prev,
+.el-pagination__next,
+.el-pagination__jump-prev,
+.el-pagination__jump-next {
+  background: rgba(15, 23, 42, 0.9) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: var(--radius-md) !important;
+  transition: all var(--transition-normal) !important;
+}
+
+.el-pagination__item:hover,
+.el-pagination__prev:hover,
+.el-pagination__next:hover,
+.el-pagination__jump-prev:hover,
+.el-pagination__jump-next:hover {
+  background: rgba(59, 130, 246, 0.1) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  border-color: var(--primary-color) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.el-pagination__item.is-active {
+  background: var(--gradient-primary) !important;
+  color: white !important;
+  border-color: transparent !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* 分页文本样式 */
+.el-pagination__total,
+.el-pagination__sizes {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* 分页选择器样式 */
+.el-pagination__sizes .el-select,
+.el-pagination__sizes .el-select * {
+  background: rgba(15, 23, 42, 0.9) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.el-pagination__sizes .el-select .el-input__wrapper {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.el-pagination__sizes .el-select .el-input__inner {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* 分页输入框样式 */
+.el-pagination__editor {
+  background: rgba(15, 23, 42, 0.9) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.el-pagination__editor:hover,
+.el-pagination__editor:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* 确保分页组件背景覆盖 */
+.pagination,
+.pagination * {
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
 }
 
 .el-dialog {

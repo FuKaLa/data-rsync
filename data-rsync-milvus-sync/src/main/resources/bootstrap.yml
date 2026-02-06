@@ -1,7 +1,7 @@
 server:
   port: 8707
   servlet:
-    context-path: /milvus-sync
+    context-path: /sync
 spring:
   application:
     name: data-rsync-milvus-sync

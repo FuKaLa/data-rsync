@@ -2,6 +2,23 @@
 -- 生成时间: 2026-02-02
 -- 包含详细字段注释
 
+-- 删除现有表（按依赖关系顺序）
+DROP TABLE IF EXISTS user_role;
+DROP TABLE IF EXISTS role_permission;
+DROP TABLE IF EXISTS task_error_data;
+DROP TABLE IF EXISTS vectorization_config;
+DROP TABLE IF EXISTS task_dependency;
+DROP TABLE IF EXISTS task_connection;
+DROP TABLE IF EXISTS task_node;
+DROP TABLE IF EXISTS task;
+DROP TABLE IF EXISTS data_source_diagnose_report;
+DROP TABLE IF EXISTS data_source_template;
+DROP TABLE IF EXISTS data_source;
+DROP TABLE IF EXISTS milvus_index;
+DROP TABLE IF EXISTS permission;
+DROP TABLE IF EXISTS role;
+DROP TABLE IF EXISTS user;
+
 -- 用户表
 CREATE TABLE IF NOT EXISTS user (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '用户ID',
@@ -53,18 +70,14 @@ CREATE TABLE IF NOT EXISTS permission (
 CREATE TABLE IF NOT EXISTS user_role (
     user_id BIGINT NOT NULL COMMENT '用户ID',
     role_id BIGINT NOT NULL COMMENT '角色ID',
-    PRIMARY KEY (user_id, role_id) COMMENT '联合主键',
-    FOREIGN KEY fk_user (user_id) REFERENCES user(id) ON DELETE CASCADE COMMENT '关联用户',
-    FOREIGN KEY fk_role (role_id) REFERENCES role(id) ON DELETE CASCADE COMMENT '关联角色'
+    PRIMARY KEY (user_id, role_id) COMMENT '联合主键'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
 
 -- 角色权限关联表
 CREATE TABLE IF NOT EXISTS role_permission (
     role_id BIGINT NOT NULL COMMENT '角色ID',
     permission_id BIGINT NOT NULL COMMENT '权限ID',
-    PRIMARY KEY (role_id, permission_id) COMMENT '联合主键',
-    FOREIGN KEY fk_role (role_id) REFERENCES role(id) ON DELETE CASCADE COMMENT '关联角色',
-    FOREIGN KEY fk_permission (permission_id) REFERENCES permission(id) ON DELETE CASCADE COMMENT '关联权限'
+    PRIMARY KEY (role_id, permission_id) COMMENT '联合主键'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限关联表';
 
 -- 数据源表
@@ -72,20 +85,27 @@ CREATE TABLE IF NOT EXISTS data_source (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '数据源ID',
     name VARCHAR(100) NOT NULL COMMENT '数据源名称',
     type VARCHAR(50) NOT NULL COMMENT '数据源类型：MYSQL, POSTGRESQL, ORACLE, MONGODB等',
-    url VARCHAR(255) NOT NULL COMMENT '连接地址',
+    host VARCHAR(100) NOT NULL COMMENT '主机地址',
     port INT NOT NULL COMMENT '连接端口',
+    database_name VARCHAR(100) COMMENT '数据库名称',
     username VARCHAR(100) NOT NULL COMMENT '用户名',
     password VARCHAR(100) NOT NULL COMMENT '密码',
-    database_name VARCHAR(100) COMMENT '数据库名称',
+    url VARCHAR(255) NOT NULL COMMENT '连接地址',
     driver_class VARCHAR(255) COMMENT '驱动类名',
     log_monitor_type VARCHAR(50) COMMENT '日志监听类型：BINLOG, WAL等',
+    connection_timeout INT COMMENT '连接超时时间（毫秒）',
+    health_status VARCHAR(50) COMMENT '健康状态',
     last_failure_reason TEXT COMMENT '最近一次失败原因',
     heartbeat_time INT COMMENT '心跳检测时间间隔（秒）',
     last_heartbeat_time DATETIME COMMENT '最近一次心跳时间',
     failure_count INT DEFAULT 0 COMMENT '失败次数',
+    description TEXT COMMENT '描述',
     enabled BOOLEAN DEFAULT TRUE COMMENT '是否启用',
     create_time DATETIME NOT NULL COMMENT '创建时间',
     update_time DATETIME NOT NULL COMMENT '更新时间',
+    create_by VARCHAR(100) COMMENT '创建人',
+    update_by VARCHAR(100) COMMENT '更新人',
+    version INT DEFAULT 0 COMMENT '版本号',
     UNIQUE KEY uk_name (name) COMMENT '数据源名称唯一索引'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='数据源表';
 
@@ -113,10 +133,10 @@ CREATE TABLE IF NOT EXISTS data_source_diagnose_report (
     authentication_status VARCHAR(50) NOT NULL COMMENT '认证状态：OK, ERROR',
     log_monitor_status VARCHAR(50) NOT NULL COMMENT '日志监听状态：OK, ERROR',
     connection_status VARCHAR(50) NOT NULL COMMENT '连接状态：OK, ERROR',
+    diagnose_time DATETIME NOT NULL COMMENT '诊断时间',
     diagnose_duration INT COMMENT '诊断耗时（毫秒）',
     create_time DATETIME NOT NULL COMMENT '创建时间',
-    update_time DATETIME NOT NULL COMMENT '更新时间',
-    FOREIGN KEY fk_data_source (data_source_id) REFERENCES data_source(id) ON DELETE CASCADE COMMENT '关联数据源'
+    update_time DATETIME NOT NULL COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='数据源诊断报告表';
 
 -- 任务表
@@ -150,8 +170,7 @@ CREATE TABLE IF NOT EXISTS task (
     pause_time DATETIME COMMENT '暂停时间',
     resume_time DATETIME COMMENT '恢复时间',
     rollback_point VARCHAR(255) COMMENT '回滚点',
-    UNIQUE KEY uk_name (name) COMMENT '任务名称唯一索引',
-    FOREIGN KEY fk_data_source (data_source_id) REFERENCES data_source(id) ON DELETE CASCADE COMMENT '关联数据源'
+    UNIQUE KEY uk_name (name) COMMENT '任务名称唯一索引'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务表';
 
 -- 任务节点表
@@ -165,8 +184,7 @@ CREATE TABLE IF NOT EXISTS task_node (
     position_y INT NOT NULL COMMENT '节点位置Y坐标',
     status VARCHAR(50) COMMENT '节点状态：READY, PROCESSING, SUCCESS, FAILED',
     create_time DATETIME NOT NULL COMMENT '创建时间',
-    update_time DATETIME NOT NULL COMMENT '更新时间',
-    FOREIGN KEY fk_task (task_id) REFERENCES task(id) ON DELETE CASCADE COMMENT '关联任务'
+    update_time DATETIME NOT NULL COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务节点表';
 
 -- 任务连接表
@@ -179,10 +197,7 @@ CREATE TABLE IF NOT EXISTS task_connection (
     target_handle_id VARCHAR(100) COMMENT '目标节点句柄ID',
     status VARCHAR(50) COMMENT '连接状态',
     create_time DATETIME NOT NULL COMMENT '创建时间',
-    update_time DATETIME NOT NULL COMMENT '更新时间',
-    FOREIGN KEY fk_task (task_id) REFERENCES task(id) ON DELETE CASCADE COMMENT '关联任务',
-    FOREIGN KEY fk_source_node (source_node_id) REFERENCES task_node(id) ON DELETE CASCADE COMMENT '关联源节点',
-    FOREIGN KEY fk_target_node (target_node_id) REFERENCES task_node(id) ON DELETE CASCADE COMMENT '关联目标节点'
+    update_time DATETIME NOT NULL COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务连接表';
 
 -- 任务依赖表
@@ -193,9 +208,7 @@ CREATE TABLE IF NOT EXISTS task_dependency (
     dependency_condition TEXT COMMENT '依赖条件（JSON格式）',
     status VARCHAR(50) COMMENT '依赖状态：PENDING, MET, FAILED',
     create_time DATETIME NOT NULL COMMENT '创建时间',
-    update_time DATETIME NOT NULL COMMENT '更新时间',
-    FOREIGN KEY fk_task (task_id) REFERENCES task(id) ON DELETE CASCADE COMMENT '关联任务',
-    FOREIGN KEY fk_dependency_task (dependency_task_id) REFERENCES task(id) ON DELETE CASCADE COMMENT '关联依赖任务'
+    update_time DATETIME NOT NULL COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务依赖表';
 
 -- 任务错误数据表
@@ -211,8 +224,7 @@ CREATE TABLE IF NOT EXISTS task_error_data (
     retry_count INT DEFAULT 0 COMMENT '重试次数',
     last_retry_time DATETIME COMMENT '最后重试时间',
     create_time DATETIME NOT NULL COMMENT '创建时间',
-    update_time DATETIME NOT NULL COMMENT '更新时间',
-    FOREIGN KEY fk_task (task_id) REFERENCES task(id) ON DELETE CASCADE COMMENT '关联任务'
+    update_time DATETIME NOT NULL COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务错误数据表';
 
 -- 向量化配置表
@@ -227,8 +239,7 @@ CREATE TABLE IF NOT EXISTS vectorization_config (
     field_mappings TEXT COMMENT '字段映射配置（JSON格式）',
     enabled BOOLEAN DEFAULT TRUE COMMENT '是否启用',
     create_time DATETIME NOT NULL COMMENT '创建时间',
-    update_time DATETIME NOT NULL COMMENT '更新时间',
-    FOREIGN KEY fk_task (task_id) REFERENCES task(id) ON DELETE CASCADE COMMENT '关联任务'
+    update_time DATETIME NOT NULL COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='向量化配置表';
 
 -- Milvus索引表

@@ -47,7 +47,7 @@ public class DataSourceController {
      * @return 更新结果
      */
     @PutMapping("/{id}")
-    public Response<DataSource> updateDataSource(@PathVariable Long id, @RequestBody DataSource dataSource) {
+    public Response<DataSource> updateDataSource(@PathVariable(name = "id") Long id, @RequestBody DataSource dataSource) {
         log.info("Received request to update data source: {}", id);
         try {
             DataSource result = dataSourceService.updateDataSource(id, dataSource);
@@ -64,7 +64,7 @@ public class DataSourceController {
      * @return 删除结果
      */
     @DeleteMapping("/{id}")
-    public Response<Void> deleteDataSource(@PathVariable Long id) {
+    public Response<Void> deleteDataSource(@PathVariable(name = "id") Long id) {
         log.info("Received request to delete data source: {}", id);
         try {
             dataSourceService.deleteDataSource(id);
@@ -81,7 +81,7 @@ public class DataSourceController {
      * @return 数据源
      */
     @GetMapping("/{id}")
-    public Response<DataSource> getDataSource(@PathVariable Long id) {
+    public Response<DataSource> getDataSource(@PathVariable(name = "id") Long id) {
         log.info("Received request to get data source: {}", id);
         try {
             DataSource result = dataSourceService.getDataSource(id);
@@ -114,7 +114,7 @@ public class DataSourceController {
      * @return 数据源列表
      */
     @GetMapping("/type/{type}")
-    public Response<List<DataSource>> getDataSourcesByType(@PathVariable String type) {
+    public Response<List<DataSource>> getDataSourcesByType(@PathVariable(name = "type") String type) {
         log.info("Received request to get data sources by type: {}", type);
         try {
             List<DataSource> result = dataSourceService.getDataSourcesByType(type);
@@ -131,7 +131,7 @@ public class DataSourceController {
      * @return 数据源列表
      */
     @GetMapping("/enabled/{enabled}")
-    public Response<List<DataSource>> getDataSourcesByEnabled(@PathVariable Boolean enabled) {
+    public Response<List<DataSource>> getDataSourcesByEnabled(@PathVariable(name = "enabled") Boolean enabled) {
         log.info("Received request to get data sources by enabled: {}", enabled);
         try {
             List<DataSource> result = dataSourceService.getDataSourcesByEnabled(enabled);
@@ -149,7 +149,7 @@ public class DataSourceController {
      * @return 更新结果
      */
     @PutMapping("/{id}/enable")
-    public Response<DataSource> enableDataSource(@PathVariable Long id, @RequestParam Boolean enabled) {
+    public Response<DataSource> enableDataSource(@PathVariable(name = "id") Long id, @RequestParam(name = "enabled") Boolean enabled) {
         log.info("Received request to enable data source: {} to {}", id, enabled);
         try {
             DataSource result = dataSourceService.enableDataSource(id, enabled);
@@ -166,7 +166,7 @@ public class DataSourceController {
      * @return 测试结果
      */
     @PostMapping("/{id}/test-connection")
-    public Response<Boolean> testDataSourceConnection(@PathVariable Long id) {
+    public Response<Boolean> testDataSourceConnection(@PathVariable(name = "id") Long id) {
         log.info("Received request to test data source connection: {}", id);
         try {
             boolean connected = dataSourceService.testDataSourceConnection(id);
@@ -184,7 +184,7 @@ public class DataSourceController {
      * @return 健康状态
      */
     @GetMapping("/{id}/health")
-    public Response<String> checkDataSourceHealth(@PathVariable Long id) {
+    public Response<String> checkDataSourceHealth(@PathVariable(name = "id") Long id) {
         log.info("Received request to check data source health: {}", id);
         try {
             String healthStatus = dataSourceService.checkDataSourceHealth(id);
@@ -233,7 +233,7 @@ public class DataSourceController {
      * @return 模板列表
      */
     @GetMapping("/templates/type/{type}")
-    public Response<List<DataSourceTemplateEntity>> getTemplatesByType(@PathVariable String type) {
+    public Response<List<DataSourceTemplateEntity>> getTemplatesByType(@PathVariable(name = "type") String type) {
         log.info("Received request to get data source templates by type: {}", type);
         try {
             List<DataSourceTemplateEntity> templates = dataSourceService.getTemplatesByType(type);
@@ -284,7 +284,7 @@ public class DataSourceController {
      * @return 更新结果
      */
     @PutMapping("/templates/{id}")
-    public Response<DataSourceTemplateEntity> updateTemplate(@PathVariable Long id, @RequestBody DataSourceTemplateEntity template) {
+    public Response<DataSourceTemplateEntity> updateTemplate(@PathVariable(name = "id") Long id, @RequestBody DataSourceTemplateEntity template) {
         log.info("Received request to update data source template: {}", id);
         try {
             DataSourceTemplateEntity result = dataSourceService.updateTemplate(id, template);
@@ -301,7 +301,7 @@ public class DataSourceController {
      * @return 删除结果
      */
     @DeleteMapping("/templates/{id}")
-    public Response<Void> deleteTemplate(@PathVariable Long id) {
+    public Response<Void> deleteTemplate(@PathVariable(name = "id") Long id) {
         log.info("Received request to delete data source template: {}", id);
         try {
             dataSourceService.deleteTemplate(id);
@@ -334,7 +334,7 @@ public class DataSourceController {
      * @return 诊断结果
      */
     @PostMapping("/{id}/diagnose")
-    public Response<DataSourceDiagnoseReportEntity> diagnoseDataSource(@PathVariable Long id) {
+    public Response<DataSourceDiagnoseReportEntity> diagnoseDataSource(@PathVariable(name = "id") Long id) {
         log.info("Received request to diagnose data source: {}", id);
         try {
             DataSourceDiagnoseReportEntity report = dataSourceService.diagnoseDataSource(id);
@@ -351,7 +351,7 @@ public class DataSourceController {
      * @return 诊断报告列表
      */
     @GetMapping("/{id}/diagnose-reports")
-    public Response<List<DataSourceDiagnoseReportEntity>> getDiagnoseReports(@PathVariable Long id) {
+    public Response<List<DataSourceDiagnoseReportEntity>> getDiagnoseReports(@PathVariable(name = "id") Long id) {
         log.info("Received request to get diagnose reports for data source: {}", id);
         try {
             List<DataSourceDiagnoseReportEntity> reports = dataSourceService.getDiagnoseReports(id);
@@ -368,7 +368,7 @@ public class DataSourceController {
      * @return 最新的诊断报告
      */
     @GetMapping("/{id}/latest-diagnose-report")
-    public Response<DataSourceDiagnoseReportEntity> getLatestDiagnoseReport(@PathVariable Long id) {
+    public Response<DataSourceDiagnoseReportEntity> getLatestDiagnoseReport(@PathVariable(name = "id") Long id) {
         log.info("Received request to get latest diagnose report for data source: {}", id);
         try {
             DataSourceDiagnoseReportEntity report = dataSourceService.getLatestDiagnoseReport(id);

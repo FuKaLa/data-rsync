@@ -246,9 +246,9 @@ const handleCurrentChange = (current: number) => {
 <style scoped>
 .task-list {
   padding: 20px;
-  background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
   min-height: 100vh;
   animation: fadeIn 0.8s ease-out;
+  position: relative;
 }
 
 @keyframes fadeIn {
@@ -284,7 +284,7 @@ const handleCurrentChange = (current: number) => {
 .card-header span {
   font-size: 20px;
   font-weight: 700;
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -299,7 +299,7 @@ const handleCurrentChange = (current: number) => {
   left: 0;
   width: 60px;
   height: 4px;
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
   border-radius: 2px;
   animation: expandWidth 1s ease-out 0.3s forwards;
   transform: scaleX(0);
@@ -320,11 +320,12 @@ const handleCurrentChange = (current: number) => {
   padding: 12px 24px;
   font-weight: 600;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
   border: none;
-  box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
   position: relative;
   overflow: hidden;
+  color: #ffffff;
 }
 
 .card-header :deep(.el-button::before) {
@@ -347,16 +348,19 @@ const handleCurrentChange = (current: number) => {
 
 .card-header :deep(.el-button:hover) {
   transform: translateY(-3px);
-  box-shadow: 0 8px 30px rgba(67, 97, 238, 0.5);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.5);
 }
 
 /* 表格样式 */
 :deep(.el-table) {
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
   margin-top: 24px;
   animation: slideUp 0.8s ease-out 0.2s both;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 @keyframes slideUp {
@@ -371,18 +375,20 @@ const handleCurrentChange = (current: number) => {
 }
 
 :deep(.el-table__header-wrapper) {
-  background: linear-gradient(90deg, #f8fafc 0%, #e2e8f0 100%);
-  border-bottom: 2px solid #4361ee;
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-bottom: 2px solid rgba(59, 130, 246, 0.5);
+  z-index: 10;
 }
 
 :deep(.el-table__header th) {
   font-weight: 700;
-  color: #1e293b;
-  background: transparent;
+  color: rgba(255, 255, 255, 0.9) !important;
+  background: transparent !important;
   border-bottom: none;
   padding: 18px 16px;
   font-size: 14px;
   position: relative;
+  z-index: 11;
 }
 
 :deep(.el-table__header th::after) {
@@ -392,7 +398,7 @@ const handleCurrentChange = (current: number) => {
   left: 16px;
   right: 16px;
   height: 2px;
-  background: linear-gradient(90deg, transparent, #4361ee, transparent);
+  background: linear-gradient(90deg, transparent, #3b82f6, transparent);
   transform: scaleX(0);
   transition: transform 0.3s ease;
   transform-origin: center;
@@ -407,6 +413,7 @@ const handleCurrentChange = (current: number) => {
   animation: fadeInUp 0.6s ease forwards;
   opacity: 0;
   position: relative;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.1);
 }
 
 :deep(.el-table__row:nth-child(1)) {
@@ -450,26 +457,54 @@ const handleCurrentChange = (current: number) => {
 }
 
 :deep(.el-table__row:hover) {
-  background: rgba(67, 97, 238, 0.08) !important;
+  background: rgba(59, 130, 246, 0.1) !important;
   transform: translateX(8px) scale(1.01);
-  box-shadow: 0 4px 20px rgba(67, 97, 238, 0.2);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+  border-left: 3px solid #3b82f6;
 }
 
 :deep(.el-table__row.el-table__row--striped) {
-  background: rgba(67, 97, 238, 0.02);
+  background: rgba(59, 130, 246, 0.05);
 }
 
 :deep(.el-table__cell) {
   padding: 18px 16px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.1);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 14px;
-  color: #334155;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-table__cell:hover) {
-  background: rgba(67, 97, 238, 0.05);
+  background: rgba(59, 130, 246, 0.05);
   transform: scale(1.02);
+}
+
+/* 表格空状态样式 */
+:deep(.el-table__empty-block) {
+  background: rgba(15, 23, 42, 0.9) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+:deep(.el-table__empty-text) {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* 表格其他部分样式 */
+:deep(.el-table__body-wrapper) {
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+:deep(.el-table__row) {
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+:deep(.el-table__row:hover) {
+  background: rgba(59, 130, 246, 0.1) !important;
+}
+
+:deep(.el-table__row.el-table__row--striped) {
+  background: rgba(59, 130, 246, 0.05) !important;
 }
 
 /* 标签样式 */
@@ -479,9 +514,10 @@ const handleCurrentChange = (current: number) => {
   font-size: 13px;
   font-weight: 600;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   position: relative;
   overflow: hidden;
+  border: none;
 }
 
 :deep(.el-tag::before) {
@@ -501,32 +537,27 @@ const handleCurrentChange = (current: number) => {
 
 :deep(.el-tag:hover) {
   transform: scale(1.1);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 :deep(.el-tag--primary) {
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
-  border: none;
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
 }
 
 :deep(.el-tag--success) {
-  background: linear-gradient(90deg, #2ecc71, #27ae60);
-  border: none;
+  background: linear-gradient(90deg, #10b981, #059669);
 }
 
 :deep(.el-tag--warning) {
-  background: linear-gradient(90deg, #f39c12, #e67e22);
-  border: none;
+  background: linear-gradient(90deg, #f59e0b, #d97706);
 }
 
 :deep(.el-tag--danger) {
-  background: linear-gradient(90deg, #e74c3c, #c0392b);
-  border: none;
+  background: linear-gradient(90deg, #ef4444, #dc2626);
 }
 
 :deep(.el-tag--info) {
-  background: linear-gradient(90deg, #3498db, #2980b9);
-  border: none;
+  background: linear-gradient(90deg, #06b6d4, #0891b2);
 }
 
 /* 按钮样式 */
@@ -539,7 +570,10 @@ const handleCurrentChange = (current: number) => {
   font-size: 12px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-button::before) {
@@ -562,31 +596,37 @@ const handleCurrentChange = (current: number) => {
 
 :deep(.el-button:hover) {
   transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  color: #ffffff;
 }
 
 :deep(.el-button--primary) {
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
   border: none;
+  color: #ffffff;
 }
 
 :deep(.el-button--danger) {
-  background: linear-gradient(90deg, #e74c3c, #c0392b);
+  background: linear-gradient(90deg, #ef4444, #dc2626);
   border: none;
+  color: #ffffff;
 }
 
 :deep(.el-button--success) {
-  background: linear-gradient(90deg, #2ecc71, #27ae60);
+  background: linear-gradient(90deg, #10b981, #059669);
   border: none;
+  color: #ffffff;
 }
 
 :deep(.el-button:disabled) {
   opacity: 0.5;
   transform: none;
   box-shadow: none;
-  background: #e2e8f0 !important;
-  color: #94a3b8 !important;
-  border: 1px solid #cbd5e1 !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
 }
 
 :deep(.el-button:disabled:hover) {
@@ -600,11 +640,12 @@ const handleCurrentChange = (current: number) => {
   justify-content: flex-end;
   margin-top: 32px;
   padding: 24px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(15, 23, 42, 0.8);
   border-radius: 16px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(12px);
   animation: slideUp 0.8s ease-out 0.4s both;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 :deep(.el-pagination) {
@@ -619,37 +660,43 @@ const handleCurrentChange = (current: number) => {
   padding: 6px 12px;
   font-size: 14px;
   font-weight: 500;
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-pagination__item:hover) {
-  color: #4361ee;
-  border-color: #4361ee;
+  color: #3b82f6;
+  border-color: #3b82f6;
   transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 4px 15px rgba(67, 97, 238, 0.2);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 :deep(.el-pagination__item.is-active) {
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
   border-color: transparent;
-  color: #fff;
+  color: #ffffff;
   transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 4px 15px rgba(67, 97, 238, 0.4);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
 }
 
 :deep(.el-pagination__prev),
 :deep(.el-pagination__next) {
   border-radius: 8px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-pagination__prev:hover),
 :deep(.el-pagination__next:hover) {
-  border-color: #4361ee;
-  color: #4361ee;
+  border-color: #3b82f6;
+  color: #3b82f6;
   transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 4px 15px rgba(67, 97, 238, 0.2);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 :deep(.el-pagination__sizes) {
@@ -659,19 +706,29 @@ const handleCurrentChange = (current: number) => {
 :deep(.el-pagination__sizes .el-select .el-input__wrapper) {
   border-radius: 8px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-pagination__sizes .el-select .el-input__wrapper:hover) {
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
-  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+}
+
+:deep(.el-pagination__sizes .el-select .el-input__inner) {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* 对话框样式 */
 :deep(.el-dialog) {
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   animation: zoomIn 0.6s ease-out;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 @keyframes zoomIn {
@@ -686,7 +743,7 @@ const handleCurrentChange = (current: number) => {
 }
 
 :deep(.el-dialog__header) {
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
   color: #fff;
   padding: 24px;
 }
@@ -710,13 +767,14 @@ const handleCurrentChange = (current: number) => {
 
 :deep(.el-dialog__body) {
   padding: 32px;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-dialog__footer) {
   padding: 24px;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+  background: rgba(15, 23, 42, 0.9);
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 :deep(.el-dialog__footer :deep(.el-button)) {
@@ -729,23 +787,24 @@ const handleCurrentChange = (current: number) => {
 
 :deep(.el-dialog__footer :deep(.el-button:hover)) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
 }
 
 /* 回滚对话框样式 */
 .rollback-dialog {
   padding: 24px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(15, 23, 42, 0.8);
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(12px);
   animation: fadeInUp 0.6s ease-out;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .rollback-dialog p {
   margin-bottom: 24px;
   font-size: 16px;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 600;
   position: relative;
   padding-left: 16px;
@@ -758,7 +817,7 @@ const handleCurrentChange = (current: number) => {
   top: 50%;
   width: 8px;
   height: 8px;
-  background: linear-gradient(135deg, #4361ee, #3a0ca3);
+  background: linear-gradient(135deg, #3b82f6, #a855f7);
   border-radius: 50%;
   transform: translateY(-50%);
 }
@@ -771,25 +830,33 @@ const handleCurrentChange = (current: number) => {
 :deep(.el-select__wrapper) {
   border-radius: 10px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-select__wrapper:hover) {
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
-  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
 }
 
 :deep(.el-select__wrapper.is-focus) {
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
-  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+}
+
+:deep(.el-select__input) {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-select-dropdown) {
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  border: none;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.3);
   animation: fadeInScale 0.3s ease-out;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
 }
 
 @keyframes fadeInScale {
@@ -809,11 +876,12 @@ const handleCurrentChange = (current: number) => {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   margin: 4px 8px;
   border: 1px solid transparent;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .version-option:hover {
-  background: rgba(67, 97, 238, 0.1);
-  border-color: rgba(67, 97, 238, 0.3);
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
   transform: translateX(8px);
 }
 
@@ -823,13 +891,13 @@ const handleCurrentChange = (current: number) => {
 
 .version-info strong {
   font-size: 14px;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 600;
 }
 
 .version-meta {
   font-size: 13px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.6);
   display: flex;
   justify-content: space-between;
   gap: 20px;
@@ -847,7 +915,7 @@ const handleCurrentChange = (current: number) => {
   background: rgba(245, 158, 11, 0.1);
   border-radius: 10px;
   border-left: 4px solid #f59e0b;
-  color: #64748b !important;
+  color: rgba(255, 255, 255, 0.8) !important;
   font-size: 14px !important;
   line-height: 1.6;
   animation: fadeInUp 0.6s ease-out 0.3s both;
@@ -857,9 +925,10 @@ const handleCurrentChange = (current: number) => {
 :deep(.el-card) {
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
-  border: none;
-  background: #fff;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
   animation: fadeInUp 0.8s ease-out;
 }
 
@@ -886,19 +955,19 @@ const handleCurrentChange = (current: number) => {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: rgba(15, 23, 42, 0.6);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: rgba(59, 130, 246, 0.5);
   border-radius: 5px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 2px solid #f1f5f9;
+  border: 2px solid rgba(15, 23, 42, 0.6);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgba(59, 130, 246, 0.8);
   transform: scale(1.1);
 }
 

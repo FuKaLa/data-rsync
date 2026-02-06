@@ -1,7 +1,7 @@
 # Maven
 **/target/
 **/maven-archiver/
-maven-status/
+**/maven-status/
 
 # IDE
 .idea/

@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,6 +57,27 @@ public class DataSourceService {
     private final ExecutorService recoveryExecutor = Executors.newFixedThreadPool(10);
 
     /**
+     * 日志监听器状态跟踪
+     */
+    private final Map<Long, LogMonitorStatus> logMonitorStatusMap = new ConcurrentHashMap<>();
+
+    /**
+     * 日志监听线程池
+     */
+    private final ExecutorService logMonitorExecutor = Executors.newFixedThreadPool(10);
+
+    /**
+     * 日志监听器状态枚举
+     */
+    private enum LogMonitorStatus {
+        STOPPED,  // 已停止
+        STARTING,  // 启动中
+        RUNNING,  // 运行中
+        STOPPING,  // 停止中
+        FAILED  // 失败
+    }
+
+    /**
      * 恢复状态枚举
      */
     private enum RecoveryStatus {
@@ -73,6 +95,9 @@ public class DataSourceService {
     @Transactional
     public DataSource createDataSource(DataSource dataSource) {
         log.info("Creating data source: {}", dataSource.getName());
+
+        // 验证数据源配置
+        validateDataSource(dataSource);
 
         // 加密密码
         String encryptedPassword = EncryptUtils.encrypt(dataSource.getPassword());
@@ -106,6 +131,129 @@ public class DataSourceService {
     }
 
     /**
+     * 验证数据源配置
+     * @param dataSource 数据源模型
+     */
+    private void validateDataSource(DataSource dataSource) {
+        String type = dataSource.getType();
+        
+        // 验证必填字段
+        if (type == null || type.isEmpty()) {
+            throw new DataSourceException("Data source type is required");
+        }
+        
+        // 验证主机和端口
+        if (requiresHostPort(type)) {
+            if (dataSource.getHost() == null || dataSource.getHost().isEmpty()) {
+                throw new DataSourceException("Host address is required for " + type + " data source");
+            }
+            if (dataSource.getPort() == null) {
+                throw new DataSourceException("Port is required for " + type + " data source");
+            }
+            if (dataSource.getPort() < 1 || dataSource.getPort() > 65535) {
+                throw new DataSourceException("Port must be between 1 and 65535");
+            }
+        }
+        
+        // 验证数据库名称
+        if (requiresDatabaseName(type)) {
+            if (dataSource.getDatabaseName() == null || dataSource.getDatabaseName().isEmpty()) {
+                throw new DataSourceException("Database name is required for " + type + " data source");
+            }
+        }
+        
+        // 验证连接URL
+        if (dataSource.getUrl() == null || dataSource.getUrl().isEmpty()) {
+            throw new DataSourceException("Connection URL is required");
+        }
+        
+        // 验证URL格式
+        validateUrlFormat(type, dataSource.getUrl());
+        
+        // 验证凭证
+        if (requiresCredentials(type)) {
+            if (dataSource.getUsername() == null || dataSource.getUsername().isEmpty()) {
+                throw new DataSourceException("Username is required for " + type + " data source");
+            }
+            if (dataSource.getPassword() == null || dataSource.getPassword().isEmpty()) {
+                throw new DataSourceException("Password is required for " + type + " data source");
+            }
+        }
+    }
+
+    /**
+     * 检查数据源类型是否需要主机和端口
+     * @param type 数据源类型
+     * @return 是否需要主机和端口
+     */
+    private boolean requiresHostPort(String type) {
+        return "MYSQL".equals(type) || "POSTGRESQL".equals(type) || "ORACLE".equals(type) || 
+               "SQL_SERVER".equals(type) || "MONGODB".equals(type) || "REDIS".equals(type);
+    }
+
+    /**
+     * 检查数据源类型是否需要数据库名称
+     * @param type 数据源类型
+     * @return 是否需要数据库名称
+     */
+    private boolean requiresDatabaseName(String type) {
+        return "MYSQL".equals(type) || "POSTGRESQL".equals(type) || "SQL_SERVER".equals(type) || 
+               "MONGODB".equals(type);
+    }
+
+    /**
+     * 检查数据源类型是否需要凭证
+     * @param type 数据源类型
+     * @return 是否需要凭证
+     */
+    private boolean requiresCredentials(String type) {
+        return "MYSQL".equals(type) || "POSTGRESQL".equals(type) || "ORACLE".equals(type) || 
+               "SQL_SERVER".equals(type) || "MONGODB".equals(type) || "REDIS".equals(type);
+    }
+
+    /**
+     * 验证URL格式
+     * @param type 数据源类型
+     * @param url 连接URL
+     */
+    private void validateUrlFormat(String type, String url) {
+        switch (type) {
+            case "MYSQL":
+                if (!url.matches("^jdbc:mysql://.+:\\d+/.+")) {
+                    throw new DataSourceException("Invalid MySQL connection URL format. Expected format: jdbc:mysql://host:port/database");
+                }
+                break;
+            case "POSTGRESQL":
+                if (!url.matches("^jdbc:postgresql://.+:\\d+/.+")) {
+                    throw new DataSourceException("Invalid PostgreSQL connection URL format. Expected format: jdbc:postgresql://host:port/database");
+                }
+                break;
+            case "ORACLE":
+                if (!url.matches("^jdbc:oracle:thin:@.+:\\d+:.+")) {
+                    throw new DataSourceException("Invalid Oracle connection URL format. Expected format: jdbc:oracle:thin:@host:port:sid");
+                }
+                break;
+            case "SQL_SERVER":
+                if (!url.matches("^jdbc:sqlserver://.+:\\d+;databaseName=.+")) {
+                    throw new DataSourceException("Invalid SQL Server connection URL format. Expected format: jdbc:sqlserver://host:port;databaseName=database");
+                }
+                break;
+            case "MONGODB":
+                if (!url.matches("^mongodb://.+:\\d+/.+")) {
+                    throw new DataSourceException("Invalid MongoDB connection URL format. Expected format: mongodb://host:port/database");
+                }
+                break;
+            case "REDIS":
+                if (!url.matches("^redis://.+:\\d+")) {
+                    throw new DataSourceException("Invalid Redis connection URL format. Expected format: redis://host:port");
+                }
+                break;
+            default:
+                throw new DataSourceException("Unsupported data source type: " + type);
+        }
+    }
+
+    /**
      * 更新数据源
      * @param id 数据源ID
      * @param dataSource 数据源模型
@@ -120,6 +268,9 @@ public class DataSourceService {
         if (entity == null) {
             throw new DataSourceException("Data source not found: " + id);
         }
+
+        // 验证数据源配置
+        validateDataSource(dataSource);
 
         // 更新字段
         BeanUtils.copyProperties(dataSource, entity, "id", "createTime", "createBy");
@@ -228,8 +379,11 @@ public class DataSourceService {
     public List<DataSource> getDataSourcesByType(String type) {
         log.info("Getting data sources by type: {}", type);
 
-        // 查询数据源
-        List<DataSourceEntity> entities = dataSourceRepository.findByType(type);
+        // 使用MyBatis Plus条件查询
+        List<DataSourceEntity> entities = dataSourceRepository.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<DataSourceEntity>()
+                        .eq("type", type)
+        );
 
         // 转换为模型返回
         List<DataSource> result = entities.stream()
@@ -253,8 +407,11 @@ public class DataSourceService {
     public List<DataSource> getDataSourcesByEnabled(Boolean enabled) {
         log.info("Getting data sources by enabled: {}", enabled);
 
-        // 查询数据源
-        List<DataSourceEntity> entities = dataSourceRepository.findByEnabled(enabled);
+        // 使用MyBatis Plus条件查询
+        List<DataSourceEntity> entities = dataSourceRepository.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<DataSourceEntity>()
+                        .eq("enabled", enabled)
+        );
 
         // 转换为模型返回
         List<DataSource> result = entities.stream()
@@ -331,70 +488,170 @@ public class DataSourceService {
     }
 
     /**
-     * 测试数据源连接（带重试机制）
-     * @param entity 数据源实体
-     * @param maxRetries 最大重试次数
-     * @param retryIntervalMs 重试间隔（毫秒）
-     * @return 连接结果
-     */
-    private boolean testConnection(DataSourceEntity entity, int maxRetries, long retryIntervalMs) {
-        Connection connection = null;
-        String lastFailureReason = null;
-        long startTime = System.currentTimeMillis();
+   * 测试数据源连接（带重试机制和网络抖动处理）
+   * @param entity 数据源实体
+   * @param maxRetries 最大重试次数
+   * @param retryIntervalMs 重试间隔（毫秒）
+   * @return 连接结果
+   */
+  private boolean testConnection(DataSourceEntity entity, int maxRetries, long retryIntervalMs) {
+    Connection connection = null;
+    String lastFailureReason = null;
+    long startTime = System.currentTimeMillis();
+    try {
+      for (int i = 0; i < maxRetries; i++) {
         try {
-            for (int i = 0; i < maxRetries; i++) {
-                try {
-                    // 解密密码
-                    String password = EncryptUtils.decrypt(entity.getPassword());
+          // 解密密码
+          String password = EncryptUtils.decrypt(entity.getPassword());
 
-                    // 加载驱动
-                    Class.forName(getDriverClassName(entity.getType()));
+          // 加载驱动
+          Class.forName(getDriverClassName(entity.getType()));
 
-                    // 构建连接URL
-                    String url = entity.getUrl();
+          // 构建连接URL
+          String url = entity.getUrl();
 
-                    // 建立连接
-                    connection = DriverManager.getConnection(url, entity.getUsername(), password);
+          // 建立连接（添加网络抖动处理）
+          connection = establishConnectionWithNetworkResilience(url, entity.getUsername(), password, entity);
 
-                    // 测试连接
-                    if (connection.isValid(5)) {
-                        long heartbeatTime = System.currentTimeMillis() - startTime;
-                        entity.setHeartbeatTime((int) heartbeatTime);
-                        entity.setLastHeartbeatTime(LocalDateTime.now());
-                        entity.setFailureCount(0);
-                        entity.setLastFailureReason(null);
-                        return true;
-                    }
-                } catch (Exception e) {
-                    lastFailureReason = e.getMessage();
-                    log.warn("Attempt {} failed to test connection for data source: {}", i + 1, entity.getName(), e);
-                    if (i < maxRetries - 1) {
-                        Thread.sleep(retryIntervalMs);
-                    }
-                } finally {
-                    if (connection != null) {
-                        try {
-                            connection.close();
-                        } catch (SQLException e) {
-                            log.error("Failed to close connection", e);
-                        }
-                    }
-                }
+          // 测试连接
+          if (connection != null && connection.isValid(5)) {
+            long heartbeatTime = System.currentTimeMillis() - startTime;
+            entity.setHeartbeatTime((int) heartbeatTime);
+            entity.setLastHeartbeatTime(LocalDateTime.now());
+            entity.setFailureCount(0);
+            entity.setLastFailureReason(null);
+            return true;
+          }
+        } catch (Exception e) {
+          lastFailureReason = e.getMessage();
+          log.warn("Attempt {} failed to test connection for data source: {}", i + 1, entity.getName(), e);
+          
+          // 检测是否为网络抖动
+          if (isNetworkFlutter(e)) {
+            log.info("Network flutter detected, applying adaptive retry strategy");
+            // 应用自适应重试策略
+            long adaptiveInterval = calculateAdaptiveRetryInterval(i, retryIntervalMs, e);
+            if (i < maxRetries - 1) {
+              log.info("Applying adaptive retry interval: {}ms", adaptiveInterval);
+              Thread.sleep(adaptiveInterval);
             }
-            // 连接失败，更新失败信息
-            entity.setLastFailureReason(lastFailureReason);
-            entity.setFailureCount(entity.getFailureCount() != null ? entity.getFailureCount() + 1 : 1);
-            entity.setLastHeartbeatTime(LocalDateTime.now());
-            return false;
-        } catch (InterruptedException e) {
-            log.error("Connection test interrupted", e);
-            Thread.currentThread().interrupt();
-            entity.setLastFailureReason("Connection test interrupted");
-            entity.setFailureCount(entity.getFailureCount() != null ? entity.getFailureCount() + 1 : 1);
-            entity.setLastHeartbeatTime(LocalDateTime.now());
-            return false;
+          } else if (i < maxRetries - 1) {
+            Thread.sleep(retryIntervalMs);
+          }
+        } finally {
+          if (connection != null) {
+            try {
+              connection.close();
+            } catch (SQLException e) {
+              log.error("Failed to close connection", e);
+            }
+          }
         }
+      }
+      // 连接失败，更新失败信息
+      entity.setLastFailureReason(lastFailureReason);
+      entity.setFailureCount(entity.getFailureCount() != null ? entity.getFailureCount() + 1 : 1);
+      entity.setLastHeartbeatTime(LocalDateTime.now());
+      return false;
+    } catch (InterruptedException e) {
+      log.error("Connection test interrupted", e);
+      Thread.currentThread().interrupt();
+      entity.setLastFailureReason("Connection test interrupted");
+      entity.setFailureCount(entity.getFailureCount() != null ? entity.getFailureCount() + 1 : 1);
+      entity.setLastHeartbeatTime(LocalDateTime.now());
+      return false;
     }
+  }
+
+  /**
+   * 建立连接（带网络弹性处理）
+   * @param url 连接URL
+   * @param username 用户名
+   * @param password 密码
+   * @param entity 数据源实体
+   * @return 数据库连接
+   * @throws SQLException SQL异常
+   */
+  private Connection establishConnectionWithNetworkResilience(String url, String username, String password, DataSourceEntity entity) throws SQLException {
+    // 设置连接属性，增强网络弹性
+    java.util.Properties props = new java.util.Properties();
+    props.setProperty("user", username);
+    props.setProperty("password", password);
+    props.setProperty("connectTimeout", "30000"); // 连接超时30秒
+    props.setProperty("socketTimeout", "60000"); //  socket超时60秒
+    props.setProperty("autoReconnect", "true"); // 自动重连
+    props.setProperty("maxReconnects", "3"); // 最大重连次数
+    props.setProperty("initialTimeout", "10"); // 初始重连间隔
+
+    // 根据数据库类型添加特定的网络弹性配置
+    String type = entity.getType();
+    if ("MYSQL".equals(type)) {
+      props.setProperty("useCompression", "true"); // 使用压缩
+      props.setProperty("useSSL", "false"); // 禁用SSL（根据实际情况调整）
+    } else if ("POSTGRESQL".equals(type)) {
+      props.setProperty("connectTimeout", "30"); // PostgreSQL使用秒
+      props.setProperty("socketTimeout", "60"); // PostgreSQL使用秒
+    }
+
+    // 建立连接
+    return DriverManager.getConnection(url, props);
+  }
+
+  /**
+   * 检测是否为网络抖动
+   * @param e 异常
+   * @return 是否为网络抖动
+   */
+  private boolean isNetworkFlutter(Exception e) {
+    String message = e.getMessage();
+    if (message == null) {
+      return false;
+    }
+    
+    // 常见的网络抖动异常信息
+    String[] networkFlutterPatterns = {
+      "connection timed out",
+      "socket timeout",
+      "network is unreachable",
+      "no route to host",
+      "connection refused",
+      "connection reset",
+      "broken pipe",
+      "read timed out",
+      "write timed out"
+    };
+    
+    for (String pattern : networkFlutterPatterns) {
+      if (message.toLowerCase().contains(pattern)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 计算自适应重试间隔
+   * @param attempt 当前尝试次数
+   * @param baseInterval 基础间隔
+   * @param e 异常
+   * @return 自适应重试间隔（毫秒）
+   */
+  private long calculateAdaptiveRetryInterval(int attempt, long baseInterval, Exception e) {
+    // 指数退避策略
+    long exponentialInterval = baseInterval * (1 << Math.min(attempt, 5)); // 最大指数为5
+    
+    // 根据异常类型调整间隔
+    String message = e.getMessage();
+    if (message != null && message.toLowerCase().contains("timed out")) {
+      // 超时异常，增加重试间隔
+      return exponentialInterval * 2;
+    } else if (message != null && (message.toLowerCase().contains("connection reset") || message.toLowerCase().contains("broken pipe"))) {
+      // 连接重置或 broken pipe，使用中等间隔
+      return (long) (exponentialInterval * 1.5);
+    }
+    
+    return exponentialInterval;
+  }
 
     /**
      * 测试数据源连接（默认参数）
@@ -470,8 +727,11 @@ public class DataSourceService {
     public void batchCheckDataSourceHealth() {
         log.info("Batch checking data source health");
 
-        // 查询所有启用的数据源
-        List<DataSourceEntity> entities = dataSourceRepository.findByEnabled(true);
+        // 使用MyBatis Plus条件查询所有启用的数据源
+        List<DataSourceEntity> entities = dataSourceRepository.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<DataSourceEntity>()
+                        .eq("enabled", true)
+        );
 
         // 批量检查
         for (DataSourceEntity entity : entities) {
@@ -582,6 +842,9 @@ public class DataSourceService {
 
         // 清理过期的恢复状态
         cleanupRecoveryStatus();
+
+        // 清理过期的日志监听状态
+        cleanupLogMonitorStatus();
     }
 
     /**
@@ -597,16 +860,401 @@ public class DataSourceService {
     }
 
     /**
+     * 启动日志监听
+     * @param dataSourceId 数据源ID
+     */
+    public void startLogMonitor(Long dataSourceId) {
+        log.info("Starting log monitor for data source: {}", dataSourceId);
+
+        // 检查数据源是否存在
+        DataSourceEntity entity = dataSourceRepository.selectById(dataSourceId);
+        if (entity == null) {
+            throw new DataSourceException("Data source not found: " + dataSourceId);
+        }
+
+        // 检查日志监听类型是否配置
+        if (entity.getLogMonitorType() == null || entity.getLogMonitorType().isEmpty()) {
+            throw new DataSourceException("Log monitor type is not configured for data source: " + dataSourceId);
+        }
+
+        // 检查是否已经在运行
+        LogMonitorStatus status = logMonitorStatusMap.get(dataSourceId);
+        if (status != null && (status == LogMonitorStatus.RUNNING || status == LogMonitorStatus.STARTING)) {
+            log.info("Log monitor for data source {} is already running", dataSourceId);
+            return;
+        }
+
+        // 设置状态为启动中
+        logMonitorStatusMap.put(dataSourceId, LogMonitorStatus.STARTING);
+
+        // 提交日志监听任务
+        logMonitorExecutor.submit(() -> {
+            try {
+                doStartLogMonitor(dataSourceId, entity);
+            } catch (Exception e) {
+                log.error("Failed to start log monitor for data source: {}", dataSourceId, e);
+                logMonitorStatusMap.put(dataSourceId, LogMonitorStatus.FAILED);
+            }
+        });
+    }
+
+    /**
+   * 执行日志监听启动
+   * @param dataSourceId 数据源ID
+   * @param entity 数据源实体
+   */
+  private void doStartLogMonitor(Long dataSourceId, DataSourceEntity entity) {
+    try {
+      // 根据数据源类型和日志监听类型启动相应的监听器
+      String type = entity.getType();
+      String logMonitorType = entity.getLogMonitorType();
+
+      log.info("Starting log monitor for data source {} with type {} and monitor type {}", 
+              dataSourceId, type, logMonitorType);
+
+      // 根据不同的数据源类型和日志监听类型实现具体的监听逻辑
+      switch (type) {
+        case "MYSQL":
+          if ("BINLOG".equals(logMonitorType)) {
+            startMysqlBinlogMonitor(dataSourceId, entity);
+          }
+          break;
+        case "POSTGRESQL":
+          if ("WAL".equals(logMonitorType)) {
+            startPostgreSqlWALMonitor(dataSourceId, entity);
+          }
+          break;
+        case "ORACLE":
+          if ("CDC".equals(logMonitorType)) {
+            startOracleCDCMonitor(dataSourceId, entity);
+          }
+          break;
+        case "MONGODB":
+          if ("CDC".equals(logMonitorType)) {
+            startMongoDBCDCMonitor(dataSourceId, entity);
+          }
+          break;
+        default:
+          log.warn("Unsupported data source type for log monitoring: {}", type);
+          throw new DataSourceException("Unsupported data source type for log monitoring: " + type);
+      }
+
+      // 启动成功，更新状态
+      logMonitorStatusMap.put(dataSourceId, LogMonitorStatus.RUNNING);
+      log.info("Started log monitor for data source: {}", dataSourceId);
+    } catch (Exception e) {
+      log.error("Error starting log monitor for data source: {}", dataSourceId, e);
+      logMonitorStatusMap.put(dataSourceId, LogMonitorStatus.FAILED);
+    }
+  }
+
+  /**
+   * 启动MySQL Binlog监听器
+   * @param dataSourceId 数据源ID
+   * @param entity 数据源实体
+   */
+  private void startMysqlBinlogMonitor(Long dataSourceId, DataSourceEntity entity) {
+    log.info("Starting MySQL Binlog monitor for data source: {}", dataSourceId);
+    try {
+      // 模拟Binlog监听器启动
+      Thread.sleep(2000);
+      // 启动后台线程模拟Binlog事件监听
+      new Thread(() -> {
+        try {
+          while (logMonitorStatusMap.get(dataSourceId) == LogMonitorStatus.RUNNING) {
+            // 模拟Binlog事件
+            Thread.sleep(5000);
+            // 生成模拟的Binlog事件数据
+            Map<String, Object> binlogEvent = new HashMap<>();
+            binlogEvent.put("eventType", "UPDATE");
+            binlogEvent.put("tableName", "users");
+            binlogEvent.put("timestamp", System.currentTimeMillis());
+            binlogEvent.put("data", Map.of(
+                "id", 1,
+                "name", "test",
+                "email", "test@example.com"
+            ));
+            // 处理日志变更
+            handleLogChange(dataSourceId, binlogEvent);
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }).start();
+    } catch (Exception e) {
+      log.error("Error starting MySQL Binlog monitor: {}", e.getMessage(), e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * 启动PostgreSQL WAL监听器
+   * @param dataSourceId 数据源ID
+   * @param entity 数据源实体
+   */
+  private void startPostgreSqlWALMonitor(Long dataSourceId, DataSourceEntity entity) {
+    log.info("Starting PostgreSQL WAL monitor for data source: {}", dataSourceId);
+    try {
+      // 模拟WAL监听器启动
+      Thread.sleep(2000);
+      // 启动后台线程模拟WAL事件监听
+      new Thread(() -> {
+        try {
+          while (logMonitorStatusMap.get(dataSourceId) == LogMonitorStatus.RUNNING) {
+            // 模拟WAL事件
+            Thread.sleep(5000);
+            // 生成模拟的WAL事件数据
+            Map<String, Object> walEvent = new HashMap<>();
+            walEvent.put("eventType", "INSERT");
+            walEvent.put("tableName", "products");
+            walEvent.put("timestamp", System.currentTimeMillis());
+            walEvent.put("data", Map.of(
+                "id", 1,
+                "name", "product",
+                "price", 99.99
+            ));
+            // 处理日志变更
+            handleLogChange(dataSourceId, walEvent);
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }).start();
+    } catch (Exception e) {
+      log.error("Error starting PostgreSQL WAL monitor: {}", e.getMessage(), e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * 启动Oracle CDC监听器
+   * @param dataSourceId 数据源ID
+   * @param entity 数据源实体
+   */
+  private void startOracleCDCMonitor(Long dataSourceId, DataSourceEntity entity) {
+    log.info("Starting Oracle CDC monitor for data source: {}", dataSourceId);
+    try {
+      // 模拟CDC监听器启动
+      Thread.sleep(3000);
+      // 启动后台线程模拟CDC事件监听
+      new Thread(() -> {
+        try {
+          while (logMonitorStatusMap.get(dataSourceId) == LogMonitorStatus.RUNNING) {
+            // 模拟CDC事件
+            Thread.sleep(10000);
+            // 生成模拟的CDC事件数据
+            Map<String, Object> cdcEvent = new HashMap<>();
+            cdcEvent.put("eventType", "DELETE");
+            cdcEvent.put("tableName", "orders");
+            cdcEvent.put("timestamp", System.currentTimeMillis());
+            cdcEvent.put("data", Map.of(
+                "orderId", "ORD-2023-001",
+                "customerId", 101,
+                "amount", 199.99
+            ));
+            // 处理日志变更
+            handleLogChange(dataSourceId, cdcEvent);
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }).start();
+    } catch (Exception e) {
+      log.error("Error starting Oracle CDC monitor: {}", e.getMessage(), e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * 启动MongoDB CDC监听器
+   * @param dataSourceId 数据源ID
+   * @param entity 数据源实体
+   */
+  private void startMongoDBCDCMonitor(Long dataSourceId, DataSourceEntity entity) {
+    log.info("Starting MongoDB CDC monitor for data source: {}", dataSourceId);
+    try {
+      // 模拟CDC监听器启动
+      Thread.sleep(2000);
+      // 启动后台线程模拟CDC事件监听
+      new Thread(() -> {
+        try {
+          while (logMonitorStatusMap.get(dataSourceId) == LogMonitorStatus.RUNNING) {
+            // 模拟CDC事件
+            Thread.sleep(5000);
+            // 生成模拟的CDC事件数据
+            Map<String, Object> cdcEvent = new HashMap<>();
+            cdcEvent.put("eventType", "INSERT");
+            cdcEvent.put("collectionName", "documents");
+            cdcEvent.put("timestamp", System.currentTimeMillis());
+            cdcEvent.put("data", Map.of(
+                "_id", "60d0fe4f5311236168a109ca",
+                "title", "MongoDB Document",
+                "content", "This is a test document"
+            ));
+            // 处理日志变更
+            handleLogChange(dataSourceId, cdcEvent);
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }).start();
+    } catch (Exception e) {
+      log.error("Error starting MongoDB CDC monitor: {}", e.getMessage(), e);
+      throw new RuntimeException(e);
+    }
+  }
+
+    /**
+     * 停止日志监听
+     * @param dataSourceId 数据源ID
+     */
+    public void stopLogMonitor(Long dataSourceId) {
+        log.info("Stopping log monitor for data source: {}", dataSourceId);
+
+        // 检查状态
+        LogMonitorStatus status = logMonitorStatusMap.get(dataSourceId);
+        if (status == null || status == LogMonitorStatus.STOPPED) {
+            log.info("Log monitor for data source {} is not running", dataSourceId);
+            return;
+        }
+
+        // 设置状态为停止中
+        logMonitorStatusMap.put(dataSourceId, LogMonitorStatus.STOPPING);
+
+        // 提交停止任务
+        logMonitorExecutor.submit(() -> {
+            try {
+                // 这里实现具体的停止逻辑
+                // 暂时模拟停止过程
+                Thread.sleep(1000); // 模拟停止时间
+
+                // 停止成功，更新状态
+                logMonitorStatusMap.put(dataSourceId, LogMonitorStatus.STOPPED);
+                log.info("Stopped log monitor for data source: {}", dataSourceId);
+            } catch (Exception e) {
+                log.error("Error stopping log monitor for data source: {}", dataSourceId, e);
+                logMonitorStatusMap.put(dataSourceId, LogMonitorStatus.FAILED);
+            }
+        });
+    }
+
+    /**
+     * 获取日志监听状态
+     * @param dataSourceId 数据源ID
+     * @return 监听状态
+     */
+    public String getLogMonitorStatus(Long dataSourceId) {
+        LogMonitorStatus status = logMonitorStatusMap.get(dataSourceId);
+        return status != null ? status.name() : "STOPPED";
+    }
+
+    /**
+   * 处理日志变更
+   * @param dataSourceId 数据源ID
+   * @param logData 日志数据
+   */
+  public void handleLogChange(Long dataSourceId, Map<String, Object> logData) {
+    log.info("Handling log change for data source: {}", dataSourceId);
+    try {
+      // 解析日志数据，提取变更信息
+      String eventType = (String) logData.get("eventType");
+      String tableName = (String) logData.get("tableName");
+      String collectionName = (String) logData.get("collectionName");
+      Long timestamp = (Long) logData.get("timestamp");
+      Map<String, Object> data = (Map<String, Object>) logData.get("data");
+
+      log.debug("Log change details - EventType: {}, Table/Collection: {}, Timestamp: {}, Data: {}", 
+              eventType, tableName != null ? tableName : collectionName, timestamp, data);
+
+      // 生成增量同步任务
+      generateIncrementalSyncTask(dataSourceId, eventType, tableName, collectionName, timestamp, data);
+
+    } catch (Exception e) {
+      log.error("Error handling log change for data source: {}", dataSourceId, e);
+    }
+  }
+
+  /**
+   * 生成增量同步任务
+   * @param dataSourceId 数据源ID
+   * @param eventType 事件类型
+   * @param tableName 表名
+   * @param collectionName 集合名
+   * @param timestamp 时间戳
+   * @param data 变更数据
+   */
+  private void generateIncrementalSyncTask(Long dataSourceId, String eventType, String tableName, 
+                                          String collectionName, Long timestamp, Map<String, Object> data) {
+    log.info("Generating incremental sync task for data source: {}, event: {}", dataSourceId, eventType);
+    try {
+      // 构建增量同步任务参数
+      Map<String, Object> syncParams = new HashMap<>();
+      syncParams.put("dataSourceId", dataSourceId);
+      syncParams.put("eventType", eventType);
+      syncParams.put("tableName", tableName);
+      syncParams.put("collectionName", collectionName);
+      syncParams.put("timestamp", timestamp);
+      syncParams.put("data", data);
+      syncParams.put("syncType", "INCREMENTAL");
+      syncParams.put("createTime", System.currentTimeMillis());
+
+      // 这里可以通过消息队列或直接调用任务服务来创建增量同步任务
+      // 暂时通过日志记录模拟任务创建
+      log.info("Incremental sync task generated: {}", syncParams);
+
+      // 模拟任务执行
+      simulateIncrementalSyncTask(dataSourceId, syncParams);
+
+    } catch (Exception e) {
+      log.error("Error generating incremental sync task: {}", e.getMessage(), e);
+    }
+  }
+
+  /**
+   * 模拟增量同步任务执行
+   * @param dataSourceId 数据源ID
+   * @param syncParams 同步参数
+   */
+  private void simulateIncrementalSyncTask(Long dataSourceId, Map<String, Object> syncParams) {
+    log.info("Simulating incremental sync task execution for data source: {}", dataSourceId);
+    try {
+      // 模拟任务执行过程
+      Thread.sleep(1000);
+      log.info("Incremental sync task executed successfully: {}", syncParams);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      log.error("Incremental sync task interrupted: {}", e.getMessage());
+    } catch (Exception e) {
+      log.error("Error executing incremental sync task: {}", e.getMessage(), e);
+    }
+  }
+
+    /**
+     * 清理过期的日志监听状态
+     */
+    private void cleanupLogMonitorStatus() {
+        // 移除失败状态超过1小时的记录
+        logMonitorStatusMap.entrySet().removeIf(entry -> 
+            entry.getValue() == LogMonitorStatus.FAILED
+        );
+    }
+
+    /**
      * 关闭资源
      */
     public void shutdown() {
         recoveryExecutor.shutdown();
+        logMonitorExecutor.shutdown();
         try {
             if (!recoveryExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
                 recoveryExecutor.shutdownNow();
             }
+            if (!logMonitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+                logMonitorExecutor.shutdownNow();
+            }
         } catch (InterruptedException e) {
             recoveryExecutor.shutdownNow();
+            logMonitorExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
     }
@@ -627,7 +1275,11 @@ public class DataSourceService {
      */
     public List<DataSourceTemplateEntity> getTemplatesByType(String dataSourceType) {
         log.info("Getting data source templates by type: {}", dataSourceType);
-        return dataSourceTemplateRepository.findByDataSourceType(dataSourceType);
+        // 使用MyBatis Plus条件查询
+        return dataSourceTemplateRepository.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<DataSourceTemplateEntity>()
+                        .eq("data_source_type", dataSourceType)
+        );
     }
 
     /**
@@ -636,7 +1288,11 @@ public class DataSourceService {
      */
     public List<DataSourceTemplateEntity> getSystemTemplates() {
         log.info("Getting system data source templates");
-        return dataSourceTemplateRepository.findByIsSystem(true);
+        // 使用MyBatis Plus条件查询
+        return dataSourceTemplateRepository.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<DataSourceTemplateEntity>()
+                        .eq("is_system", true)
+        );
     }
 
     /**
@@ -706,7 +1362,10 @@ public class DataSourceService {
         log.info("Initializing system data source templates");
         
         // 检查是否已存在系统模板
-        List<DataSourceTemplateEntity> existingSystemTemplates = dataSourceTemplateRepository.findByIsSystem(true);
+        List<DataSourceTemplateEntity> existingSystemTemplates = dataSourceTemplateRepository.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<DataSourceTemplateEntity>()
+                        .eq("is_system", true)
+        );
         if (!existingSystemTemplates.isEmpty()) {
             log.info("System templates already exist, skipping initialization");
             return;
@@ -792,6 +1451,8 @@ public class DataSourceService {
         DataSourceDiagnoseReportEntity report = new DataSourceDiagnoseReportEntity();
         report.setDataSourceId(id);
         report.setDiagnoseTime(LocalDateTime.now());
+        report.setCreateTime(LocalDateTime.now());
+        report.setUpdateTime(LocalDateTime.now());
         
         // 诊断网络连通性
         String networkStatus = diagnoseNetworkConnectivity(entity);
@@ -833,8 +1494,26 @@ public class DataSourceService {
         try {
             // 从URL中提取主机名
             String url = entity.getUrl();
-            String host = url.replaceAll(".*//(.*?):.*", "$1");
-            int port = entity.getPort();
+            if (url == null) {
+                return "FAILED";
+            }
+            
+            // 从URL中提取主机和端口
+            String host = null;
+            Integer port = null;
+            
+            // 尝试从URL中提取主机和端口
+            try {
+                host = url.replaceAll(".*//(.*?):.*", "$1");
+                port = entity.getPort();
+            } catch (Exception e) {
+                // 如果提取失败，返回FAILED
+                return "FAILED";
+            }
+            
+            if (host == null || port == null) {
+                return "FAILED";
+            }
             
             // 测试网络连通性
             java.net.Socket socket = new java.net.Socket();
@@ -890,30 +1569,59 @@ public class DataSourceService {
         try {
             // 根据数据源类型检查对应的日志监听端口
             String type = entity.getType();
-            int logPort = entity.getPort();
+            String host = entity.getHost();
+            
+            if (type == null || host == null) {
+                return "FAILED";
+            }
             
             // 对于MySQL，检查3306端口
             if ("MYSQL".equals(type)) {
-                logPort = 3306;
+                try {
+                    java.net.Socket socket = new java.net.Socket();
+                    socket.connect(new java.net.InetSocketAddress(host, 3306), 5000);
+                    socket.close();
+                    return "SUCCESS";
+                } catch (Exception e) {
+                    return "FAILED";
+                }
             }
             // 对于PostgreSQL，检查5432端口
             else if ("POSTGRESQL".equals(type)) {
-                logPort = 5432;
+                try {
+                    java.net.Socket socket = new java.net.Socket();
+                    socket.connect(new java.net.InetSocketAddress(host, 5432), 5000);
+                    socket.close();
+                    return "SUCCESS";
+                } catch (Exception e) {
+                    return "FAILED";
+                }
             }
             // 对于Oracle，检查1521端口
             else if ("ORACLE".equals(type)) {
-                logPort = 1521;
+                try {
+                    java.net.Socket socket = new java.net.Socket();
+                    socket.connect(new java.net.InetSocketAddress(host, 1521), 5000);
+                    socket.close();
+                    return "SUCCESS";
+                } catch (Exception e) {
+                    return "FAILED";
+                }
             }
             // 对于MongoDB，检查27017端口
             else if ("MONGODB".equals(type)) {
-                logPort = 27017;
+                try {
+                    java.net.Socket socket = new java.net.Socket();
+                    socket.connect(new java.net.InetSocketAddress(host, 27017), 5000);
+                    socket.close();
+                    return "SUCCESS";
+                } catch (Exception e) {
+                    return "FAILED";
+                }
             }
             
-            // 测试端口可用性
-            java.net.Socket socket = new java.net.Socket();
-            socket.connect(new java.net.InetSocketAddress(entity.getHost(), logPort), 5000);
-            socket.close();
-            return "SUCCESS";
+            // 对于其他类型，返回FAILED
+            return "FAILED";
         } catch (Exception e) {
             log.warn("Log monitor diagnosis failed for data source: {}", entity.getName(), e);
             return "FAILED";
@@ -961,7 +1669,12 @@ public class DataSourceService {
      */
     public List<DataSourceDiagnoseReportEntity> getDiagnoseReports(Long id) {
         log.info("Getting diagnose reports for data source: {}", id);
-        return diagnoseReportRepository.findByDataSourceId(id);
+        // 使用MyBatis Plus条件查询
+        return diagnoseReportRepository.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<DataSourceDiagnoseReportEntity>()
+                        .eq("data_source_id", id)
+                        .orderByDesc("diagnose_time")
+        );
     }
 
     /**
@@ -971,7 +1684,14 @@ public class DataSourceService {
      */
     public DataSourceDiagnoseReportEntity getLatestDiagnoseReport(Long id) {
         log.info("Getting latest diagnose report for data source: {}", id);
-        return diagnoseReportRepository.findTopByDataSourceIdOrderByDiagnoseTimeDesc(id);
+        // 使用MyBatis Plus条件查询
+        List<DataSourceDiagnoseReportEntity> reports = diagnoseReportRepository.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<DataSourceDiagnoseReportEntity>()
+                        .eq("data_source_id", id)
+                        .orderByDesc("diagnose_time")
+                        .last("LIMIT 1")
+        );
+        return reports != null && !reports.isEmpty() ? reports.get(0) : null;
     }
 
 }

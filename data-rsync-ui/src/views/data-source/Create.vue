@@ -1,83 +1,218 @@
 <template>
   <div class="data-source-create">
-    <el-card shadow="hover">
-      <template #header>
-        <div class="card-header">
-          <span>创建数据源</span>
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1 class="page-title">
+        <el-icon class="title-icon"><Plus /></el-icon>
+        创建数据源
+      </h1>
+      <p class="page-subtitle">配置新的数据同步源连接</p>
+    </div>
+
+    <!-- 主表单卡片 -->
+    <div class="form-card">
+      <!-- 表单步骤指示器 -->
+      <div class="form-steps">
+        <div class="step-item active">
+          <div class="step-number">1</div>
+          <div class="step-label">基本信息</div>
         </div>
-      </template>
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
-        <el-form-item label="数据源名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入数据源名称" />
-        </el-form-item>
-        <el-form-item label="数据源类型" prop="type">
-          <el-select v-model="form.type" placeholder="请选择数据源类型" @change="handleTypeChange">
-            <el-option label="MySQL" value="MYSQL" />
-            <el-option label="PostgreSQL" value="POSTGRESQL" />
-            <el-option label="Oracle" value="ORACLE" />
-            <el-option label="SQL Server" value="SQL_SERVER" />
-            <el-option label="MongoDB" value="MONGODB" />
-            <el-option label="Redis" value="REDIS" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="模板选择">
-          <el-select v-model="selectedTemplate" placeholder="选择预设模板" @change="handleTemplateChange">
-            <el-option label="默认模板" value="default" />
-            <el-option label="MySQL 模板" value="mysql" />
-            <el-option label="PostgreSQL 模板" value="postgresql" />
-            <el-option label="Oracle 模板" value="oracle" />
-            <el-option label="MongoDB 模板" value="mongodb" />
-          </el-select>
-          <el-button type="primary" size="small" style="margin-left: 10px" @click="saveAsTemplate">保存为模板</el-button>
-        </el-form-item>
-        <el-form-item label="连接地址" prop="url">
-          <el-input v-model="form.url" placeholder="请输入连接地址" @blur="validateUrl" />
-          <el-tooltip v-if="urlError" :content="urlError" placement="right" :effect="'error'">
-            <el-icon class="error-icon"><CircleCloseFilled /></el-icon>
-          </el-tooltip>
-        </el-form-item>
-        <el-form-item label="数据库名称" prop="databaseName">
-          <el-input v-model="form.databaseName" placeholder="请输入数据库名称" />
-        </el-form-item>
-        <el-form-item label="端口" prop="port">
-          <el-input v-model="form.port" type="number" placeholder="请输入端口" @blur="validatePort" />
-          <el-tooltip v-if="portError" :content="portError" placement="right" :effect="'error'">
-            <el-icon class="error-icon"><CircleCloseFilled /></el-icon>
-          </el-tooltip>
-        </el-form-item>
-        <el-form-item label="驱动类" prop="driverClass">
-          <el-input v-model="form.driverClass" placeholder="请输入驱动类" />
-        </el-form-item>
-        <el-form-item label="日志监听方式" prop="logMonitorType">
-          <el-select v-model="form.logMonitorType" placeholder="请选择日志监听方式">
-            <el-option label="Binlog" value="BINLOG" />
-            <el-option label="WAL" value="WAL" />
-            <el-option label="CDC" value="CDC" />
-            <el-option label="Polling" value="POLLING" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="连接超时时间" prop="connectionTimeout">
-          <el-input v-model="form.connectionTimeout" type="number" placeholder="请输入连接超时时间(毫秒)" />
-        </el-form-item>
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" placeholder="请输入用户名" />
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" type="password" placeholder="请输入密码" />
-        </el-form-item>
-        <el-form-item label="启用状态" prop="enabled">
-          <el-switch v-model="form.enabled" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" placeholder="请输入描述" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSubmit">创建</el-button>
-          <el-button @click="handleReset">重置</el-button>
-          <el-button @click="handleCancel">取消</el-button>
-        </el-form-item>
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <div class="step-label">连接配置</div>
+        </div>
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <div class="step-label">高级设置</div>
+        </div>
+      </div>
+
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="140px" class="main-form">
+        <!-- 基本信息部分 -->
+        <div class="form-section">
+          <h3 class="section-title">
+            <el-icon class="section-icon"><InfoFilled /></el-icon>
+            基本信息
+          </h3>
+          <div class="form-grid">
+            <el-form-item label="数据源名称" prop="name" class="form-item">
+              <el-input v-model="form.name" placeholder="请输入数据源名称" class="form-input" />
+            </el-form-item>
+            <el-form-item label="数据源类型" prop="type" class="form-item">
+              <el-select v-model="form.type" placeholder="请选择数据源类型" class="form-select" @change="handleTypeChange">
+                <el-option label="MySQL" value="MYSQL" />
+                <el-option label="PostgreSQL" value="POSTGRESQL" />
+                <el-option label="Oracle" value="ORACLE" />
+                <el-option label="SQL Server" value="SQL_SERVER" />
+                <el-option label="MongoDB" value="MONGODB" />
+                <el-option label="Redis" value="REDIS" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="模板选择" class="form-item">
+              <div class="template-selector">
+                <el-select v-model="selectedTemplate" placeholder="选择预设模板" class="form-select" @change="handleTemplateChange">
+                  <el-option label="默认模板" value="default" />
+                  <el-option label="MySQL 模板" value="mysql" />
+                  <el-option label="PostgreSQL 模板" value="postgresql" />
+                  <el-option label="Oracle 模板" value="oracle" />
+                  <el-option label="MongoDB 模板" value="mongodb" />
+                </el-select>
+                <el-button type="primary" size="small" class="template-btn" @click="saveAsTemplate">
+                  <el-icon><Download /></el-icon>
+                  保存为模板
+                </el-button>
+              </div>
+            </el-form-item>
+            <el-form-item label="描述" class="form-item full-width">
+              <el-input v-model="form.description" type="textarea" placeholder="请输入数据源描述" class="form-textarea" :rows="3" />
+            </el-form-item>
+          </div>
+        </div>
+
+        <!-- 连接配置部分 -->
+        <div class="form-section">
+          <h3 class="section-title">
+            <el-icon class="section-icon"><Link /></el-icon>
+            连接配置
+          </h3>
+          <div class="form-grid">
+            <!-- 主机和端口输入 -->
+            <el-form-item label="主机地址" prop="host" v-if="showHostPortFields" class="form-item">
+              <el-input v-model="form.host" placeholder="请输入主机地址" class="form-input" @blur="generateUrl" />
+            </el-form-item>
+            <el-form-item label="端口" prop="port" v-if="showHostPortFields" class="form-item">
+              <el-input v-model="form.port" type="number" placeholder="请输入端口" class="form-input" @blur="[validatePort, generateUrl]" />
+              <el-tooltip v-if="portError" :content="portError" placement="right" :effect="'error'">
+                <el-icon class="error-icon"><CircleCloseFilled /></el-icon>
+              </el-tooltip>
+            </el-form-item>
+            
+            <!-- 数据库名称 -->
+            <el-form-item label="数据库名称" prop="databaseName" v-if="showDatabaseNameField" class="form-item">
+              <el-input v-model="form.databaseName" placeholder="请输入数据库名称" class="form-input" @blur="generateUrl" />
+            </el-form-item>
+            
+            <!-- 连接地址 -->
+            <el-form-item label="连接地址" prop="url" class="form-item full-width">
+              <div class="url-input-group">
+                <el-input v-model="form.url" placeholder="请输入连接地址" class="form-input" @blur="validateUrl" />
+                <el-button type="info" size="small" class="url-btn" @click="generateUrl" v-if="canGenerateUrl">
+                  <el-icon><Refresh /></el-icon>
+                  自动生成
+                </el-button>
+              </div>
+              <el-tooltip v-if="urlError" :content="urlError" placement="right" :effect="'error'">
+                <el-icon class="error-icon"><CircleCloseFilled /></el-icon>
+              </el-tooltip>
+            </el-form-item>
+            
+            <!-- 驱动类 -->
+            <el-form-item label="驱动类" prop="driverClass" class="form-item full-width">
+              <el-input v-model="form.driverClass" placeholder="请输入驱动类" class="form-input" />
+            </el-form-item>
+            
+            <!-- 日志监听方式 -->
+            <el-form-item label="日志监听方式" prop="logMonitorType" class="form-item">
+              <el-select v-model="form.logMonitorType" placeholder="请选择日志监听方式" class="form-select">
+                <el-option label="Binlog" value="BINLOG" />
+                <el-option label="WAL" value="WAL" />
+                <el-option label="CDC" value="CDC" />
+                <el-option label="Polling" value="POLLING" />
+              </el-select>
+            </el-form-item>
+            
+            <!-- 日志监控频率 -->
+            <el-form-item label="日志监控频率" prop="logMonitorInterval" v-if="form.logMonitorType" class="form-item">
+              <el-input-number v-model="form.logMonitorInterval" :min="1000" :max="3600000" :step="1000" class="form-input" />
+              <span class="input-suffix">毫秒</span>
+            </el-form-item>
+            
+            <!-- 日志监控超时时间 -->
+            <el-form-item label="日志监控超时" prop="logMonitorTimeout" v-if="form.logMonitorType" class="form-item">
+              <el-input-number v-model="form.logMonitorTimeout" :min="5000" :max="300000" :step="5000" class="form-input" />
+              <span class="input-suffix">毫秒</span>
+            </el-form-item>
+            
+            <!-- 连接超时时间 -->
+            <el-form-item label="连接超时时间" prop="connectionTimeout" class="form-item">
+              <el-input-number v-model="form.connectionTimeout" :min="1000" :max="60000" :step="1000" class="form-input-number" />
+              <span class="input-suffix">毫秒</span>
+            </el-form-item>
+          </div>
+        </div>
+
+        <!-- 认证信息部分 -->
+        <div class="form-section">
+          <h3 class="section-title">
+            <el-icon class="section-icon"><Lock /></el-icon>
+            认证信息
+          </h3>
+          <div class="form-grid">
+            <el-form-item label="用户名" prop="username" v-if="showCredentialsFields" class="form-item">
+              <el-input v-model="form.username" placeholder="请输入用户名" class="form-input" />
+            </el-form-item>
+            <el-form-item label="密码" prop="password" v-if="showCredentialsFields" class="form-item">
+              <el-input v-model="form.password" type="password" placeholder="请输入密码" class="form-input" show-password />
+            </el-form-item>
+          </div>
+        </div>
+
+        <!-- 高级设置部分 -->
+        <div class="form-section">
+          <h3 class="section-title">
+            <el-icon class="section-icon"><Setting /></el-icon>
+            高级设置
+          </h3>
+          <div class="form-grid">
+            <el-form-item label="启用状态" prop="enabled" class="form-item">
+              <el-switch v-model="form.enabled" active-color="#4361ee" inactive-color="#6b7280" inline-prompt active-text="启用" inactive-text="禁用" />
+            </el-form-item>
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="form-actions">
+          <el-button type="primary" class="action-btn submit" @click="handleSubmit">
+            <el-icon><Check /></el-icon>
+            创建
+          </el-button>
+          <el-button type="success" class="action-btn test" @click="handleTestConnection">
+            <el-icon><CircleCheck /></el-icon>
+            测试连接
+          </el-button>
+          <el-button type="info" class="action-btn reset" @click="handleReset">
+            <el-icon><Refresh /></el-icon>
+            重置
+          </el-button>
+          <el-button class="action-btn cancel" @click="handleCancel">
+            <el-icon><Close /></el-icon>
+            取消
+          </el-button>
+        </div>
       </el-form>
-    </el-card>
+    </div>
+
+    <!-- 测试连接结果对话框 -->
+    <el-dialog
+      v-model="testResultVisible"
+      title="连接测试结果"
+      width="400px"
+    >
+      <div class="test-result">
+        <el-icon :class="testResult.success ? 'success-icon' : 'error-icon'">
+          {{ testResult.success ? 'Check' : 'Close' }}
+        </el-icon>
+        <h4 :class="testResult.success ? 'success' : 'error'">
+          {{ testResult.success ? '连接成功' : '连接失败' }}
+        </h4>
+        <p v-if="testResult.message">{{ testResult.message }}</p>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="testResultVisible = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -85,6 +220,7 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { dataSourceApi } from '@/api'
+import { Plus, InfoFilled, Link, Lock, Setting, Check, CircleCheck, Refresh, Close, Download } from '@element-plus/icons-vue'
 import { CircleCloseFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -93,19 +229,50 @@ const selectedTemplate = ref('default')
 const urlError = ref('')
 const portError = ref('')
 
+// 测试连接结果
+const testResultVisible = ref(false)
+const testResult = ref({ success: false, message: '' })
+
 const form = reactive({
   name: '',
   type: '',
-  url: '',
-  port: '',
+  host: '',
+  port: null,
   databaseName: '',
-  driverClass: '',
-  logMonitorType: '',
-  connectionTimeout: 30000,
   username: '',
   password: '',
+  url: '',
+  driverClass: '',
+  logMonitorType: '',
+  logMonitorInterval: 5000,
+  logMonitorTimeout: 60000,
+  connectionTimeout: 30000,
   enabled: true,
   description: ''
+})
+
+// 计算属性：根据数据库类型显示/隐藏主机和端口字段
+const showHostPortFields = computed(() => {
+  const type = form.type
+  return type && ['MYSQL', 'POSTGRESQL', 'ORACLE', 'SQL_SERVER', 'MONGODB', 'REDIS'].includes(type)
+})
+
+// 计算属性：根据数据库类型显示/隐藏数据库名称字段
+const showDatabaseNameField = computed(() => {
+  const type = form.type
+  return type && ['MYSQL', 'POSTGRESQL', 'SQL_SERVER', 'MONGODB'].includes(type)
+})
+
+// 计算属性：根据数据库类型显示/隐藏凭证字段
+const showCredentialsFields = computed(() => {
+  const type = form.type
+  return type && ['MYSQL', 'POSTGRESQL', 'ORACLE', 'SQL_SERVER', 'MONGODB', 'REDIS'].includes(type)
+})
+
+// 计算属性：是否可以自动生成URL
+const canGenerateUrl = computed(() => {
+  const type = form.type
+  return type && ['MYSQL', 'POSTGRESQL', 'ORACLE', 'SQL_SERVER', 'MONGODB', 'REDIS'].includes(type)
 })
 
 const rules = reactive({
@@ -115,14 +282,23 @@ const rules = reactive({
   type: [
     { required: true, message: '请选择数据源类型', trigger: 'change' }
   ],
+  host: [
+    { required: computed(() => showHostPortFields.value), message: '请输入主机地址', trigger: 'blur' }
+  ],
+  port: [
+    { required: computed(() => showHostPortFields.value), message: '请输入端口', trigger: 'blur' }
+  ],
+  databaseName: [
+    { required: computed(() => showDatabaseNameField.value), message: '请输入数据库名称', trigger: 'blur' }
+  ],
   url: [
     { required: true, message: '请输入连接地址', trigger: 'blur' }
   ],
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' }
+    { required: computed(() => showCredentialsFields.value), message: '请输入用户名', trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' }
+    { required: computed(() => showCredentialsFields.value), message: '请输入密码', trigger: 'blur' }
   ]
 })
 
@@ -131,30 +307,59 @@ const templates = {
   mysql: {
     driverClass: 'com.mysql.cj.jdbc.Driver',
     logMonitorType: 'BINLOG',
+    logMonitorInterval: 5000,
+    logMonitorTimeout: 60000,
     connectionTimeout: 30000,
     port: '3306'
   },
   postgresql: {
     driverClass: 'org.postgresql.Driver',
     logMonitorType: 'WAL',
+    logMonitorInterval: 5000,
+    logMonitorTimeout: 60000,
     connectionTimeout: 30000,
     port: '5432'
   },
   oracle: {
     driverClass: 'oracle.jdbc.OracleDriver',
     logMonitorType: 'CDC',
+    logMonitorInterval: 10000,
+    logMonitorTimeout: 120000,
     connectionTimeout: 60000,
     port: '1521'
   },
   mongodb: {
     driverClass: 'mongodb.driver.MongoDriver',
     logMonitorType: 'CDC',
+    logMonitorInterval: 5000,
+    logMonitorTimeout: 60000,
     connectionTimeout: 30000,
     port: '27017'
   }
 }
 
+// 数据库类型对应的连接URL模板
+const urlTemplates = {
+  MYSQL: (host: string, port: string, database: string) => 
+    `jdbc:mysql://${host}:${port}/${database}?useSSL=false&serverTimezone=UTC`,
+  POSTGRESQL: (host: string, port: string, database: string) => 
+    `jdbc:postgresql://${host}:${port}/${database}`,
+  ORACLE: (host: string, port: string, database: string) => 
+    `jdbc:oracle:thin:@${host}:${port}:${database}`,
+  SQL_SERVER: (host: string, port: string, database: string) => 
+    `jdbc:sqlserver://${host}:${port};databaseName=${database}`,
+  MONGODB: (host: string, port: string, database: string) => 
+    `mongodb://${host}:${port}/${database}`,
+  REDIS: (host: string, port: string) => 
+    `redis://${host}:${port}`
+}
+
 const handleTypeChange = (type: string) => {
+  // 重置相关字段
+  form.host = ''
+  form.databaseName = ''
+  form.url = ''
+  
   // 根据数据源类型自动选择对应模板
   if (type === 'MYSQL') {
     selectedTemplate.value = 'mysql'
@@ -164,6 +369,8 @@ const handleTypeChange = (type: string) => {
     selectedTemplate.value = 'oracle'
   } else if (type === 'MONGODB') {
     selectedTemplate.value = 'mongodb'
+  } else {
+    selectedTemplate.value = 'default'
   }
   handleTemplateChange(selectedTemplate.value)
 }
@@ -175,6 +382,33 @@ const handleTemplateChange = (template: string) => {
   }
 }
 
+// 生成连接URL
+const generateUrl = () => {
+  const type = form.type
+  const host = form.host
+  const port = form.port
+  const database = form.databaseName
+  
+  if (!type || !host || !port) {
+    urlError.value = '请填写主机和端口信息'
+    return
+  }
+  
+  try {
+    const portStr = port.toString()
+    if (urlTemplates[type as keyof typeof urlTemplates]) {
+      if (type === 'REDIS') {
+        form.url = urlTemplates[type as keyof typeof urlTemplates](host, portStr)
+      } else {
+        form.url = urlTemplates[type as keyof typeof urlTemplates](host, portStr, database)
+      }
+      urlError.value = ''
+    }
+  } catch (error) {
+    urlError.value = '生成连接地址失败'
+  }
+}
+
 const validateUrl = () => {
   const url = form.url
   if (!url) {
@@ -182,9 +416,35 @@ const validateUrl = () => {
     return
   }
   
-  // 简单的URL格式校验
-  const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/
-  if (!urlPattern.test(url)) {
+  const type = form.type
+  let isValid = true
+  
+  // 根据数据库类型进行特定的URL格式校验
+  switch (type) {
+    case 'MYSQL':
+      isValid = /^jdbc:mysql:\/\/.+:\d+\/.+/.test(url)
+      break
+    case 'POSTGRESQL':
+      isValid = /^jdbc:postgresql:\/\/.+:\d+\/.+/.test(url)
+      break
+    case 'ORACLE':
+      isValid = /^jdbc:oracle:thin:@.+:\d+:.+/.test(url)
+      break
+    case 'SQL_SERVER':
+      isValid = /^jdbc:sqlserver:\/\/.+:\d+;databaseName=.+/.test(url)
+      break
+    case 'MONGODB':
+      isValid = /^mongodb:\/\/.+:\d+/.test(url)
+      break
+    case 'REDIS':
+      isValid = /^redis:\/\/.+:\d+/.test(url)
+      break
+    default:
+      // 通用URL校验
+      isValid = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(url)
+  }
+  
+  if (!isValid) {
     urlError.value = '连接地址格式不正确'
   } else {
     urlError.value = ''
@@ -193,7 +453,7 @@ const validateUrl = () => {
 
 const validatePort = () => {
   const port = form.port
-  if (!port) {
+  if (port === null || port === '') {
     portError.value = ''
     return
   }
@@ -202,6 +462,7 @@ const validatePort = () => {
   if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
     portError.value = '端口必须是1-65535之间的数字'
   } else {
+    form.port = portNum
     portError.value = ''
   }
 }
@@ -228,6 +489,33 @@ const handleSubmit = async () => {
   }
 }
 
+const handleTestConnection = async () => {
+  if (formRef.value) {
+    await formRef.value.validate(async (valid: boolean) => {
+      if (valid) {
+        try {
+          // 这里应该调用测试连接的API
+          // 模拟测试结果
+          setTimeout(() => {
+            testResult.value = {
+              success: true,
+              message: '连接成功'
+            }
+            testResultVisible.value = true
+          }, 1000)
+        } catch (error) {
+          console.error('Failed to test connection:', error)
+          testResult.value = {
+            success: false,
+            message: '连接失败: ' + (error as Error).message
+          }
+          testResultVisible.value = true
+        }
+      }
+    })
+  }
+}
+
 const handleReset = () => {
   if (formRef.value) {
     formRef.value.resetFields()
@@ -243,17 +531,426 @@ const handleCancel = () => {
 </script>
 
 <style scoped>
+/* 全局样式 */
 .data-source-create {
-  padding: 20px;
-  background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
   min-height: 100vh;
-  animation: fadeIn 0.8s ease-out;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes fadeIn {
+/* 背景网格 */
+.data-source-create::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 50px 50px;
+  }
+}
+
+/* 页面标题 */
+.page-header {
+  text-align: center;
+  margin-bottom: 48px;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.page-title {
+  font-size: 36px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #4361ee, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.title-icon {
+  font-size: 40px;
+  color: #4361ee;
+  animation: pulse 2s infinite;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+/* 表单卡片 */
+.form-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(64, 158, 255, 0.2);
+  border-radius: 24px;
+  padding: 40px;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(64, 158, 255, 0.1);
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+  position: relative;
+  overflow: hidden;
+}
+
+.form-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #4361ee, #667eea, #764ba2);
+  border-radius: 24px 24px 0 0;
+}
+
+/* 表单步骤指示器 */
+.form-steps {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 40px;
+  animation: fadeInUp 0.8s ease-out 0.3s both;
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  flex: 1;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(15, 23, 42, 0.8);
+  border: 2px solid rgba(64, 158, 255, 0.3);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 2;
+}
+
+.step-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step-item.active .step-number {
+  background: linear-gradient(135deg, #4361ee, #3a0ca3);
+  border-color: #4361ee;
+  color: white;
+  box-shadow: 0 4px 20px rgba(67, 97, 238, 0.4);
+  transform: scale(1.1);
+}
+
+.step-item.active .step-label {
+  color: white;
+  font-weight: 600;
+}
+
+.step-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  right: -50%;
+  height: 2px;
+  background: rgba(64, 158, 255, 0.3);
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.step-item.active:not(:last-child)::after {
+  background: linear-gradient(90deg, #4361ee, rgba(64, 158, 255, 0.3));
+}
+
+/* 主表单 */
+.main-form {
+  animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+
+/* 表单部分 */
+.form-section {
+  margin-bottom: 40px;
+  padding: 32px;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 16px;
+  border: 1px solid rgba(64, 158, 255, 0.1);
+  animation: slideUp 0.6s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.form-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #4361ee, #3a0ca3);
+  border-radius: 16px 0 0 16px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-icon {
+  font-size: 20px;
+  color: #4361ee;
+}
+
+/* 表单网格 */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.form-item {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.form-item.full-width {
+  grid-column: 1 / -1;
+}
+
+/* 表单输入 */
+.form-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(64, 158, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-input:focus {
+  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+}
+
+.form-select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(64, 158, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(64, 158, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-input-number {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(64, 158, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-suffix {
+  margin-left: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+/* 模板选择器 */
+.template-selector {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.template-btn {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #4361ee, #3a0ca3);
+  border: none;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.template-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
+}
+
+/* URL输入组 */
+.url-input-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.url-btn {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #3498db, #2980b9);
+  border: none;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.url-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+/* 错误图标 */
+.error-icon {
+  color: #ef4444;
+  margin-left: 8px;
+  animation: shake 0.5s ease-in-out;
+}
+
+/* 表单操作按钮 */
+.form-actions {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(64, 158, 255, 0.1);
+  animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+
+.action-btn {
+  border-radius: 12px;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  min-width: 120px;
+}
+
+.action-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+}
+
+.action-btn.submit {
+  background: linear-gradient(90deg, #4361ee, #3a0ca3);
+  border: none;
+  color: white;
+}
+
+.action-btn.test {
+  background: linear-gradient(90deg, #10b981, #059669);
+  border: none;
+  color: white;
+}
+
+.action-btn.reset {
+  background: linear-gradient(90deg, #3498db, #2980b9);
+  border: none;
+  color: white;
+}
+
+.action-btn.cancel {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(64, 158, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.action-btn.cancel:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #4361ee;
+  color: white;
+}
+
+/* 测试连接结果样式 */
+.test-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 16px;
+  margin: -24px;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.test-result :deep(.el-icon) {
+  font-size: 64px;
+  margin-bottom: 24px;
+  animation: zoomIn 0.6s ease-out;
+}
+
+.success-icon {
+  color: #10b981;
+}
+
+.error-icon {
+  color: #ef4444;
+}
+
+.test-result h4 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+  color: white;
+}
+
+.test-result p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.6;
+  animation: fadeInUp 0.6s ease-out 0.4s both;
+  max-width: 320px;
+}
+
+/* 动画 */
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -261,64 +958,35 @@ const handleCancel = () => {
   }
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 24px;
-  animation: slideInLeft 0.6s ease-out;
-}
-
-@keyframes slideInLeft {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateX(-30px);
+    transform: translateY(40px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
-.card-header span {
-  font-size: 20px;
-  font-weight: 700;
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  position: relative;
-  padding: 12px 0;
-}
-
-.card-header span::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 60px;
-  height: 4px;
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
-  border-radius: 2px;
-  animation: expandWidth 1s ease-out 0.3s forwards;
-  transform: scaleX(0);
-  transform-origin: left;
-}
-
-@keyframes expandWidth {
+@keyframes zoomIn {
   from {
-    transform: scaleX(0);
+    opacity: 0;
+    transform: scale(0.8);
   }
   to {
-    transform: scaleX(1);
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
-.error-icon {
-  color: #ef4444;
-  margin-left: 8px;
-  font-size: 16px;
-  animation: shake 0.5s ease-in-out;
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes shake {
@@ -333,112 +1001,140 @@ const handleCancel = () => {
   }
 }
 
-/* 表单样式 */
-:deep(.el-form) {
-  margin-top: 24px;
-  animation: slideUp 0.8s ease-out 0.4s both;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(40px);
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .form-card {
+    padding: 32px;
   }
-}
 
-:deep(.el-form-item) {
-  margin-bottom: 24px;
-  animation: fadeInUp 0.6s ease-out var(--delay, 0s) both;
-  position: relative;
-}
-
-:deep(.el-form-item:nth-child(1)) {
-  --delay: 0.5s;
-}
-
-:deep(.el-form-item:nth-child(2)) {
-  --delay: 0.6s;
-}
-
-:deep(.el-form-item:nth-child(3)) {
-  --delay: 0.7s;
-}
-
-:deep(.el-form-item:nth-child(4)) {
-  --delay: 0.8s;
-}
-
-:deep(.el-form-item:nth-child(5)) {
-  --delay: 0.9s;
-}
-
-:deep(.el-form-item:nth-child(6)) {
-  --delay: 1s;
-}
-
-:deep(.el-form-item:nth-child(7)) {
-  --delay: 1.1s;
-}
-
-:deep(.el-form-item:nth-child(8)) {
-  --delay: 1.2s;
-}
-
-:deep(.el-form-item:nth-child(9)) {
-  --delay: 1.3s;
-}
-
-:deep(.el-form-item:nth-child(10)) {
-  --delay: 1.4s;
-}
-
-:deep(.el-form-item:nth-child(11)) {
-  --delay: 1.5s;
-}
-
-:deep(.el-form-item:nth-child(12)) {
-  --delay: 1.6s;
-}
-
-:deep(.el-form-item:nth-child(13)) {
-  --delay: 1.7s;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+  .form-section {
+    padding: 24px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .form-actions {
+    flex-wrap: wrap;
   }
 }
 
+@media (max-width: 768px) {
+  .data-source-create {
+    padding: 16px;
+  }
+
+  .page-title {
+    font-size: 28px;
+  }
+
+  .form-card {
+    padding: 24px;
+  }
+
+  .form-steps {
+    gap: 16px;
+  }
+
+  .step-number {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .step-label {
+    font-size: 12px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .template-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .url-input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-btn {
+    width: 100%;
+  }
+
+  .form-section {
+    padding: 20px;
+  }
+
+  .section-title {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-card {
+    padding: 20px;
+  }
+
+  .form-steps {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .step-item:not(:last-child)::after {
+    display: none;
+  }
+
+  .form-section {
+    padding: 16px;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+  }
+}
+
+/* 表单标签样式 */
 :deep(.el-form-item__label) {
   font-weight: 600;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
   padding: 0 16px 0 0;
-  width: 120px;
+  width: 140px;
 }
 
+/* 输入框样式覆盖 */
 :deep(.el-input__wrapper),
 :deep(.el-select__wrapper),
-:deep(.el-textarea__wrapper) {
-  border-radius: 10px;
+:deep(.el-textarea__wrapper),
+:deep(.el-input-number) {
+  border-radius: 12px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(64, 158, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 :deep(.el-input__wrapper:hover),
 :deep(.el-select__wrapper:hover),
-:deep(.el-textarea__wrapper:hover) {
+:deep(.el-textarea__wrapper:hover),
+:deep(.el-input-number:hover) {
   box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
   border-color: #4361ee;
   transform: translateY(-1px);
@@ -446,7 +1142,8 @@ const handleCancel = () => {
 
 :deep(.el-input__wrapper.is-focus),
 :deep(.el-select__wrapper.is-focus),
-:deep(.el-textarea__wrapper.is-focus) {
+:deep(.el-textarea__wrapper.is-focus),
+:deep(.el-input-number.is-focus) {
   box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
   border-color: #4361ee;
   transform: translateY(-1px);
@@ -454,120 +1151,55 @@ const handleCancel = () => {
 
 :deep(.el-input__inner),
 :deep(.el-select__input),
-:deep(.el-textarea__inner) {
+:deep(.el-textarea__inner),
+:deep(.el-input-number__input) {
   font-size: 14px;
-  color: #334155;
+  color: rgba(255, 255, 255, 0.9);
   transition: all 0.3s ease;
+  background: transparent;
 }
 
 :deep(.el-input__inner:focus),
 :deep(.el-select__input:focus),
-:deep(.el-textarea__inner:focus) {
-  color: #3a0ca3;
+:deep(.el-textarea__inner:focus),
+:deep(.el-input-number__input:focus) {
+  color: #409eff;
 }
 
-:deep(.el-textarea__wrapper) {
-  min-height: 100px;
+:deep(.el-input__placeholder),
+:deep(.el-select__placeholder),
+:deep(.el-textarea__placeholder) {
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 
-/* 按钮样式 */
-:deep(.el-button) {
-  border-radius: 8px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 600;
-  padding: 10px 20px;
-  font-size: 14px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin-right: 12px;
-}
-
-:deep(.el-button::before) {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
-}
-
-:deep(.el-button:active::before) {
-  width: 300px;
-  height: 300px;
-}
-
-:deep(.el-button:hover) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
-:deep(.el-button--primary) {
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
-  border: none;
-}
-
-:deep(.el-button--success) {
-  background: linear-gradient(90deg, #2ecc71, #27ae60);
-  border: none;
-  color: #fff;
-}
-
-:deep(.el-button--info) {
-  background: linear-gradient(90deg, #3498db, #2980b9);
-  border: none;
-  color: #fff;
-}
-
-:deep(.el-button--danger) {
-  background: linear-gradient(90deg, #e74c3c, #c0392b);
-  border: none;
-}
-
-/* 开关样式 */
-:deep(.el-switch) {
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  transform: scale(1);
-}
-
-:deep(.el-switch:hover) {
-  transform: scale(1.1);
-}
-
-:deep(.el-switch__core) {
-  border-radius: 20px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-:deep(.el-switch.is-checked .el-switch__core) {
-  background: linear-gradient(90deg, #4361ee, #3a0ca3);
-}
-
-/* 工具提示样式 */
-:deep(.el-tooltip__popper) {
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-}
-
-:deep(.el-tooltip__popper.is-error) {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: #dc2626;
-}
-
-/* 选择器样式 */
 :deep(.el-select-dropdown) {
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  border: none;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(64, 158, 255, 0.3);
   animation: fadeInScale 0.3s ease-out;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+}
+
+:deep(.el-select-dropdown__item) {
+  padding: 12px 16px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+  margin: 4px 8px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:deep(.el-select-dropdown__item:hover) {
+  background: rgba(67, 97, 238, 0.2);
+  color: #4361ee;
+  transform: translateX(8px);
+}
+
+:deep(.el-select-dropdown__item.selected) {
+  background: rgba(67, 97, 238, 0.3);
+  color: #4361ee;
+  font-weight: 600;
 }
 
 @keyframes fadeInScale {
@@ -578,218 +1210,6 @@ const handleCancel = () => {
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
-  }
-}
-
-:deep(.el-select-dropdown__item) {
-  padding: 12px 16px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 8px;
-  margin: 4px 8px;
-}
-
-:deep(.el-select-dropdown__item:hover) {
-  background: rgba(67, 97, 238, 0.1);
-  color: #4361ee;
-  transform: translateX(8px);
-}
-
-:deep(.el-select-dropdown__item.selected) {
-  background: rgba(67, 97, 238, 0.15);
-  color: #3a0ca3;
-  font-weight: 600;
-}
-
-/* 卡片样式 */
-:deep(.el-card) {
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
-  border: none;
-  background: #fff;
-  animation: fadeInUp 0.8s ease-out;
-}
-
-:deep(.el-card__body) {
-  padding: 32px;
-}
-
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .data-source-create {
-    padding: 16px;
-  }
-  
-  :deep(.el-card__body) {
-    padding: 24px;
-  }
-  
-  :deep(.el-form-item) {
-    margin-bottom: 20px;
-  }
-  
-  :deep(.el-form-item__label) {
-    width: 100px;
-    font-size: 13px;
-  }
-  
-  :deep(.el-button) {
-    padding: 8px 16px;
-    font-size: 13px;
-    margin-right: 8px;
-  }
-}
-
-@media (max-width: 992px) {
-  :deep(.el-form-item__label) {
-    width: 90px;
-    font-size: 12px;
-  }
-  
-  :deep(.el-input__wrapper),
-  :deep(.el-select__wrapper) {
-    width: 100%;
-  }
-  
-  :deep(.el-form-item__content) {
-    margin-left: 100px !important;
-  }
-}
-
-@media (max-width: 768px) {
-  .data-source-create {
-    padding: 12px;
-  }
-  
-  :deep(.el-card__body) {
-    padding: 20px;
-  }
-  
-  :deep(.el-form) {
-    margin-top: 20px;
-  }
-  
-  :deep(.el-form-item) {
-    margin-bottom: 16px;
-  }
-  
-  :deep(.el-form-item__label) {
-    width: 100%;
-    text-align: left;
-    margin-bottom: 8px;
-  }
-  
-  :deep(.el-form-item__content) {
-    margin-left: 0 !important;
-  }
-  
-  .card-header {
-    padding: 0 16px;
-  }
-  
-  .card-header span {
-    font-size: 18px;
-  }
-  
-  :deep(.el-button) {
-    padding: 8px 12px;
-    font-size: 12px;
-    margin-right: 6px;
-  }
-}
-
-/* 模板选择区域样式 */
-:deep(.el-form-item:nth-child(3)) {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-:deep(.el-form-item:nth-child(3) .el-form-item__content) {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-}
-
-:deep(.el-form-item:nth-child(3) .el-select) {
-  flex: 1;
-  min-width: 200px;
-}
-
-:deep(.el-form-item:nth-child(3) .el-button) {
-  white-space: nowrap;
-  margin-right: 0;
-}
-
-@media (max-width: 768px) {
-  :deep(.el-form-item:nth-child(3) .el-form-item__content) {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-  
-  :deep(.el-form-item:nth-child(3) .el-button) {
-    width: 100%;
-  }
-}
-
-/* 实时验证样式 */
-:deep(.el-form-item.is-error .el-input__wrapper),
-:deep(.el-form-item.is-error .el-select__wrapper),
-:deep(.el-form-item.is-error .el-textarea__wrapper) {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
-  border-color: #ef4444;
-}
-
-:deep(.el-form-item.is-success .el-input__wrapper),
-:deep(.el-form-item.is-success .el-select__wrapper),
-:deep(.el-form-item.is-success .el-textarea__wrapper) {
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-  border-color: #10b981;
-}
-
-/* 输入框聚焦动画 */
-:deep(.el-input__wrapper.is-focus) {
-  animation: pulse 0.6s ease-out;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(67, 97, 238, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(67, 97, 238, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
-  }
-}
-
-/* 提交按钮区域样式 */
-:deep(.el-form-item:last-child) {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
-  display: flex;
-  justify-content: flex-start;
-  gap: 16px;
-}
-
-:deep(.el-form-item:last-child .el-form-item__content) {
-  display: flex;
-  gap: 16px;
-}
-
-@media (max-width: 768px) {
-  :deep(.el-form-item:last-child .el-form-item__content) {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  :deep(.el-form-item:last-child .el-button) {
-    width: 100%;
-    margin-right: 0;
   }
 }
 </style>

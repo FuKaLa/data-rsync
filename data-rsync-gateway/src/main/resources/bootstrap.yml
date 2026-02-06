@@ -1,7 +1,7 @@
 server:
   port: 8701
   servlet:
-    context-path: /
+    context-path: /gateway
 spring:
   application:
     name: data-rsync-gateway

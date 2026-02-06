@@ -1,7 +1,7 @@
 server:
   port: 8083
   servlet:
-    context-path: /task-manager
+    context-path: /manager
 spring:
   application:
     name: data-rsync-task-manager

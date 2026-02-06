@@ -1,7 +1,7 @@
 server:
   port: 8704
   servlet:
-    context-path: /data-source
+    context-path: /source
 spring:
   application:
     name: data-rsync-data-source

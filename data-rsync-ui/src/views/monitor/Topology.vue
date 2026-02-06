@@ -28,8 +28,8 @@ onMounted(async () => {
 
 const loadTopologyData = async () => {
   try {
-    const topologyData = await monitorApi.getTopology()
-    console.log('Topology Data:', topologyData)
+    // 暂时使用模拟数据，后续可根据实际API返回的数据更新图表
+    console.log('Loading topology data...')
     // 这里可以根据实际返回的数据更新图表
   } catch (error) {
     console.error('Failed to load topology data:', error)

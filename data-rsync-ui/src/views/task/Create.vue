@@ -23,85 +23,146 @@
         </el-form-item>
       </el-form>
       
-      <el-divider content-position="left">任务编排画布</el-divider>
+      <el-divider content-position="left">任务流程配置</el-divider>
       
-      <!-- 任务编排画布 -->
-      <div class="flow-container">
-        <!-- 左侧节点面板 -->
-        <div class="node-panel">
-          <h4>节点类型</h4>
-          <div 
-            v-for="nodeType in nodeTypes" 
-            :key="nodeType.id"
-            class="node-item"
-            @mousedown="onNodeDragStart($event, nodeType)"
-          >
-            <el-icon>{{ nodeType.icon }}</el-icon>
-            <span>{{ nodeType.label }}</span>
-          </div>
-        </div>
-        
-        <!-- 右侧画布区域 -->
-        <div class="flow-canvas">
-          <VueFlow
-            v-model="nodes"
-            v-model:connections="connections"
-            @node-drag-start="onNodeDragStart"
-            @node-drag-end="onNodeDragEnd"
-            @connect="onConnect"
-            @connection-remove="onConnectionRemove"
-          >
-            <template #node-custom="{ data }">
-              <div class="custom-node" :class="data.type">
-                <div class="node-header">
-                  <el-icon>{{ getNodeIcon(data.type) }}</el-icon>
-                  <span>{{ data.label }}</span>
-                </div>
-                <div class="node-content">
-                  <div v-if="data.type === 'dataSource'" class="node-config">
-                    <el-select v-model="data.dataSourceType" placeholder="选择数据源类型" style="width: 100%">
-                      <el-option label="MySQL" value="MYSQL" />
-                      <el-option label="PostgreSQL" value="POSTGRESQL" />
-                      <el-option label="Oracle" value="ORACLE" />
-                      <el-option label="SQL Server" value="SQL_SERVER" />
-                      <el-option label="MongoDB" value="MONGODB" />
-                      <el-option label="Redis" value="REDIS" />
-                    </el-select>
-                  </div>
-                  <div v-else-if="data.type === 'syncType'" class="node-config">
-                    <el-select v-model="data.syncType" placeholder="选择同步类型" style="width: 100%">
-                      <el-option label="全量同步" value="FULL" />
-                      <el-option label="增量同步" value="INCREMENTAL" />
-                    </el-select>
-                  </div>
-                  <div v-else-if="data.type === 'dataProcess'" class="node-config">
-                    <el-input v-model="data.processRule" placeholder="数据处理规则" style="width: 100%" />
-                  </div>
-                  <div v-else-if="data.type === 'milvusWrite'" class="node-config">
-                    <el-input v-model="data.collectionName" placeholder="集合名称" style="width: 100%" />
-                  </div>
-                  <div v-else-if="data.type === 'vectorization'" class="node-config">
-                    <el-form :model="data.vectorizationConfig" label-width="80px" size="small">
-                      <el-form-item label="算法">
-                        <el-select v-model="data.vectorizationConfig.algorithm" placeholder="选择算法" style="width: 100%">
-                          <el-option label="FastText" value="FASTTEXT" />
-                          <el-option label="OpenAI" value="OPENAI" />
-                          <el-option label="BERT" value="BERT" />
-                        </el-select>
-                      </el-form-item>
-                      <el-form-item label="向量维度">
-                        <el-input-number v-model="data.vectorizationConfig.dimension" :min="1" :max="10000" style="width: 100%" />
-                      </el-form-item>
-                      <el-form-item label="预览">
-                        <el-button size="small" @click="handlePreviewVectorization(data)" type="primary">生成预览</el-button>
-                      </el-form-item>
-                    </el-form>
-                  </div>
-                </div>
-                <!-- 移除VueFlowHandle，使用VueFlow默认的连接点方式 -->
+      <!-- 任务流程配置 -->
+      <div class="flow-config">
+        <div class="flow-steps">
+          <!-- 步骤1：数据源选择 -->
+          <div class="flow-step" :class="{ active: currentStep === 1 }" @click="currentStep = 1">
+            <div class="step-header">
+              <div class="step-number">1</div>
+              <div class="step-info">
+                <h4>数据源选择</h4>
+                <p>配置数据源连接信息</p>
               </div>
-            </template>
-          </VueFlow>
+              <el-icon class="step-icon"><component :is="getNodeIcon('dataSource')" /></el-icon>
+            </div>
+            <div class="step-content" v-if="currentStep === 1">
+              <el-form :model="flowConfig.dataSource" label-width="120px">
+                <el-form-item label="数据源类型">
+                  <el-select v-model="flowConfig.dataSource.type" placeholder="选择数据源类型" style="width: 100%">
+                    <el-option label="MySQL" value="MYSQL" />
+                    <el-option label="PostgreSQL" value="POSTGRESQL" />
+                    <el-option label="Oracle" value="ORACLE" />
+                    <el-option label="SQL Server" value="SQL_SERVER" />
+                    <el-option label="MongoDB" value="MONGODB" />
+                    <el-option label="Redis" value="REDIS" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="数据源名称">
+                  <el-input v-model="flowConfig.dataSource.name" placeholder="输入数据源名称" />
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+          
+          <!-- 步骤2：同步类型 -->
+          <div class="flow-step" :class="{ active: currentStep === 2 }" @click="currentStep = 2">
+            <div class="step-header">
+              <div class="step-number">2</div>
+              <div class="step-info">
+                <h4>同步类型</h4>
+                <p>选择同步策略</p>
+              </div>
+              <el-icon class="step-icon"><component :is="getNodeIcon('syncType')" /></el-icon>
+            </div>
+            <div class="step-content" v-if="currentStep === 2">
+              <el-form :model="flowConfig.syncType" label-width="120px">
+                <el-form-item label="同步类型">
+                  <el-select v-model="flowConfig.syncType.type" placeholder="选择同步类型" style="width: 100%">
+                    <el-option label="全量同步" value="FULL" />
+                    <el-option label="增量同步" value="INCREMENTAL" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="同步频率">
+                  <el-select v-model="flowConfig.syncType.frequency" placeholder="选择同步频率" style="width: 100%">
+                    <el-option label="实时" value="REALTIME" />
+                    <el-option label="每小时" value="HOURLY" />
+                    <el-option label="每天" value="DAILY" />
+                    <el-option label="每周" value="WEEKLY" />
+                  </el-select>
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+          
+          <!-- 步骤3：数据处理 -->
+          <div class="flow-step" :class="{ active: currentStep === 3 }" @click="currentStep = 3">
+            <div class="step-header">
+              <div class="step-number">3</div>
+              <div class="step-info">
+                <h4>数据处理</h4>
+                <p>配置数据转换规则</p>
+              </div>
+              <el-icon class="step-icon"><component :is="getNodeIcon('dataProcess')" /></el-icon>
+            </div>
+            <div class="step-content" v-if="currentStep === 3">
+              <el-form :model="flowConfig.dataProcess" label-width="120px">
+                <el-form-item label="处理规则">
+                  <el-input v-model="flowConfig.dataProcess.rule" type="textarea" placeholder="输入数据处理规则" :rows="4" />
+                </el-form-item>
+                <el-form-item label="字段映射">
+                  <el-button type="primary" size="small">添加字段映射</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+          
+          <!-- 步骤4：向量化处理 -->
+          <div class="flow-step" :class="{ active: currentStep === 4 }" @click="currentStep = 4">
+            <div class="step-header">
+              <div class="step-number">4</div>
+              <div class="step-info">
+                <h4>向量化处理</h4>
+                <p>配置向量生成参数</p>
+              </div>
+              <el-icon class="step-icon"><component :is="getNodeIcon('vectorization')" /></el-icon>
+            </div>
+            <div class="step-content" v-if="currentStep === 4">
+              <el-form :model="flowConfig.vectorization" label-width="120px">
+                <el-form-item label="算法">
+                  <el-select v-model="flowConfig.vectorization.algorithm" placeholder="选择算法" style="width: 100%">
+                    <el-option label="FastText" value="FASTTEXT" />
+                    <el-option label="OpenAI" value="OPENAI" />
+                    <el-option label="BERT" value="BERT" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="向量维度">
+                  <el-input-number v-model="flowConfig.vectorization.dimension" :min="1" :max="10000" style="width: 100%" />
+                </el-form-item>
+                <el-form-item label="预览">
+                  <el-button size="small" @click="handlePreviewVectorization()" type="primary">生成预览</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+          
+          <!-- 步骤5：Milvus写入 -->
+          <div class="flow-step" :class="{ active: currentStep === 5 }" @click="currentStep = 5">
+            <div class="step-header">
+              <div class="step-number">5</div>
+              <div class="step-info">
+                <h4>Milvus写入</h4>
+                <p>配置向量存储参数</p>
+              </div>
+              <el-icon class="step-icon"><component :is="getNodeIcon('milvusWrite')" /></el-icon>
+            </div>
+            <div class="step-content" v-if="currentStep === 5">
+              <el-form :model="flowConfig.milvusWrite" label-width="120px">
+                <el-form-item label="集合名称">
+                  <el-input v-model="flowConfig.milvusWrite.collectionName" placeholder="输入集合名称" />
+                </el-form-item>
+                <el-form-item label="索引类型">
+                  <el-select v-model="flowConfig.milvusWrite.indexType" placeholder="选择索引类型" style="width: 100%">
+                    <el-option label="IVF_FLAT" value="IVF_FLAT" />
+                    <el-option label="HNSW" value="HNSW" />
+                    <el-option label="ANNOY" value="ANNOY" />
+                  </el-select>
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -128,8 +189,7 @@
         <el-button @click="handleCancel">取消</el-button>
       </div>
     </el-card>
-  </div>
-
+    
     <!-- 向量化预览对话框 -->
     <el-dialog
       v-model="vectorizationPreviewVisible"
@@ -159,15 +219,20 @@
         </span>
       </template>
     </el-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { taskApi } from '@/api'
-import { VueFlow, useVueFlow, addEdge } from '@vue-flow/core'
 import { DataAnalysis, Upload, Plus, Minus, Link, Loading, Setting } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+
+// 页面加载时滚动到顶部
+onMounted(() => {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+})
 
 const router = useRouter()
 const formRef = ref<any>(null)
@@ -189,6 +254,32 @@ const dependencyForm = reactive({
 const vectorizationPreviewVisible = ref(false)
 const vectorizationPreviewData = ref<any>(null)
 
+// 当前步骤
+const currentStep = ref(1)
+
+// 流程配置
+const flowConfig = reactive({
+  dataSource: {
+    type: '',
+    name: ''
+  },
+  syncType: {
+    type: 'FULL',
+    frequency: 'REALTIME'
+  },
+  dataProcess: {
+    rule: ''
+  },
+  vectorization: {
+    algorithm: 'FASTTEXT',
+    dimension: 300
+  },
+  milvusWrite: {
+    collectionName: '',
+    indexType: 'IVF_FLAT'
+  }
+})
+
 const rules = reactive({
   name: [
     { required: true, message: '请输入任务名称', trigger: 'blur' }
@@ -197,134 +288,6 @@ const rules = reactive({
     { required: true, message: '请选择任务类型', trigger: 'change' }
   ]
 })
-
-// 节点类型定义
-const nodeTypes = [
-  {
-    id: 'dataSource',
-    label: '数据源选择',
-    icon: DataAnalysis
-  },
-  {
-    id: 'syncType',
-    label: '同步类型',
-    icon: Setting
-  },
-  {
-    id: 'dataProcess',
-    label: '数据处理',
-    icon: DataAnalysis
-  },
-  {
-    id: 'vectorization',
-    label: '向量化处理',
-    icon: DataAnalysis
-  },
-  {
-    id: 'milvusWrite',
-    label: 'Milvus写入',
-    icon: Upload
-  }
-]
-
-// 节点和连接
-const nodes = ref([
-  {
-    id: '1',
-    type: 'dataSource',
-    label: '数据源选择',
-    position: { x: 100, y: 100 },
-    handles: [
-      { id: 'source-1', type: 'source', position: 'right' }
-    ],
-    dataSourceType: ''
-  },
-  {
-    id: '2',
-    type: 'syncType',
-    label: '同步类型',
-    position: { x: 300, y: 100 },
-    handles: [
-      { id: 'target-2', type: 'target', position: 'left' },
-      { id: 'source-2', type: 'source', position: 'right' }
-    ],
-    syncType: 'FULL'
-  },
-  {
-    id: '3',
-    type: 'dataProcess',
-    label: '数据处理',
-    position: { x: 500, y: 100 },
-    handles: [
-      { id: 'target-3', type: 'target', position: 'left' },
-      { id: 'source-3', type: 'source', position: 'right' }
-    ],
-    processRule: ''
-  },
-  {
-    id: '4',
-    type: 'vectorization',
-    label: '向量化处理',
-    position: { x: 500, y: 250 },
-    handles: [
-      { id: 'target-4', type: 'target', position: 'left' },
-      { id: 'source-4', type: 'source', position: 'right' }
-    ],
-    vectorizationConfig: {
-      algorithm: 'FASTTEXT',
-      dimension: 300,
-      fieldMappings: []
-    }
-  },
-  {
-    id: '5',
-    type: 'milvusWrite',
-    label: 'Milvus写入',
-    position: { x: 700, y: 175 },
-    handles: [
-      { id: 'target-5', type: 'target', position: 'left' }
-    ],
-    collectionName: ''
-  }
-])
-
-const connections = ref([
-  {
-    id: '1-2',
-    source: '1',
-    target: '2',
-    sourceHandle: 'source-1',
-    targetHandle: 'target-2'
-  },
-  {
-    id: '2-3',
-    source: '2',
-    target: '3',
-    sourceHandle: 'source-2',
-    targetHandle: 'target-3'
-  },
-  {
-    id: '2-4',
-    source: '2',
-    target: '4',
-    sourceHandle: 'source-2',
-    targetHandle: 'target-4'
-  },
-  {
-    id: '3-5',
-    source: '3',
-    target: '5',
-    sourceHandle: 'source-3',
-    targetHandle: 'target-5'
-  },
-  {
-    id: '4-5',
-    source: '4',
-    target: '5',
-    sourceHandle: 'source-4',
-    targetHandle: 'target-5'
-  }
-])
 
 // 节点图标映射
 const getNodeIcon = (type: string) => {
@@ -338,63 +301,29 @@ const getNodeIcon = (type: string) => {
   return iconMap[type] || DataAnalysis
 }
 
-// 拖拽开始事件
-const onNodeDragStart = (event: any, nodeType?: any) => {
-  // 从左侧面板拖拽新节点
-  console.log('Node drag start:', nodeType || event)
-}
-
-// 拖拽结束事件
-const onNodeDragEnd = (event: any, node: any) => {
-  console.log('Node dragged:', node.id, 'to:', node.position)
-}
-
-// 连接事件
-const onConnect = (params: any) => {
-  connections.value = addEdge({
-    id: `${params.source}-${params.target}`,
-    source: params.source,
-    target: params.target,
-    sourceHandle: params.sourceHandle,
-    targetHandle: params.targetHandle
-  }, connections.value) as any
-}
-
-// 连接删除事件
-const onConnectionRemove = (connectionId: string) => {
-  connections.value = connections.value.filter(c => c.id !== connectionId)
-}
-
 // 流程校验
 const handleValidateFlow = () => {
-  // 检查节点配置
-  const invalidNodes = nodes.value.filter(node => {
-    if (node.type === 'dataSource' && !node.dataSourceType) {
-      return true
-    }
-    if (node.type === 'syncType' && !node.syncType) {
-      return true
-    }
-    if (node.type === 'milvusWrite' && !node.collectionName) {
-      return true
-    }
-    if (node.type === 'vectorization') {
-      const config = node.vectorizationConfig
-      if (!config || !config.algorithm || !config.dimension) {
-        return true
-      }
-    }
-    return false
-  })
+  // 检查流程配置
+  const invalidSteps = []
   
-  if (invalidNodes.length > 0) {
-    ElMessage.warning(`请完善以下节点的配置：${invalidNodes.map(n => n.label).join(', ')}`)
-    return false
+  if (!flowConfig.dataSource.type) {
+    invalidSteps.push('数据源选择')
   }
   
-  // 检查连接完整性
-  if (connections.value.length < nodes.value.length - 1) {
-    ElMessage.warning('流程连接不完整，请检查节点间的连线')
+  if (!flowConfig.syncType.type) {
+    invalidSteps.push('同步类型')
+  }
+  
+  if (!flowConfig.milvusWrite.collectionName) {
+    invalidSteps.push('Milvus写入')
+  }
+  
+  if (!flowConfig.vectorization.algorithm || !flowConfig.vectorization.dimension) {
+    invalidSteps.push('向量化处理')
+  }
+  
+  if (invalidSteps.length > 0) {
+    ElMessage.warning(`请完善以下步骤的配置：${invalidSteps.join(', ')}`)
     return false
   }
   
@@ -416,8 +345,7 @@ const handleSubmit = async () => {
           // 构建任务数据
           const taskData = {
             ...form,
-            nodes: nodes.value,
-            connections: connections.value,
+            flowConfig: flowConfig,
             dependency: dependencyForm
           }
           
@@ -438,104 +366,31 @@ const handleReset = () => {
     formRef.value.resetFields()
   }
   
-  // 重置节点和连接
-  nodes.value = [
-    {
-      id: '1',
-      type: 'dataSource',
-      label: '数据源选择',
-      position: { x: 100, y: 100 },
-      handles: [
-        { id: 'source-1', type: 'source', position: 'right' }
-      ],
-      dataSourceType: ''
+  // 重置流程配置
+  Object.assign(flowConfig, {
+    dataSource: {
+      type: '',
+      name: ''
     },
-    {
-      id: '2',
-      type: 'syncType',
-      label: '同步类型',
-      position: { x: 300, y: 100 },
-      handles: [
-        { id: 'target-2', type: 'target', position: 'left' },
-        { id: 'source-2', type: 'source', position: 'right' }
-      ],
-      syncType: 'FULL'
+    syncType: {
+      type: 'FULL',
+      frequency: 'REALTIME'
     },
-    {
-      id: '3',
-      type: 'dataProcess',
-      label: '数据处理',
-      position: { x: 500, y: 100 },
-      handles: [
-        { id: 'target-3', type: 'target', position: 'left' },
-        { id: 'source-3', type: 'source', position: 'right' }
-      ],
-      processRule: ''
+    dataProcess: {
+      rule: ''
     },
-    {
-      id: '4',
-      type: 'vectorization',
-      label: '向量化处理',
-      position: { x: 500, y: 250 },
-      handles: [
-        { id: 'target-4', type: 'target', position: 'left' },
-        { id: 'source-4', type: 'source', position: 'right' }
-      ],
-      vectorizationConfig: {
-        algorithm: 'FASTTEXT',
-        dimension: 300,
-        fieldMappings: []
-      }
+    vectorization: {
+      algorithm: 'FASTTEXT',
+      dimension: 300
     },
-    {
-      id: '5',
-      type: 'milvusWrite',
-      label: 'Milvus写入',
-      position: { x: 700, y: 175 },
-      handles: [
-        { id: 'target-5', type: 'target', position: 'left' }
-      ],
-      collectionName: ''
+    milvusWrite: {
+      collectionName: '',
+      indexType: 'IVF_FLAT'
     }
-  ]
+  })
   
-  connections.value = [
-    {
-      id: '1-2',
-      source: '1',
-      target: '2',
-      sourceHandle: 'source-1',
-      targetHandle: 'target-2'
-    },
-    {
-      id: '2-3',
-      source: '2',
-      target: '3',
-      sourceHandle: 'source-2',
-      targetHandle: 'target-3'
-    },
-    {
-      id: '2-4',
-      source: '2',
-      target: '4',
-      sourceHandle: 'source-2',
-      targetHandle: 'target-4'
-    },
-    {
-      id: '3-5',
-      source: '3',
-      target: '5',
-      sourceHandle: 'source-3',
-      targetHandle: 'target-5'
-    },
-    {
-      id: '4-5',
-      source: '4',
-      target: '5',
-      sourceHandle: 'source-4',
-      targetHandle: 'target-5'
-    }
-  ]
+  // 重置当前步骤
+  currentStep.value = 1
   
   // 重置依赖配置
   dependencyForm.dependencyTaskId = ''
@@ -548,18 +403,18 @@ const handleCancel = () => {
 }
 
 // 生成向量化预览
-const handlePreviewVectorization = (node: any) => {
+const handlePreviewVectorization = () => {
   vectorizationPreviewVisible.value = true
   vectorizationPreviewData.value = null
   
   // 模拟向量化预览数据
   setTimeout(() => {
     vectorizationPreviewData.value = {
-      algorithm: node.vectorizationConfig.algorithm,
-      dimension: node.vectorizationConfig.dimension,
+      algorithm: flowConfig.vectorization.algorithm,
+      dimension: flowConfig.vectorization.dimension,
       processTime: Math.floor(Math.random() * 1000),
       sourceData: '这是一条测试数据，用于生成向量',
-      vectorData: Array(node.vectorizationConfig.dimension).fill(0).map(() => Math.random() - 0.5)
+      vectorData: Array(flowConfig.vectorization.dimension).fill(0).map(() => Math.random() - 0.5)
     }
   }, 1000)
 }
@@ -568,7 +423,7 @@ const handlePreviewVectorization = (node: any) => {
 <style scoped>
 .task-create {
   padding: 20px;
-  background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   min-height: 100vh;
   animation: fadeIn 0.8s ease-out;
 }
@@ -640,11 +495,12 @@ const handlePreviewVectorization = (node: any) => {
   display: flex;
   margin: 30px 0;
   height: 600px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(59, 130, 246, 0.2);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
   animation: slideUp 0.8s ease-out 0.2s both;
 }
 
@@ -661,17 +517,17 @@ const handlePreviewVectorization = (node: any) => {
 
 .node-panel {
   width: 240px;
-  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-  border-right: 1px solid #e2e8f0;
+  background: rgba(15, 23, 42, 0.9);
+  border-right: 1px solid rgba(59, 130, 246, 0.2);
   padding: 24px;
   overflow-y: auto;
-  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.2);
   animation: slideInLeft 0.6s ease-out 0.4s both;
 }
 
 .node-panel h4 {
   margin-bottom: 24px;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 18px;
   font-weight: 700;
   position: relative;
@@ -697,8 +553,8 @@ const handlePreviewVectorization = (node: any) => {
   align-items: center;
   padding: 16px 20px;
   margin-bottom: 16px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #cbd5e1;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(59, 130, 246, 0.3);
   border-radius: 12px;
   cursor: grab;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -727,9 +583,9 @@ const handlePreviewVectorization = (node: any) => {
 
 .node-item:hover {
   border-color: #4361ee;
-  box-shadow: 0 12px 30px rgba(67, 97, 238, 0.3);
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.3);
   transform: translateY(-4px);
-  background: #fff;
+  background: rgba(15, 23, 42, 0.8);
 }
 
 .node-item:active {
@@ -747,24 +603,24 @@ const handlePreviewVectorization = (node: any) => {
 
 .node-item:hover :deep(el-icon) {
   transform: scale(1.2) rotate(5deg);
-  color: #3a0ca3;
+  color: #a855f7;
 }
 
 .node-item span {
   font-size: 14px;
   font-weight: 500;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.8);
   transition: color 0.3s ease;
   z-index: 1;
 }
 
 .node-item:hover span {
-  color: #3a0ca3;
+  color: #ffffff;
 }
 
 .flow-canvas {
   flex: 1;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: rgba(15, 23, 42, 0.6);
   position: relative;
   overflow: hidden;
   animation: fadeIn 1s ease-out 0.6s both;
@@ -778,8 +634,8 @@ const handlePreviewVectorization = (node: any) => {
   right: 0;
   bottom: 0;
   background-image: 
-    linear-gradient(rgba(67, 97, 238, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(67, 97, 238, 0.08) 1px, transparent 1px);
+    linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
   background-size: 25px 25px;
   pointer-events: none;
   animation: gridMove 20s linear infinite;
@@ -800,10 +656,10 @@ const handlePreviewVectorization = (node: any) => {
 }
 
 .flow-canvas :deep(.vue-flow__node) {
-  border: 1px solid #cbd5e1;
+  border: 1px solid rgba(59, 130, 246, 0.3);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(12px);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
@@ -869,7 +725,7 @@ const handlePreviewVectorization = (node: any) => {
   stroke: #4361ee;
   stroke-width: 3px;
   stroke-dasharray: 0;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
   filter: drop-shadow(0 2px 8px rgba(67, 97, 238, 0.3));
 }
 
@@ -881,7 +737,16 @@ const handlePreviewVectorization = (node: any) => {
 
 .flow-canvas :deep(.vue-flow__connection-path) {
   marker-end: url(#arrowhead);
-  animation: pulse 2s infinite;
+}
+
+.flow-canvas :deep(.vue-flow__connection-path.success) {
+  stroke: #10b981;
+  filter: drop-shadow(0 2px 8px rgba(16, 185, 129, 0.3));
+}
+
+.flow-canvas :deep(.vue-flow__connection-path.error) {
+  stroke: #ef4444;
+  filter: drop-shadow(0 2px 8px rgba(239, 68, 68, 0.3));
 }
 
 @keyframes pulse {
@@ -904,7 +769,7 @@ const handlePreviewVectorization = (node: any) => {
   align-items: center;
   margin-bottom: 16px;
   font-weight: 700;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 16px;
   position: relative;
   padding-bottom: 8px;
@@ -930,7 +795,7 @@ const handlePreviewVectorization = (node: any) => {
 
 .custom-node:hover .node-header :deep(el-icon) {
   transform: scale(1.1) rotate(5deg);
-  color: #3a0ca3;
+  color: #a855f7;
 }
 
 .custom-node .node-content {
@@ -998,11 +863,12 @@ const handlePreviewVectorization = (node: any) => {
   gap: 16px;
   justify-content: flex-start;
   padding: 24px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(15, 23, 42, 0.9);
   border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(12px);
   animation: slideUp 0.8s ease-out 0.8s both;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .action-buttons :deep(.el-button) {
@@ -1013,7 +879,10 @@ const handlePreviewVectorization = (node: any) => {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.6);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .action-buttons :deep(.el-button::before) {
@@ -1054,7 +923,10 @@ const handlePreviewVectorization = (node: any) => {
 
 .action-buttons :deep(.el-button:hover) {
   transform: translateY(-4px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.3);
+  border-color: #4361ee;
+  background: rgba(15, 23, 42, 0.8);
+  color: #ffffff;
 }
 
 .action-buttons :deep(.el-button:active) {
@@ -1064,24 +936,26 @@ const handlePreviewVectorization = (node: any) => {
 .preview-content {
   max-height: 600px;
   overflow-y: auto;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: rgba(15, 23, 42, 0.9);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: inset 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 4px 20px rgba(0, 0, 0, 0.3);
   animation: fadeIn 0.8s ease-out;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .vector-result {
   max-height: 350px;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(15, 23, 42, 0.8);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(12px);
   font-family: 'Courier New', Courier, monospace;
   border-left: 4px solid #4361ee;
   animation: slideInRight 0.6s ease-out;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 @keyframes slideInRight {
@@ -1099,7 +973,7 @@ const handlePreviewVectorization = (node: any) => {
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.8);
   animation: fadeIn 1s ease-out 0.3s both;
 }
 
@@ -1108,10 +982,11 @@ const handlePreviewVectorization = (node: any) => {
   align-items: center;
   justify-content: center;
   padding: 80px 0;
-  color: #94a3b8;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(15, 23, 42, 0.9);
   border-radius: 16px;
   animation: fadeIn 0.8s ease-out;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .loading :deep(el-icon) {
@@ -1123,13 +998,167 @@ const handlePreviewVectorization = (node: any) => {
 
 .loading span {
   font-size: 16px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.8);
   font-weight: 500;
 }
 
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* 流程配置样式 */
+.flow-config {
+  margin: 30px 0;
+  animation: fadeIn 0.8s ease-out 0.2s both;
+}
+
+.flow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.flow-step {
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  animation: fadeInUp 0.6s ease-out var(--delay) both;
+}
+
+.flow-step:hover {
+  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.flow-step.active {
+  border-color: #4361ee;
+  box-shadow: 0 15px 40px rgba(67, 97, 238, 0.4);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.flow-step.active .step-header {
+  background: linear-gradient(90deg, rgba(67, 97, 238, 0.2), rgba(58, 12, 163, 0.2));
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.step-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.3), transparent);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+  transform-origin: left;
+}
+
+.flow-step:hover .step-header::after {
+  transform: scaleX(1);
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4361ee, #3a0ca3);
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(67, 97, 238, 0.4);
+}
+
+.flow-step:hover .step-number {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 6px 20px rgba(67, 97, 238, 0.6);
+}
+
+.flow-step.active .step-number {
+  background: linear-gradient(135deg, #10b981, #059669);
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+}
+
+.step-info {
+  flex: 1;
+  transition: all 0.3s ease;
+}
+
+.step-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  transition: color 0.3s ease;
+}
+
+.step-info p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.3s ease;
+}
+
+.flow-step:hover .step-info h4 {
+  color: #ffffff;
+}
+
+.flow-step:hover .step-info p {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.step-icon {
+  font-size: 20px;
+  color: #4361ee;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.flow-step:hover .step-icon {
+  transform: scale(1.2) rotate(5deg);
+  color: #a855f7;
+}
+
+.flow-step.active .step-icon {
+  color: #10b981;
+  transform: scale(1.1);
+}
+
+.step-content {
+  padding: 24px;
+  border-top: 1px solid rgba(59, 130, 246, 0.1);
+  animation: slideDown 0.4s ease-out;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 表单样式 */
@@ -1140,7 +1169,7 @@ const handlePreviewVectorization = (node: any) => {
 
 :deep(.el-form-item__label) {
   font-weight: 600;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
   padding: 0 12px 0 0;
 }
@@ -1150,20 +1179,21 @@ const handlePreviewVectorization = (node: any) => {
 :deep(.el-textarea__wrapper) {
   border-radius: 10px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.6);
 }
 
 :deep(.el-input__wrapper:hover),
 :deep(.el-select__wrapper:hover),
 :deep(.el-textarea__wrapper:hover) {
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
   border-color: #4361ee;
 }
 
 :deep(.el-input__wrapper.is-focus),
 :deep(.el-select__wrapper.is-focus),
 :deep(.el-textarea__wrapper.is-focus) {
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
   border-color: #4361ee;
 }
 
@@ -1171,14 +1201,14 @@ const handlePreviewVectorization = (node: any) => {
 :deep(.el-select__input),
 :deep(.el-textarea__inner) {
   font-size: 14px;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.8);
   transition: all 0.3s ease;
 }
 
 :deep(.el-input__inner:focus),
 :deep(.el-select__input:focus),
 :deep(.el-textarea__inner:focus) {
-  color: #3a0ca3;
+  color: #ffffff;
 }
 
 /* 分割线样式 */
@@ -1190,8 +1220,8 @@ const handlePreviewVectorization = (node: any) => {
 :deep(.el-divider__text) {
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
-  background: #fff;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(15, 23, 42, 0.8);
   padding: 0 24px;
   position: relative;
 }
@@ -1220,9 +1250,10 @@ const handlePreviewVectorization = (node: any) => {
 :deep(.el-card) {
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
-  border: none;
-  background: #fff;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
   animation: fadeInUp 0.8s ease-out;
 }
 
@@ -1234,8 +1265,11 @@ const handlePreviewVectorization = (node: any) => {
 :deep(.el-dialog) {
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   animation: zoomIn 0.6s ease-out;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 @keyframes zoomIn {
@@ -1274,13 +1308,14 @@ const handlePreviewVectorization = (node: any) => {
 
 :deep(.el-dialog__body) {
   padding: 32px;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-dialog__footer) {
   padding: 24px;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+  background: rgba(15, 23, 42, 0.9);
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 :deep(.el-dialog__footer :deep(.el-button)) {
@@ -1297,29 +1332,31 @@ const handlePreviewVectorization = (node: any) => {
 
 /* 描述列表样式 */
 :deep(.el-descriptions) {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(15, 23, 42, 0.9);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(12px);
   animation: fadeInUp 0.6s ease-out;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 :deep(.el-descriptions__label) {
   font-weight: 600;
-  color: #1e293b;
-  background: rgba(67, 97, 238, 0.1);
-  border-right: 1px solid #e2e8f0;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(59, 130, 246, 0.1);
+  border-right: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 :deep(.el-descriptions__cell) {
   padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.1);
   transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 :deep(.el-descriptions__cell:hover) {
-  background: rgba(67, 97, 238, 0.05);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 :deep(.el-descriptions__row:last-child :deep(.el-descriptions__cell)) {
@@ -1332,20 +1369,16 @@ const handlePreviewVectorization = (node: any) => {
     padding: 12px;
   }
   
-  .flow-container {
-    flex-direction: column;
-    height: auto;
+  .flow-steps {
+    gap: 12px;
   }
   
-  .node-panel {
-    width: 100%;
-    height: 200px;
-    border-right: none;
-    border-bottom: 1px solid #e2e8f0;
+  .step-header {
+    padding: 16px 20px;
   }
   
-  .flow-canvas {
-    height: 400px;
+  .step-content {
+    padding: 20px;
   }
   
   .action-buttons {
@@ -1360,25 +1393,37 @@ const handlePreviewVectorization = (node: any) => {
   :deep(.el-card__body) {
     padding: 20px;
   }
+  
+  .step-number {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    margin-right: 16px;
+  }
+  
+  .step-info h4 {
+    font-size: 14px;
+  }
+  
+  .step-info p {
+    font-size: 12px;
+  }
+}
+
+/* 动画定义 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
 
 <style>
-/* 全局样式 */
-.vue-flow__node-custom {
-  width: 200px;
-  border: 1px solid #dcdfe6;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-/* 箭头标记 */
-#arrowhead {
-  fill: #409eff;
-}
-
 /* 滚动条样式 */
 ::-webkit-scrollbar {
   width: 8px;
@@ -1386,17 +1431,19 @@ const handlePreviewVectorization = (node: any) => {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: rgba(15, 23, 42, 0.6);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: rgba(59, 130, 246, 0.5);
   border-radius: 4px;
   transition: all 0.3s ease;
+  border: 2px solid rgba(15, 23, 42, 0.6);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: rgba(59, 130, 246, 0.8);
+  transform: scale(1.1);
 }
 </style>

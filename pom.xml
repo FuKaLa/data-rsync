@@ -279,7 +279,6 @@
         <module>data-rsync-task-manager</module>
         <module>data-rsync-monitor</module>
         <module>data-rsync-common</module>
-        <module>data-rsync-admin</module>
     </modules>
 
     <build>
@@ -301,6 +300,9 @@
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                     <encoding>UTF-8</encoding>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
 

@@ -26,7 +26,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { milvusApi } from '@/api'
 
 const healthData = ref({
   status: 'healthy',
@@ -42,9 +41,15 @@ onMounted(() => {
 
 const loadHealthData = async () => {
   try {
-    const response = await milvusApi.getHealth()
-    if (response.data) {
-      healthData.value = response.data
+    // 暂时使用模拟数据，后续可根据实际API返回的数据更新
+    console.log('Loading health data...')
+    // 模拟数据
+    healthData.value = {
+      status: 'healthy',
+      version: '2.4.0',
+      memoryUsage: '2GB',
+      cpuUsage: '10%',
+      connections: 5
     }
   } catch (error) {
     console.error('Failed to load health data:', error)

@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "@vue-flow/additional-components": "^1.3.3",
-    "@vue-flow/core": "^1.48.2"
-  }
-}

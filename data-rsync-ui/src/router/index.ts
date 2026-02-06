@@ -5,7 +5,12 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/dashboard'
+      redirect: '/login'
+    },
+    {
+      path: '/login',
+      name: 'Login',
+      component: () => import('@/views/Login.vue')
     },
     {
       path: '/dashboard',
@@ -78,6 +83,29 @@ const router = createRouter({
       component: () => import('@/views/system/Logs.vue')
     }
   ]
+})
+
+// 路由守卫
+router.beforeEach((to, from, next) => {
+  // 不需要登录的路由
+  const publicRoutes = ['/login']
+  
+  if (publicRoutes.includes(to.path)) {
+    next()
+    return
+  }
+  
+  // 检查是否已登录
+  const token = localStorage.getItem('token')
+  
+  if (!token) {
+    // 未登录，重定向到登录页面
+    next('/login')
+    return
+  }
+  
+  // 已登录，允许访问
+  next()
 })
 
 export default router

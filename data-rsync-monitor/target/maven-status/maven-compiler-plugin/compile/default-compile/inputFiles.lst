@@ -1,6 +1,0 @@
-/Users/mcc/IdeaProjects/data-rsync/data-rsync-monitor/src/main/java/com/data/rsync/monitor/DataRsyncMonitorApplication.java
-/Users/mcc/IdeaProjects/data-rsync/data-rsync-monitor/src/main/java/com/data/rsync/monitor/service/MetricsService.java
-/Users/mcc/IdeaProjects/data-rsync/data-rsync-monitor/src/main/java/com/data/rsync/monitor/service/AlertService.java
-/Users/mcc/IdeaProjects/data-rsync/data-rsync-monitor/src/main/java/com/data/rsync/monitor/controller/MonitorController.java
-/Users/mcc/IdeaProjects/data-rsync/data-rsync-monitor/src/main/java/com/data/rsync/monitor/service/impl/MetricsServiceImpl.java
-/Users/mcc/IdeaProjects/data-rsync/data-rsync-monitor/src/main/java/com/data/rsync/monitor/service/impl/AlertServiceImpl.java

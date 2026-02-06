@@ -9,49 +9,107 @@
 
 ## 本地配置文件结构
 
-所有模块的本地配置文件（application.yml）现在只保留以下基本配置：
+### 标准模块配置
+
+大多数模块的本地配置文件（bootstrap.yml）现在使用以下配置结构：
 
 ```yaml
-# 基本配置
 server:
   port: {模块端口}
   servlet:
     context-path: /{模块上下文路径}
-
 spring:
   application:
     name: {模块名称}
-  profiles:
-    active: dev
   cloud:
     nacos:
       discovery:
         server-addr: localhost:8848
         username: nacos
         password: nacos
+        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
       config:
         server-addr: localhost:8848
         file-extension: yml
-        namespace: ${spring.profiles.active}
         group: DEFAULT_GROUP
         username: nacos
         password: nacos
+        namespace: a9617f63-b450-4315-8ae7-7be6ac6611bf
+        shared-configs:
+          - dataId: {模块名称}.yml
+            group: DEFAULT_GROUP
+            refresh: true
+```
+
+### 公共模块配置
+
+data-rsync-common模块使用了更灵活的配置方式，支持环境变量：
+
+```yaml
+# Bootstrap配置文件
+spring:
+  application:
+    name: data-rsync-common
+  cloud:
+    nacos:
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yml
+        shared-configs:
+          - dataId: data-rsync.yml
+            group: DEFAULT_GROUP
+            refresh: true
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+
+# 环境变量配置
+---
+spring:
+  profiles:
+    active: dev
 ```
 
 所有其他配置（如数据源配置、MyBatis-Plus配置、业务特定配置等）都从Nacos中读取。
 
 ## 配置结构
-每个模块在Nacos中的配置应该按照以下格式组织：
-- 命名空间：dev（开发环境）、test（测试环境）、prod（生产环境）
-- 配置集ID：{模块名}-{环境}.yml
+
+当前项目中，所有模块在Nacos中的配置按照以下格式组织：
+
+- 命名空间：使用统一的命名空间ID `a9617f63-b450-4315-8ae7-7be6ac6611bf`
+- 配置集ID：{模块名}.yml
 - 配置组：DEFAULT_GROUP
+
+### 配置文件示例
+
+每个模块的主要配置文件应命名为：
+- data-rsync-admin.yml
+- data-rsync-auth.yml
+- data-rsync-data-source.yml
+- data-rsync-data-process.yml
+- data-rsync-gateway.yml
+- data-rsync-log-listener.yml
+- data-rsync-milvus-sync.yml
+- data-rsync-monitor.yml
+- data-rsync-task-manager.yml
+
+### 共享配置
+
+对于所有模块共享的配置，可以创建一个 data-rsync.yml 配置文件，然后在各模块中通过 shared-configs 引用。
 
 ## 模块配置信息
 
 ### 1. data-rsync-admin
-**配置集ID**: data-rsync-admin-dev.yml
+**配置集ID**: data-rsync-admin.yml
 **配置组**: DEFAULT_GROUP
-**命名空间**: dev
+**命名空间**: a9617f63-b450-4315-8ae7-7be6ac6611bf
 
 ```yaml
 # 数据库配置
@@ -78,7 +136,7 @@ spring:
       max-pool-prepared-statement-per-connection-size: 20
       filters: stat,wall,log4j2
       connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
-  
+
   # Redis配置
   redis:
     host: localhost
@@ -107,9 +165,9 @@ logging:
 ```
 
 ### 2. data-rsync-auth
-**配置集ID**: data-rsync-auth-dev.yml
+**配置集ID**: data-rsync-auth.yml
 **配置组**: DEFAULT_GROUP
-**命名空间**: dev
+**命名空间**: a9617f63-b450-4315-8ae7-7be6ac6611bf
 
 ```yaml
 # 数据库配置
@@ -136,7 +194,7 @@ spring:
       max-pool-prepared-statement-per-connection-size: 20
       filters: stat,wall,log4j2
       connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
-  
+
   # Redis配置
   redis:
     host: localhost
@@ -162,7 +220,7 @@ auth:
   jwt:
     secret: your-secret-key
     expire-time: 3600 # 1小时
-  
+
   # 密码策略
   password:
     min-length: 6
@@ -173,9 +231,9 @@ auth:
 ```
 
 ### 3. data-rsync-data-source
-**配置集ID**: data-rsync-data-source-dev.yml
+**配置集ID**: data-rsync-data-source.yml
 **配置组**: DEFAULT_GROUP
-**命名空间**: dev
+**命名空间**: a9617f63-b450-4315-8ae7-7be6ac6611bf
 
 ```yaml
 # 数据库配置
@@ -202,7 +260,7 @@ spring:
       max-pool-prepared-statement-per-connection-size: 20
       filters: stat,wall,log4j2
       connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
-  
+
   # Redis配置
   redis:
     host: localhost
@@ -232,9 +290,9 @@ data-source:
 ```
 
 ### 4. data-rsync-data-process
-**配置集ID**: data-rsync-data-process-dev.yml
+**配置集ID**: data-rsync-data-process.yml
 **配置组**: DEFAULT_GROUP
-**命名空间**: dev
+**命名空间**: a9617f63-b450-4315-8ae7-7be6ac6611bf
 
 ```yaml
 # Redis配置
@@ -262,7 +320,7 @@ data-process:
   batch:
     size: 1000
     timeout: 5000 # 5秒
-  
+
   # 线程池配置
   thread:
     core-size: 10
@@ -271,9 +329,9 @@ data-process:
 ```
 
 ### 5. data-rsync-log-listener
-**配置集ID**: data-rsync-log-listener-dev.yml
+**配置集ID**: data-rsync-log-listener.yml
 **配置组**: DEFAULT_GROUP
-**命名空间**: dev
+**命名空间**: a9617f63-b450-4315-8ae7-7be6ac6611bf
 
 ```yaml
 # Kafka配置
@@ -290,7 +348,7 @@ log-listener:
   process:
     batch-size: 100
     timeout: 3000 # 3秒
-  
+
   # 存储配置
   storage:
     enabled: true
@@ -301,9 +359,9 @@ log-listener:
 ```
 
 ### 6. data-rsync-milvus-sync
-**配置集ID**: data-rsync-milvus-sync-dev.yml
+**配置集ID**: data-rsync-milvus-sync.yml
 **配置组**: DEFAULT_GROUP
-**命名空间**: dev
+**命名空间**: a9617f63-b450-4315-8ae7-7be6ac6611bf
 
 ```yaml
 # Redis配置
@@ -328,7 +386,7 @@ milvus-sync:
   batch:
     size: 100
     timeout: 5000 # 5秒
-  
+
   # 向量配置
   vector:
     dimension: 768
@@ -336,9 +394,9 @@ milvus-sync:
 ```
 
 ### 7. data-rsync-monitor
-**配置集ID**: data-rsync-monitor-dev.yml
+**配置集ID**: data-rsync-monitor.yml
 **配置组**: DEFAULT_GROUP
-**命名空间**: dev
+**命名空间**: a9617f63-b450-4315-8ae7-7be6ac6611bf
 
 ```yaml
 # 数据库配置
@@ -365,7 +423,7 @@ spring:
       max-pool-prepared-statement-per-connection-size: 20
       filters: stat,wall,log4j2
       connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
-  
+
   # Redis配置
   redis:
     host: localhost
@@ -392,7 +450,7 @@ monitor:
   metrics:
     enabled: true
     interval: 60000 # 1分钟
-  
+
   # 告警配置
   alert:
     enabled: true
@@ -407,9 +465,9 @@ monitor:
 ```
 
 ### 8. data-rsync-task-manager
-**配置集ID**: data-rsync-task-manager-dev.yml
+**配置集ID**: data-rsync-task-manager.yml
 **配置组**: DEFAULT_GROUP
-**命名空间**: dev
+**命名空间**: a9617f63-b450-4315-8ae7-7be6ac6611bf
 
 ```yaml
 # 数据库配置
@@ -436,7 +494,7 @@ spring:
       max-pool-prepared-statement-per-connection-size: 20
       filters: stat,wall,log4j2
       connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
-  
+
   # Redis配置
   redis:
     host: localhost
@@ -475,7 +533,7 @@ task:
   scheduled:
     enabled: true
     cron: 0/30 * * * * ? # 每30秒执行一次
-  
+
   # 线程池配置
   thread:
     core-size: 10
@@ -484,9 +542,9 @@ task:
 ```
 
 ### 9. data-rsync-gateway
-**配置集ID**: data-rsync-gateway-dev.yml
+**配置集ID**: data-rsync-gateway.yml
 **配置组**: DEFAULT_GROUP
-**命名空间**: dev
+**命名空间**: a9617f63-b450-4315-8ae7-7be6ac6611bf
 
 ```yaml
 # Redis配置
@@ -519,10 +577,15 @@ gateway:
 
 ### 如何在Nacos中添加配置
 1. 登录Nacos控制台
-2. 选择对应的命名空间（如dev）
+2. 选择对应的命名空间（如dev、test、prod）
 3. 点击「配置管理」->「配置列表」
 4. 点击「+」按钮添加新配置
 5. 填写配置信息并发布
+
+### 配置文件命名规则
+- 配置集ID：{模块名}.yml（如data-rsync-admin.yml）
+- 配置组：DEFAULT_GROUP
+- 命名空间：根据环境选择（dev、test、prod）
 
 ### 配置更新策略
 - 开发环境：实时更新

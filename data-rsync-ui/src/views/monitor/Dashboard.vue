@@ -94,9 +94,26 @@ onMounted(async () => {
 
 const loadMonitorData = async () => {
   try {
-    const businessMetrics = await monitorApi.getBusinessMetrics()
-    console.log('Business Metrics:', businessMetrics)
-    // 这里可以根据实际返回的数据更新页面
+    const response = await monitorApi.getMetrics()
+    console.log('Business Metrics:', response)
+    
+    // 使用后端返回的实际数据更新页面
+    if (response && typeof response === 'object') {
+      const data = response as any
+      // 更新监控指标
+      if (data.syncSuccessRate !== undefined) {
+        syncSuccessRate.value = data.syncSuccessRate
+      }
+      if (data.dataDelay !== undefined) {
+        dataDelay.value = data.dataDelay
+      }
+      if (data.milvusWriteQps !== undefined) {
+        milvusWriteQps.value = data.milvusWriteQps
+      }
+      if (data.runningTasks !== undefined) {
+        runningTasks.value = data.runningTasks
+      }
+    }
   } catch (error) {
     console.error('Failed to load monitor data:', error)
   }

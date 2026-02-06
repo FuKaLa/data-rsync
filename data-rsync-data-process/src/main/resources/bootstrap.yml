@@ -1,7 +1,7 @@
 server:
   port: 8702
   servlet:
-    context-path: /data-process
+    context-path: /process
 spring:
   application:
     name: data-rsync-data-process

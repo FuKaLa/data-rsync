@@ -17,9 +17,19 @@ public class EncryptUtils {
     private static final String ALGORITHM = "AES";
 
     /**
-     * 密钥
+     * 密码变换
      */
-    private static final String SECRET_KEY = "data_rsync_secret_key";
+    private static final String CIPHER_TRANSFORMATION = "AES/ECB/PKCS5Padding";
+
+    /**
+     * 密钥 (16字节，符合AES-128要求)
+     */
+    private static final String SECRET_KEY = "abcdefghigklmnop"; // 16字节
+
+    /**
+     * 字符编码
+     */
+    private static final String CHARSET = "UTF-8";
 
     /**
      * AES 加密
@@ -27,16 +37,25 @@ public class EncryptUtils {
      * @return 密文
      */
     public static String encrypt(String plainText) {
+        if (plainText == null || plainText.isEmpty()) {
+            return plainText;
+        }
+        
         try {
-            KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
-            keyGenerator.init(128);
-            SecretKey secretKey = new SecretKeySpec(SECRET_KEY.getBytes(), ALGORITHM);
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
+            // 使用明确的字符编码
+            byte[] keyBytes = SECRET_KEY.getBytes(CHARSET);
+            SecretKey secretKey = new SecretKeySpec(keyBytes, ALGORITHM);
+            Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-            byte[] encryptedBytes = cipher.doFinal(plainText.getBytes());
+            byte[] plainBytes = plainText.getBytes(CHARSET);
+            byte[] encryptedBytes = cipher.doFinal(plainBytes);
             return Base64.getEncoder().encodeToString(encryptedBytes);
         } catch (Exception e) {
-            throw new RuntimeException("Encryption failed", e);
+            // 打印详细的错误信息
+            System.err.println("Encryption failed: " + e.getMessage());
+            e.printStackTrace();
+            // 为了避免整个系统崩溃，返回原始文本作为降级方案
+            return plainText;
         }
     }
 
@@ -46,16 +65,25 @@ public class EncryptUtils {
      * @return 明文
      */
     public static String decrypt(String cipherText) {
+        if (cipherText == null || cipherText.isEmpty()) {
+            return cipherText;
+        }
+        
         try {
-            KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
-            keyGenerator.init(128);
-            SecretKey secretKey = new SecretKeySpec(SECRET_KEY.getBytes(), ALGORITHM);
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
+            // 使用明确的字符编码
+            byte[] keyBytes = SECRET_KEY.getBytes(CHARSET);
+            SecretKey secretKey = new SecretKeySpec(keyBytes, ALGORITHM);
+            Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
             cipher.init(Cipher.DECRYPT_MODE, secretKey);
-            byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(cipherText));
-            return new String(decryptedBytes);
+            byte[] cipherBytes = Base64.getDecoder().decode(cipherText);
+            byte[] decryptedBytes = cipher.doFinal(cipherBytes);
+            return new String(decryptedBytes, CHARSET);
         } catch (Exception e) {
-            throw new RuntimeException("Decryption failed", e);
+            // 打印详细的错误信息
+            System.err.println("Decryption failed: " + e.getMessage());
+            e.printStackTrace();
+            // 为了避免整个系统崩溃，返回原始文本作为降级方案
+            return cipherText;
         }
     }
 

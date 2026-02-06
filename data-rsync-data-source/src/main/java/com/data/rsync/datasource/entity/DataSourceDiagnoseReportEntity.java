@@ -92,4 +92,16 @@ public class DataSourceDiagnoseReportEntity {
     @TableField(value = "diagnose_duration", exist = true)
     private Integer diagnoseDuration;
 
+    /**
+     * 创建时间
+     */
+    @TableField(value = "create_time", exist = true)
+    private LocalDateTime createTime;
+
+    /**
+     * 更新时间
+     */
+    @TableField(value = "update_time", exist = true)
+    private LocalDateTime updateTime;
+
 }

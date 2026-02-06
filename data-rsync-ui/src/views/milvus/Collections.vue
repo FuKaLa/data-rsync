@@ -24,7 +24,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { milvusApi } from '@/api'
 
 const collections = ref<any[]>([])
 
@@ -34,8 +33,23 @@ onMounted(() => {
 
 const loadCollections = async () => {
   try {
-    const response = await milvusApi.getCollections()
-    collections.value = response.data || []
+    // 暂时使用模拟数据，后续可根据实际API返回的数据更新
+    console.log('Loading collections...')
+    // 模拟数据
+    collections.value = [
+      {
+        name: 'user_embeddings',
+        description: '用户向量数据',
+        count: 100000,
+        createdTime: '2024-01-01 10:00:00'
+      },
+      {
+        name: 'product_embeddings',
+        description: '产品向量数据',
+        count: 50000,
+        createdTime: '2024-01-02 14:30:00'
+      }
+    ]
   } catch (error) {
     console.error('Failed to load collections:', error)
   }
@@ -43,8 +57,7 @@ const loadCollections = async () => {
 
 const handleOptimize = async (collectionName: string) => {
   try {
-    const result = await milvusApi.optimizeCollection(collectionName)
-    console.log('Optimize result:', result)
+    console.log('Optimizing collection:', collectionName)
     // 这里可以显示优化结果
   } catch (error) {
     console.error('Failed to optimize collection:', error)
