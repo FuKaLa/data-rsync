@@ -226,6 +226,8 @@ public class TaskEntity {
         this.batchSize = 1000;
         this.retryCount = 3;
         this.timeoutSeconds = 3600;
+        // 设置默认的数据源ID为1
+        this.dataSourceId = 1L;
     }
 
     /**

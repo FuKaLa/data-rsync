@@ -63,7 +63,9 @@ public class AuthServiceImpl implements AuthService {
         auditLog.setObjectId(user.getId());
         auditLog.setResult("SUCCESS");
         auditLog.setOperationTime(LocalDateTime.now());
-        auditLog.setIp("127.0.0.1");
+        // 从请求上下文中获取实际IP地址，这里暂时使用默认值
+        String ipAddress = "127.0.0.1";
+        auditLog.setIp(ipAddress);
         auditLogMapper.insert(auditLog);
         
         return user;
@@ -470,6 +472,14 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public List<Permission> getUserPermissions(Long userId) {
+        // 1. 首先检查用户是否是 admin 用户，admin 用户拥有所有权限
+        User user = userMapper.selectById(userId);
+        if (user != null && "admin".equals(user.getUsername())) {
+            // 返回所有权限
+            return permissionMapper.selectList(null);
+        }
+        
+        // 2. 获取用户的权限
         // 这里需要在 UserMapper 中添加自定义方法来获取用户权限
         // 暂时返回空列表，后续需要实现
         return new ArrayList<>();
@@ -539,14 +549,28 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public boolean hasPermission(Long userId, String permissionCode) {
-        // 这里需要在 UserMapper 中添加自定义方法来验证权限
+        // 1. 首先检查用户是否是 admin 用户，admin 用户拥有所有权限
+        User user = userMapper.selectById(userId);
+        if (user != null && "admin".equals(user.getUsername())) {
+            return true;
+        }
+        
+        // 2. 检查用户是否有超级管理员角色
+        // 这里需要在 UserMapper 中添加自定义方法来获取用户角色
         // 暂时返回 false，后续需要实现
         return false;
     }
 
     @Override
     public boolean hasRole(Long userId, String roleCode) {
-        // 这里需要在 UserMapper 中添加自定义方法来验证角色
+        // 1. 首先检查用户是否是 admin 用户，admin 用户拥有所有角色
+        User user = userMapper.selectById(userId);
+        if (user != null && "admin".equals(user.getUsername())) {
+            return true;
+        }
+        
+        // 2. 检查用户是否有指定角色
+        // 这里需要在 UserMapper 中添加自定义方法来获取用户角色
         // 暂时返回 false，后续需要实现
         return false;
     }

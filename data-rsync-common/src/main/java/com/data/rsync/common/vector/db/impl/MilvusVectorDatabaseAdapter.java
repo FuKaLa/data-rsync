@@ -23,8 +23,18 @@ public class MilvusVectorDatabaseAdapter implements VectorDatabaseAdapter {
     @Override
     public boolean initialize(Map<String, Object> config) {
         try {
-            host = (String) config.getOrDefault("host", "localhost");
-            port = (int) config.getOrDefault("port", 19530);
+            // 从 Nacos 配置中心获取 Milvus 配置
+            // 优先级：Nacos 配置 > 环境变量 > 默认值
+            host = (String) config.getOrDefault("host", System.getenv().getOrDefault("MILVUS_HOST", "localhost"));
+            // 处理端口配置，确保类型正确
+            Object portObj = config.getOrDefault("port", System.getenv().getOrDefault("MILVUS_PORT", "19530"));
+            if (portObj instanceof String) {
+                port = Integer.parseInt((String) portObj);
+            } else if (portObj instanceof Integer) {
+                port = (Integer) portObj;
+            } else {
+                port = 19530;
+            }
             // 简化实现，返回true
             return true;
         } catch (Exception e) {

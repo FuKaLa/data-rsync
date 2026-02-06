@@ -341,7 +341,6 @@ public class DataSourceService {
         // 转换为模型返回
         DataSource result = new DataSource();
         BeanUtils.copyProperties(entity, result);
-        result.setPassword(null); // 不返回密码
 
         log.info("Got data source: {}", result.getName());
         return result;
@@ -485,6 +484,36 @@ public class DataSourceService {
 
         log.info("Tested data source connection: {} with result: {}", id, connected);
         return connected;
+    }
+
+    /**
+     * 测试数据源连接（Feign客户端使用）
+     * @param dataSource 数据源模型
+     * @return 连接结果
+     */
+    public boolean testDataSourceConnection(DataSource dataSource) {
+        log.info("Testing data source connection (Feign): {}", dataSource.getName());
+
+        try {
+            // 创建临时数据源实体进行测试
+            DataSourceEntity entity = new DataSourceEntity();
+            entity.setName(dataSource.getName());
+            entity.setType(dataSource.getType());
+            entity.setHost(dataSource.getHost());
+            entity.setPort(dataSource.getPort());
+            entity.setDatabaseName(dataSource.getDatabase());
+            entity.setUsername(dataSource.getUsername());
+            entity.setPassword(dataSource.getPassword());
+            entity.setUrl(dataSource.getUrl());
+
+            // 测试连接
+            boolean connected = testConnection(entity);
+            log.info("Tested data source connection (Feign): {} with result: {}", dataSource.getName(), connected);
+            return connected;
+        } catch (Exception e) {
+            log.error("Failed to test data source connection (Feign): {}", e.getMessage(), e);
+            return false;
+        }
     }
 
     /**

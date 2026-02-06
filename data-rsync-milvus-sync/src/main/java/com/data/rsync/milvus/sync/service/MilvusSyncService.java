@@ -34,6 +34,21 @@ public interface MilvusSyncService {
     boolean deleteDataFromMilvus(Long taskId, Object primaryKey);
 
     /**
+     * 清空 Milvus 集合中的所有数据
+     * @param taskId 任务ID
+     * @return 清空结果
+     */
+    boolean clearCollectionData(Long taskId);
+
+    /**
+     * 基于主键的幂等写入
+     * @param taskId 任务ID
+     * @param data 数据
+     * @return 写入结果
+     */
+    boolean idempotentWriteDataToMilvus(Long taskId, Map<String, Object> data);
+
+    /**
      * 创建 Milvus 集合
      * @param task 任务
      * @return 创建结果

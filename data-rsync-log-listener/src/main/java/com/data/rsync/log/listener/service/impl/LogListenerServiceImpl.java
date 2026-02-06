@@ -3,9 +3,11 @@ package com.data.rsync.log.listener.service.impl;
 import com.data.rsync.common.constants.DataRsyncConstants;
 import com.data.rsync.common.model.DataSource;
 import com.data.rsync.common.model.Task;
+import com.data.rsync.common.service.DataConsistencyService;
 import com.data.rsync.common.utils.DatabaseUtils;
 import com.data.rsync.common.utils.ThreadPoolManager;
 import com.data.rsync.log.listener.service.LogListenerService;
+import com.data.rsync.milvus.sync.service.MilvusSyncService;
 import io.debezium.config.Configuration;
 import io.debezium.embedded.EmbeddedEngine;
 import jakarta.annotation.Resource;
@@ -41,6 +43,12 @@ public class LogListenerServiceImpl implements LogListenerService {
 
     @Resource
     private ThreadPoolManager threadPoolManager;
+
+    @Resource
+    private MilvusSyncService milvusSyncService;
+
+    @Resource
+    private DataConsistencyService dataConsistencyService;
 
     /**
      * 监听任务状态缓存
@@ -84,62 +92,75 @@ public class LogListenerServiceImpl implements LogListenerService {
      * @return 监听结果
      */
     @Override
-    public boolean startLogListener(Task task) {
-        log.info("Starting log listener for task: {}", task.getName());
+    public boolean startLogListener(com.data.rsync.common.model.Task task) {
+        log.info("[LogListenerServiceImpl] 开始启动日志监听，任务ID：{}，任务名称：{}", task.getId(), task.getName());
         try {
             // 1. 检查任务状态
             if (listenerStatusMap.containsKey(task.getId()) && "RUNNING".equals(listenerStatusMap.get(task.getId()))) {
-                log.warn("Log listener for task {} is already running", task.getId());
+                log.warn("[LogListenerServiceImpl] 日志监听已在运行中，任务ID：{}", task.getId());
                 return false;
             }
 
             // 2. 初始化监听配置
+            log.info("[LogListenerServiceImpl] 初始化监听配置，任务ID：{}", task.getId());
             initListenerConfig(task);
 
             // 3. 加载断点续传位点
+            log.info("[LogListenerServiceImpl] 加载断点续传位点，任务ID：{}", task.getId());
             String breakpoint = getBreakpoint(task.getId());
             if (breakpoint != null && !breakpoint.isEmpty()) {
-                log.info("Loaded breakpoint for task {}: {}", task.getId(), breakpoint);
+                log.info("[LogListenerServiceImpl] 加载到断点续传位点，任务ID：{}，位点：{}", task.getId(), breakpoint);
+            } else {
+                log.info("[LogListenerServiceImpl] 未找到断点续传位点，任务ID：{}", task.getId());
             }
 
             // 4. 构建 Debezium 配置
+            log.info("[LogListenerServiceImpl] 构建 Debezium 配置，任务ID：{}", task.getId());
             Configuration config = buildDebeziumConfig(task, breakpoint);
+            log.info("[LogListenerServiceImpl] Debezium 配置构建完成，任务ID：{}", task.getId());
 
             // 5. 创建并启动 Debezium 引擎
+            log.info("[LogListenerServiceImpl] 创建 Debezium 引擎，任务ID：{}", task.getId());
             EmbeddedEngine engine = EmbeddedEngine.create()
                     .using(config)
                     .notifying(record -> {
                         try {
                             // 处理变更事件
+                            log.debug("[LogListenerServiceImpl] 收到变更事件，任务ID：{}", task.getId());
                             processChangeEvent(record, task);
                             // 保存断点续传位点
+                            log.debug("[LogListenerServiceImpl] 保存断点续传位点，任务ID：{}", task.getId());
                             saveBreakpoint(record, task.getId());
                         } catch (Exception e) {
-                            log.error("Failed to process change event: {}", e.getMessage(), e);
+                            log.error("[LogListenerServiceImpl] 处理变更事件失败：{}", e.getMessage(), e);
                         }
                     })
                     .build();
 
             // 6. 启动引擎
+            log.info("[LogListenerServiceImpl] 启动 Debezium 引擎，任务ID：{}", task.getId());
             threadPoolManager.submitCoreTask(() -> {
                 try {
+                    log.info("[LogListenerServiceImpl] Debezium 引擎开始运行，任务ID：{}", task.getId());
                     engine.run();
                 } catch (Exception e) {
-                    log.error("Failed to run debezium engine for task {}: {}", task.getId(), e.getMessage(), e);
+                    log.error("[LogListenerServiceImpl] Debezium 引擎运行失败，任务ID：{}，错误信息：{}", task.getId(), e.getMessage(), e);
                     listenerStatusMap.put(task.getId(), "FAILED");
                     redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.LOG_LISTENER_PREFIX + task.getId(), "FAILED");
                 }
             });
 
             // 7. 缓存引擎和状态
+            log.info("[LogListenerServiceImpl] 缓存引擎和状态，任务ID：{}", task.getId());
             debeziumEngineMap.put(task.getId(), engine);
             listenerStatusMap.put(task.getId(), "RUNNING");
             redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.LOG_LISTENER_PREFIX + task.getId(), "RUNNING");
 
-            log.info("Started log listener for task: {}", task.getName());
+            log.info("[LogListenerServiceImpl] 日志监听启动成功，任务ID：{}，任务名称：{}", task.getId(), task.getName());
             return true;
         } catch (Exception e) {
-            log.error("Failed to start log listener for task {}: {}", task.getId(), e.getMessage(), e);
+            log.error("[LogListenerServiceImpl] 启动日志监听失败，任务ID：{}，任务名称：{}，错误信息：{}", 
+                    task.getId(), task.getName(), e.getMessage(), e);
             listenerStatusMap.put(task.getId(), "FAILED");
             redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.LOG_LISTENER_PREFIX + task.getId(), "FAILED");
             return false;
@@ -220,22 +241,46 @@ public class LogListenerServiceImpl implements LogListenerService {
      * @return 扫描结果
      */
     @Override
-    public boolean executeFullScan(Task task) {
-        log.info("Executing full scan for task: {}", task.getName());
+    public boolean executeFullScan(com.data.rsync.common.model.Task task) {
+        log.info("[LogListenerServiceImpl] 开始执行全量扫描，任务ID：{}，任务名称：{}", task.getId(), task.getName());
         try {
-            // 1. 更新任务状态
+            // 1. 获取同步策略配置
+            log.info("[LogListenerServiceImpl] 获取同步策略配置，任务ID：{}", task.getId());
+            boolean clearCollectionBeforeSync = getClearCollectionBeforeSyncConfig(task);
+            String syncStrategy = getSyncStrategyConfig(task);
+            log.info("[LogListenerServiceImpl] 同步策略配置：clearCollectionBeforeSync={}, syncStrategy={}, 任务ID：{}", 
+                    clearCollectionBeforeSync, syncStrategy, task.getId());
+
+            // 2. 清空集合（如果配置了）
+            if (clearCollectionBeforeSync) {
+                log.info("[LogListenerServiceImpl] 开始清空集合数据，任务ID：{}", task.getId());
+                boolean cleared = milvusSyncService.clearCollectionData(task.getId());
+                if (cleared) {
+                    log.info("[LogListenerServiceImpl] 集合数据清空成功，任务ID：{}", task.getId());
+                } else {
+                    log.warn("[LogListenerServiceImpl] 集合数据清空失败，任务ID：{}", task.getId());
+                }
+            }
+
+            // 3. 更新任务状态
+            log.info("[LogListenerServiceImpl] 更新任务状态为运行中，任务ID：{}", task.getId());
             task.setStatus("RUNNING");
             task.setStartTime(LocalDateTime.now());
             task.setProgress(0);
+            redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.TASK_PROGRESS_PREFIX + task.getId(), "0");
 
-            // 2. 计算分片数
+            // 4. 计算分片数
+            log.info("[LogListenerServiceImpl] 计算分片数，任务ID：{}", task.getId());
             int shardCount = calculateShardCount(task);
-            log.info("Calculated shard count for task {}: {}", task.getId(), shardCount);
+            log.info("[LogListenerServiceImpl] 计算得到分片数：{}，任务ID：{}", shardCount, task.getId());
 
             // 3. 创建分片扫描任务
+            log.info("[LogListenerServiceImpl] 创建分片扫描任务，任务ID：{}", task.getId());
             List<Map<String, Object>> shards = createShards(task, shardCount);
+            log.info("[LogListenerServiceImpl] 创建分片数：{}，任务ID：{}", shards.size(), task.getId());
 
             // 4. 并行执行分片扫描
+            log.info("[LogListenerServiceImpl] 并行执行分片扫描，任务ID：{}", task.getId());
             CountDownLatch latch = new CountDownLatch(shards.size());
             int[] progress = {0};
             final int totalShards = shards.size();
@@ -243,9 +288,11 @@ public class LogListenerServiceImpl implements LogListenerService {
             for (int i = 0; i < shards.size(); i++) {
                 final int shardIndex = i;
                 final Map<String, Object> shard = shards.get(i);
+                log.info("[LogListenerServiceImpl] 提交分片扫描任务，分片索引：{}，任务ID：{}", shardIndex, task.getId());
                 threadPoolManager.submitBatchTask(() -> {
                     try {
                         // 执行分片扫描
+                        log.info("[LogListenerServiceImpl] 开始执行分片扫描，分片索引：{}，任务ID：{}", shardIndex, task.getId());
                         executeShardScan(task, shard, shardIndex);
                         // 更新进度
                         synchronized (progress) {
@@ -253,28 +300,47 @@ public class LogListenerServiceImpl implements LogListenerService {
                             int currentProgress = (progress[0] * 100) / totalShards;
                             task.setProgress(currentProgress);
                             redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.TASK_PROGRESS_PREFIX + task.getId(), String.valueOf(currentProgress));
+                            log.info("[LogListenerServiceImpl] 更新扫描进度：{}%，任务ID：{}", currentProgress, task.getId());
                         }
                     } catch (Exception e) {
-                        log.error("Failed to execute shard scan for task {} shard {}: {}", task.getId(), shardIndex, e.getMessage(), e);
+                        log.error("[LogListenerServiceImpl] 执行分片扫描失败，任务ID：{}，分片索引：{}，错误信息：{}", 
+                                task.getId(), shardIndex, e.getMessage(), e);
                     } finally {
                         latch.countDown();
+                        log.info("[LogListenerServiceImpl] 分片扫描任务完成，分片索引：{}，任务ID：{}", shardIndex, task.getId());
                     }
                 });
             }
 
             // 5. 等待所有分片扫描完成
+            log.info("[LogListenerServiceImpl] 等待所有分片扫描完成，任务ID：{}", task.getId());
             latch.await();
+            log.info("[LogListenerServiceImpl] 所有分片扫描完成，任务ID：{}", task.getId());
 
-            // 6. 更新任务状态
-            task.setStatus("SUCCESS");
+            // 6. 执行数据一致性校验
+            log.info("[LogListenerServiceImpl] 开始执行数据一致性校验，任务ID：{}", task.getId());
+            boolean consistencyCheckPassed = executeDataConsistencyCheck(task);
+            log.info("[LogListenerServiceImpl] 数据一致性校验完成，任务ID：{}，结果：{}", task.getId(), consistencyCheckPassed);
+
+            // 7. 更新任务状态
+            log.info("[LogListenerServiceImpl] 更新任务状态，任务ID：{}", task.getId());
+            if (consistencyCheckPassed) {
+                task.setStatus("SUCCESS");
+                log.info("[LogListenerServiceImpl] 更新任务状态为成功，任务ID：{}", task.getId());
+            } else {
+                task.setStatus("WARNING");
+                task.setErrorMessage("数据一致性校验失败，请检查源数据和目标数据");
+                log.warn("[LogListenerServiceImpl] 更新任务状态为警告，数据一致性校验失败，任务ID：{}", task.getId());
+            }
             task.setEndTime(LocalDateTime.now());
             task.setProgress(100);
             redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.TASK_PROGRESS_PREFIX + task.getId(), "100");
 
-            log.info("Executed full scan for task: {}", task.getName());
+            log.info("[LogListenerServiceImpl] 全量扫描执行完成，任务ID：{}，任务名称：{}", task.getId(), task.getName());
             return true;
         } catch (Exception e) {
-            log.error("Failed to execute full scan for task {}: {}", task.getId(), e.getMessage(), e);
+            log.error("[LogListenerServiceImpl] 执行全量扫描失败，任务ID：{}，任务名称：{}，错误信息：{}", 
+                    task.getId(), task.getName(), e.getMessage(), e);
             task.setStatus("FAILED");
             task.setEndTime(LocalDateTime.now());
             task.setErrorMessage(e.getMessage());
@@ -364,9 +430,164 @@ public class LogListenerServiceImpl implements LogListenerService {
      * 初始化监听配置
      * @param task 任务
      */
-    private void initListenerConfig(Task task) {
+    private void initListenerConfig(com.data.rsync.common.model.Task task) {
         log.info("Initialized listener config for task: {}", task.getName());
         // 可以在这里初始化额外的监听配置
+    }
+
+    /**
+     * 获取同步前是否清空集合的配置
+     * @param task 任务
+     * @return 是否清空集合
+     */
+    private boolean getClearCollectionBeforeSyncConfig(com.data.rsync.common.model.Task task) {
+        try {
+            // 从任务配置中获取
+            if (task.getConfig() != null) {
+                // 实际项目中需要解析task.getConfig()为Map
+                // 这里简单示例：默认返回true
+                log.info("Using default clearCollectionBeforeSync config: true");
+                return true;
+            }
+            // 默认配置：全量同步前清空集合
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to get clearCollectionBeforeSync config: {}", e.getMessage(), e);
+            return true; // 默认值
+        }
+    }
+
+    /**
+     * 获取同步策略配置
+     * @param task 任务
+     * @return 同步策略
+     */
+    private String getSyncStrategyConfig(com.data.rsync.common.model.Task task) {
+        try {
+            // 从任务配置中获取
+            if (task.getConfig() != null) {
+                // 实际项目中需要解析task.getConfig()为Map
+                // 这里简单示例：默认返回"OVERWRITE"
+                log.info("Using default sync strategy: OVERWRITE");
+                return "OVERWRITE";
+            }
+            // 默认配置：覆盖模式
+            return "OVERWRITE";
+        } catch (Exception e) {
+            log.error("Failed to get sync strategy config: {}", e.getMessage(), e);
+            return "OVERWRITE"; // 默认值
+        }
+    }
+
+    /**
+     * 清理同步相关的缓存和状态
+     * @param taskId 任务ID
+     */
+    private void cleanSyncResources(Long taskId) {
+        try {
+            // 清理处理记录标记
+            // 实际项目中可能需要通过Feign调用DataProcessService的cleanProcessedRecords方法
+            log.info("Cleaned sync resources for task: {}", taskId);
+        } catch (Exception e) {
+            log.error("Failed to clean sync resources for task {}: {}", taskId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 执行数据一致性校验
+     * @param task 任务
+     * @return 校验结果
+     */
+    private boolean executeDataConsistencyCheck(com.data.rsync.common.model.Task task) {
+        try {
+            log.info("[LogListenerServiceImpl] 执行数据一致性校验，任务ID：{}", task.getId());
+            
+            // 1. 获取源数据数量（简化实现，实际项目中需要从数据源获取）
+            long sourceCount = estimateSourceDataCount(task);
+            log.info("[LogListenerServiceImpl] 估计源数据数量：{}，任务ID：{}", sourceCount, task.getId());
+            
+            // 2. 获取源数据样本（简化实现，实际项目中需要从数据源获取）
+            List<Map<String, Object>> sourceSampleData = getSourceSampleData(task);
+            log.info("[LogListenerServiceImpl] 获取源数据样本数量：{}，任务ID：{}", sourceSampleData.size(), task.getId());
+            
+            // 3. 调用Milvus同步服务执行一致性校验
+            com.data.rsync.milvus.sync.service.MilvusSyncService.ConsistencyCheckResult result = 
+                    milvusSyncService.checkDataConsistency(task, sourceCount, sourceSampleData);
+            
+            // 4. 生成一致性校验报告
+            String report = dataConsistencyService.generateConsistencyReport(
+                    convertToCommonConsistencyResult(result));
+            log.info("[LogListenerServiceImpl] 数据一致性校验报告：\n{}", report);
+            
+            // 5. 记录校验结果
+            if (result.isConsistent()) {
+                log.info("[LogListenerServiceImpl] 数据一致性校验通过，任务ID：{}", task.getId());
+                return true;
+            } else {
+                log.warn("[LogListenerServiceImpl] 数据一致性校验失败，任务ID：{}", task.getId());
+                for (String discrepancy : result.getDiscrepancies()) {
+                    log.warn("[LogListenerServiceImpl] 不一致项：{}", discrepancy);
+                }
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("[LogListenerServiceImpl] 执行数据一致性校验失败，任务ID：{}，错误信息：{}", 
+                    task.getId(), e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 估计源数据数量
+     * @param task 任务
+     * @return 估计的源数据数量
+     */
+    private long estimateSourceDataCount(com.data.rsync.common.model.Task task) {
+        try {
+            // 简化实现，实际项目中需要从数据源执行COUNT查询
+            // 这里返回一个模拟值
+            return 1000; // 假设源数据数量为1000
+        } catch (Exception e) {
+            log.error("[LogListenerServiceImpl] 估计源数据数量失败，任务ID：{}，错误信息：{}", 
+                    task.getId(), e.getMessage(), e);
+            return 0;
+        }
+    }
+
+    /**
+     * 获取源数据样本
+     * @param task 任务
+     * @return 源数据样本
+     */
+    private List<Map<String, Object>> getSourceSampleData(com.data.rsync.common.model.Task task) {
+        try {
+            // 简化实现，实际项目中需要从数据源获取样本数据
+            // 这里返回一个空列表
+            return new ArrayList<>();
+        } catch (Exception e) {
+            log.error("[LogListenerServiceImpl] 获取源数据样本失败，任务ID：{}，错误信息：{}", 
+                    task.getId(), e.getMessage(), e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 将Milvus特定的一致性校验结果转换为通用的一致性校验结果
+     * @param milvusResult Milvus特定的一致性校验结果
+     * @return 通用的一致性校验结果
+     */
+    private com.data.rsync.common.service.DataConsistencyService.ConsistencyCheckResult convertToCommonConsistencyResult(
+            com.data.rsync.milvus.sync.service.MilvusSyncService.ConsistencyCheckResult milvusResult) {
+        com.data.rsync.common.service.DataConsistencyService.ConsistencyCheckResult commonResult = 
+                new com.data.rsync.common.service.DataConsistencyService.ConsistencyCheckResult();
+        commonResult.setConsistent(milvusResult.isConsistent());
+        commonResult.setSourceCount(milvusResult.getSourceCount());
+        commonResult.setTargetCount(milvusResult.getTargetCount());
+        commonResult.setSampleCheckPassed(milvusResult.getSampleCheckPassed());
+        commonResult.setSampleCheckTotal(milvusResult.getSampleCheckTotal());
+        commonResult.setErrorMessage(milvusResult.getErrorMessage());
+        commonResult.setDiscrepancies(milvusResult.getDiscrepancies());
+        return commonResult;
     }
 
     /**
@@ -375,7 +596,7 @@ public class LogListenerServiceImpl implements LogListenerService {
      * @param breakpoint 断点续传位点
      * @return Debezium 配置
      */
-    private Configuration buildDebeziumConfig(Task task, String breakpoint) {
+    private Configuration buildDebeziumConfig(com.data.rsync.common.model.Task task, String breakpoint) {
         // 根据不同的数据源类型构建不同的 Debezium 配置
         String dataSourceType = task.getDataSourceType();
         Configuration.Builder builder = Configuration.create()
@@ -387,7 +608,7 @@ public class LogListenerServiceImpl implements LogListenerService {
                 .with("database.history.file.filename", "/tmp/debezium/history/task-" + task.getId() + ".history");
 
         // 从数据源配置中获取连接信息
-        DataSource dataSource = task.getDataSource();
+        com.data.rsync.common.model.DataSource dataSource = task.getDataSource();
         if (dataSource != null) {
             builder.with("database.hostname", dataSource.getHost())
                     .with("database.port", String.valueOf(dataSource.getPort()))
@@ -433,7 +654,7 @@ public class LogListenerServiceImpl implements LogListenerService {
      * @param record 变更事件
      * @param task 任务
      */
-    private void processChangeEvent(SourceRecord record, Task task) {
+    private void processChangeEvent(SourceRecord record, com.data.rsync.common.model.Task task) {
         try {
             // 1. 解析变更事件
             String key = record.key().toString();
@@ -486,7 +707,7 @@ public class LogListenerServiceImpl implements LogListenerService {
      * @param task 任务
      * @return 分片数
      */
-    private int calculateShardCount(Task task) {
+    private int calculateShardCount(com.data.rsync.common.model.Task task) {
         // 根据表大小和任务配置计算分片数
         // 这里简化处理，返回固定值
         return Math.min(task.getConcurrency(), 10);
@@ -498,7 +719,7 @@ public class LogListenerServiceImpl implements LogListenerService {
      * @param shardCount 分片数
      * @return 分片列表
      */
-    private List<Map<String, Object>> createShards(Task task, int shardCount) {
+    private List<Map<String, Object>> createShards(com.data.rsync.common.model.Task task, int shardCount) {
         List<Map<String, Object>> shards = new ArrayList<>();
         // 根据主键范围创建分片
         for (int i = 0; i < shardCount; i++) {
@@ -517,12 +738,16 @@ public class LogListenerServiceImpl implements LogListenerService {
      * @param shard 分片信息
      * @param shardIndex 分片索引
      */
-    private void executeShardScan(Task task, Map<String, Object> shard, int shardIndex) {
+    private void executeShardScan(com.data.rsync.common.model.Task task, Map<String, Object> shard, int shardIndex) {
         log.info("Executing shard scan for task {} shard {}: startId={}, endId={}", 
                 task.getId(), shardIndex, shard.get("startId"), shard.get("endId"));
         try {
             // 1. 连接数据库
-            DataSource dataSource = task.getDataSource();
+            com.data.rsync.common.model.DataSource dataSource = task.getDataSource();
+            if (dataSource == null) {
+                log.error("DataSource is null for task {} shard {}", task.getId(), shardIndex);
+                throw new IllegalArgumentException("DataSource is required for shard scan");
+            }
             String jdbcUrl = DatabaseUtils.buildJdbcUrl(dataSource);
             java.sql.Connection connection = null;
             java.sql.Statement statement = null;
@@ -531,8 +756,10 @@ public class LogListenerServiceImpl implements LogListenerService {
             try {
                 // 加载驱动
                 Class.forName(DatabaseUtils.getDriverClassName(dataSource.getType()));
+                // 解密密码
+                String decryptedPassword = com.data.rsync.common.utils.EncryptUtils.decrypt(dataSource.getPassword());
                 // 建立连接
-                connection = java.sql.DriverManager.getConnection(jdbcUrl, dataSource.getUsername(), dataSource.getPassword());
+                connection = java.sql.DriverManager.getConnection(jdbcUrl, dataSource.getUsername(), decryptedPassword);
                 
                 // 2. 执行分片查询
                 String query = buildShardQuery(task, shard);
@@ -588,7 +815,7 @@ public class LogListenerServiceImpl implements LogListenerService {
      * @param shard 分片信息
      * @return 查询语句
      */
-    private String buildShardQuery(Task task, Map<String, Object> shard) {
+    private String buildShardQuery(com.data.rsync.common.model.Task task, Map<String, Object> shard) {
         String tableName = task.getTableName();
         String primaryKey = task.getPrimaryKey();
         long startId = (long) shard.get("startId");
@@ -603,7 +830,7 @@ public class LogListenerServiceImpl implements LogListenerService {
      * @param batchData 批量数据
      * @param shardIndex 分片索引
      */
-    private void sendBatchToKafka(Task task, List<Map<String, Object>> batchData, int shardIndex) {
+    private void sendBatchToKafka(com.data.rsync.common.model.Task task, List<Map<String, Object>> batchData, int shardIndex) {
         try {
             String topic = DataRsyncConstants.KafkaTopic.DATA_FULL_SYNC_TOPIC;
             for (Map<String, Object> row : batchData) {

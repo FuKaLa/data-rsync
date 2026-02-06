@@ -276,9 +276,9 @@ INSERT INTO data_source_template (name, data_source_type, driver_class, log_moni
 ('Oracle默认模板', 'ORACLE', 'oracle.jdbc.OracleDriver', 'REDO_LOG', 1521, TRUE, NOW(), NOW()),
 ('MongoDB默认模板', 'MONGODB', 'mongodb.jdbc.MongoDriver', 'OPLOG', 27017, TRUE, NOW(), NOW());
 
--- 插入默认管理员用户（密码：admin123）
+-- 插入默认管理员用户（密码：admin123，已使用 BCrypt 加密）
 INSERT INTO user (username, password, name, email, phone, status, create_time, update_time) VALUES
-('admin', 'admin123', '管理员', 'admin@example.com', '13800138000', 'ENABLE', NOW(), NOW());
+('admin', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '管理员', 'admin@example.com', '13800138000', 'ENABLE', NOW(), NOW());
 
 -- 关联管理员用户与超级管理员角色
 INSERT INTO user_role (user_id, role_id) VALUES

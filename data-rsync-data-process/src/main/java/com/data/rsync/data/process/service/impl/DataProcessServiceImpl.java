@@ -2,6 +2,7 @@ package com.data.rsync.data.process.service.impl;
 
 import com.data.rsync.common.constants.DataRsyncConstants;
 import com.data.rsync.common.model.Task;
+import com.data.rsync.common.utils.IdGeneratorUtils;
 import com.data.rsync.common.vectorizer.Vectorizer;
 import com.data.rsync.common.vectorizer.VectorizerFactory;
 import com.data.rsync.data.process.service.DataProcessService;
@@ -72,30 +73,44 @@ public class DataProcessServiceImpl implements DataProcessService {
                 // 实际项目中需要反序列化taskConfigStr为Task对象
                 task = new Task();
                 // 模拟任务配置
-                String config = "{\"cleaningRules\": \"remove_empty,trim_whitespace,validate_format\", \"transformationRules\": \"field_mapping,type_conversion,value_normalization\", \"vectorizationRules\": \"text_feature,use_all_fields\", \"vectorizerName\": \"text_feature\"}";
+                String config = "{\"cleaningRules\": \"remove_empty,trim_whitespace,validate_format,remove_duplicates\", \"transformationRules\": \"field_mapping,type_conversion,value_normalization\", \"vectorizationRules\": \"text_feature,use_all_fields\", \"vectorizerName\": \"text_feature\"}";
                 task.setConfig(config);
             }
 
-            // 3. 执行数据清洗
+            // 3. 生成记录标识
+            String recordId = generateRecordId(dataChange);
+            dataChange.put("recordId", recordId);
+
+            // 4. 检查记录是否已处理
+            if (isRecordProcessed(taskId, recordId)) {
+                log.debug("Record {} has already been processed for task {}", recordId, taskId);
+                return true; // 已处理，跳过
+            }
+
+            // 5. 执行数据清洗
             // 从任务配置中获取清洗规则
             Map<String, Object> cleanedData = executeDataCleaning(task, dataChange);
 
-            // 4. 执行数据转换
+            // 6. 执行数据转换
             // 从任务配置中获取转换规则
             Map<String, Object> transformedData = executeDataTransform(task, cleanedData);
 
-            // 5. 生成向量
+            // 7. 生成向量
             // 从任务配置中获取向量化规则
             float[] vector = generateVector(task, transformedData);
 
-            // 6. 构建处理结果
+            // 8. 构建处理结果
             Map<String, Object> processedData = new HashMap<>(transformedData);
             processedData.put("vector", vector);
+            processedData.put("recordId", recordId);
 
-            // 7. 发送处理结果到 Kafka
+            // 9. 标记记录为已处理
+            markRecordAsProcessed(taskId, recordId);
+
+            // 10. 发送处理结果到 Kafka
             sendProcessedDataToKafka(taskId, processedData);
 
-            log.info("Processed data change for task: {}", taskId);
+            log.info("Processed data change for task: {}, recordId: {}", taskId, recordId);
             return true;
         } catch (Exception e) {
             log.error("Failed to process data change for task {}: {}", taskId, e.getMessage(), e);
@@ -427,6 +442,16 @@ public class DataProcessServiceImpl implements DataProcessService {
                 executorService.submit(() -> {
                     try {
                         for (Map<String, Object> data : batch) {
+                            // 生成记录标识
+                            String recordId = generateRecordId(data);
+                            data.put("recordId", recordId);
+
+                            // 检查记录是否已处理
+                            if (isRecordProcessed(taskId, recordId)) {
+                                log.debug("Record {} has already been processed for task {}", recordId, taskId);
+                                continue; // 已处理，跳过
+                            }
+
                             // 执行数据清洗
                             Map<String, Object> cleanedData = executeDataCleaning(null, data);
                             // 执行数据转换
@@ -436,6 +461,9 @@ public class DataProcessServiceImpl implements DataProcessService {
                             // 构建处理结果
                             Map<String, Object> processedData = new HashMap<>(transformedData);
                             processedData.put("vector", vector);
+                            processedData.put("recordId", recordId);
+                            // 标记记录为已处理
+                            markRecordAsProcessed(taskId, recordId);
                             // 添加到结果列表
                             allProcessedData.add(processedData);
                         }
@@ -455,12 +483,79 @@ public class DataProcessServiceImpl implements DataProcessService {
                 batchSendProcessedDataToKafka(taskId, allProcessedData);
             }
 
-            log.info("Batch processed {} data items for task: {}", dataList.size(), taskId);
+            log.info("Batch processed {} data items for task: {}, unique records: {}", dataList.size(), taskId, allProcessedData.size());
             return true;
         } catch (Exception e) {
             log.error("Failed to batch process data for task {}: {}", taskId, e.getMessage(), e);
             processStatusMap.put(taskId, "FAILED");
             redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.DATA_PROCESS_PREFIX + taskId, "FAILED");
+            return false;
+        }
+    }
+
+    /**
+     * 生成记录标识
+     * @param data 数据
+     * @return 记录标识
+     */
+    private String generateRecordId(Map<String, Object> data) {
+        try {
+            // 使用统一的ID生成工具类
+            return IdGeneratorUtils.generateStableStringId(data);
+        } catch (Exception e) {
+            log.error("Failed to generate record id: {}", e.getMessage(), e);
+            // 生成基于时间戳的临时ID
+            return "temp_" + System.currentTimeMillis() + "_" + Thread.currentThread().getId();
+        }
+    }
+
+    /**
+     * 检查记录是否已处理
+     * @param taskId 任务ID
+     * @param recordId 记录标识
+     * @return 是否已处理
+     */
+    private boolean isRecordProcessed(Long taskId, String recordId) {
+        try {
+            String key = DataRsyncConstants.RedisKey.PROCESSED_RECORD_PREFIX + taskId + ":" + recordId;
+            return redisTemplate.hasKey(key);
+        } catch (Exception e) {
+            log.error("Failed to check if record is processed: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 标记记录为已处理
+     * @param taskId 任务ID
+     * @param recordId 记录标识
+     */
+    private void markRecordAsProcessed(Long taskId, String recordId) {
+        try {
+            String key = DataRsyncConstants.RedisKey.PROCESSED_RECORD_PREFIX + taskId + ":" + recordId;
+            // 设置过期时间为7天，避免Redis内存占用过大
+            redisTemplate.opsForValue().set(key, "1", 7, java.util.concurrent.TimeUnit.DAYS);
+        } catch (Exception e) {
+            log.error("Failed to mark record as processed: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 清理已处理记录的标记
+     * @param taskId 任务ID
+     * @return 清理结果
+     */
+    public boolean cleanProcessedRecords(Long taskId) {
+        try {
+            String pattern = DataRsyncConstants.RedisKey.PROCESSED_RECORD_PREFIX + taskId + ":*";
+            Set<String> keys = redisTemplate.keys(pattern);
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+                log.info("Cleaned {} processed record markers for task: {}", keys.size(), taskId);
+            }
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to clean processed records for task {}: {}", taskId, e.getMessage(), e);
             return false;
         }
     }

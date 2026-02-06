@@ -2,22 +2,22 @@ spring:
   cloud:
     nacos:
       config:
-        server-addr: localhost:8848
-        namespace: dev
-        group: DEFAULT_GROUP
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
         file-extension: yml
-        username: nacos
-        password: nacos
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
       discovery:
-        server-addr: localhost:8848
-        namespace: dev
-        group: DEFAULT_GROUP
-        username: nacos
-        password: nacos
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/data_rsync?useSSL=false&useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC
-    username: root
-    password: root
+    url: ${DB_URL:jdbc:mysql://localhost:3306/data_rsync?useSSL=false&useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
 
 

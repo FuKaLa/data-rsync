@@ -19,7 +19,7 @@ public interface DataSourceFeignClient {
      * 获取数据源列表
      * @return 数据源列表
      */
-    @GetMapping("/api/data-source/list")
+    @GetMapping("/source/api/data-source/list")
     List<DataSource> getDataSourceList();
 
     /**
@@ -27,7 +27,7 @@ public interface DataSourceFeignClient {
      * @param id 数据源ID
      * @return 数据源
      */
-    @GetMapping("/api/data-source/{id}")
+    @GetMapping("/source/api/data-source/{id}")
     DataSource getDataSourceById(@PathVariable("id") Long id);
 
     /**
@@ -35,7 +35,7 @@ public interface DataSourceFeignClient {
      * @param dataSource 数据源
      * @return 创建结果
      */
-    @PostMapping("/api/data-source/create")
+    @PostMapping("/source/api/data-source/create")
     boolean createDataSource(@RequestBody DataSource dataSource);
 
     /**
@@ -43,6 +43,6 @@ public interface DataSourceFeignClient {
      * @param dataSource 数据源
      * @return 连接结果
      */
-    @PostMapping("/api/data-source/test-connection")
+    @PostMapping("/source/api/data-source/test-connection")
     boolean testDataSourceConnection(@RequestBody DataSource dataSource);
 }

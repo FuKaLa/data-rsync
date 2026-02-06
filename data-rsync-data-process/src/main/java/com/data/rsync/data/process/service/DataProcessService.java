@@ -63,4 +63,11 @@ public interface DataProcessService {
      */
     String checkProcessHealth(Long taskId);
 
+    /**
+     * 清理已处理记录的标记
+     * @param taskId 任务ID
+     * @return 清理结果
+     */
+    boolean cleanProcessedRecords(Long taskId);
+
 }

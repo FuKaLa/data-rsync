@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import com.data.rsync.common.utils.DistributedLockUtils;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -19,6 +20,10 @@ public class RedisConfig {
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
         template.afterPropertiesSet();
+        
+        // 初始化 DistributedLockUtils 中的 redisTemplate
+        DistributedLockUtils.setRedisTemplate(template);
+        
         return template;
     }
 

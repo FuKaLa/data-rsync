@@ -111,8 +111,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { authApi } from '@/api'
 
-const username = ref('admin')
-const password = ref('123456')
+const username = ref('')
+const password = ref('')
 const error = ref('')
 const isLoading = ref(false)
 const showPassword = ref(false)

@@ -41,10 +41,13 @@ public class VectorizerFactory {
      * @return 向量化器
      */
     public static Vectorizer getVectorizer(String name) {
+        log.debug("Getting vectorizer: {}", name);
         Vectorizer vectorizer = vectorizerMap.get(name);
         if (vectorizer == null) {
+            log.error("Unsupported vectorizer: {}", name);
             throw new UnsupportedOperationException("Unsupported vectorizer: " + name);
         }
+        log.debug("Retrieved vectorizer: {}", name);
         return vectorizer;
     }
 

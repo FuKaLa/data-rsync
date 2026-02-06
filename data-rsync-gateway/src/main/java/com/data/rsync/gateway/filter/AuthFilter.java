@@ -1,5 +1,7 @@
 package com.data.rsync.gateway.filter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +19,8 @@ import java.util.List;
 @Component
 public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthFilter.class);
+
     public AuthFilter() {
         super(Config.class);
     }
@@ -27,8 +31,11 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             // 跳过认证的路径
             String path = exchange.getRequest().getURI().getPath();
             if (config.getSkipPaths() != null && config.getSkipPaths().contains(path)) {
+                logger.debug("Skipping authentication for path: {}", path);
                 return chain.filter(exchange);
             }
+
+            logger.info("Authenticating request for path: {}", path);
 
             // 获取Authorization头
             HttpHeaders headers = exchange.getRequest().getHeaders();
@@ -36,31 +43,40 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
             // 验证令牌
             if (authorization == null || !authorization.startsWith("Bearer ")) {
+                logger.warn("Missing or invalid Authorization header for path: {}", path);
                 return handleUnauthorized(exchange);
             }
 
             String token = authorization.substring(7);
+            logger.debug("Extracted token: {}", token.substring(0, Math.min(token.length(), 20)) + "...");
 
             // 这里可以添加令牌验证逻辑，例如调用认证服务验证令牌
             // 示例：boolean isValid = authService.validateToken(token);
             boolean isValid = validateToken(token);
 
             if (!isValid) {
+                logger.warn("Invalid token for path: {}", path);
                 return handleUnauthorized(exchange);
             }
 
+            logger.debug("Token validation successful for path: {}", path);
+
             // 验证权限
             if (config.getRequiredRoles() != null && !config.getRequiredRoles().isEmpty()) {
+                logger.debug("Checking permissions for path: {}, required roles: {}", path, config.getRequiredRoles());
                 // 这里可以添加权限验证逻辑，例如从令牌中获取用户角色并验证
                 // 示例：boolean hasPermission = authService.hasPermission(token, config.getRequiredRoles());
                 boolean hasPermission = hasPermission(token, config.getRequiredRoles());
 
                 if (!hasPermission) {
+                    logger.warn("Permission denied for path: {}, required roles: {}", path, config.getRequiredRoles());
                     return handleForbidden(exchange);
                 }
+                logger.debug("Permission validation successful for path: {}", path);
             }
 
             // 令牌验证通过，继续处理请求
+            logger.info("Authentication successful for path: {}", path);
             return chain.filter(exchange);
         };
     }
@@ -69,6 +85,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
      * 处理未授权的请求
      */
     private Mono<Void> handleUnauthorized(ServerWebExchange exchange) {
+        logger.warn("Returning 401 Unauthorized for request: {}", exchange.getRequest().getURI().getPath());
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         return exchange.getResponse().setComplete();
     }
@@ -77,6 +94,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
      * 处理禁止访问的请求
      */
     private Mono<Void> handleForbidden(ServerWebExchange exchange) {
+        logger.warn("Returning 403 Forbidden for request: {}", exchange.getRequest().getURI().getPath());
         exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
         return exchange.getResponse().setComplete();
     }
@@ -86,8 +104,11 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
      * 实际项目中应该调用认证服务进行验证
      */
     private boolean validateToken(String token) {
+        logger.debug("Validating token");
         // 示例实现，实际项目中应该调用认证服务进行验证
-        return token != null && token.length() > 0;
+        boolean isValid = token != null && token.length() > 0;
+        logger.debug("Token validation result: {}", isValid);
+        return isValid;
     }
 
     /**
@@ -95,8 +116,11 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
      * 实际项目中应该调用认证服务进行验证
      */
     private boolean hasPermission(String token, List<String> requiredRoles) {
+        logger.debug("Checking permissions for required roles: {}", requiredRoles);
         // 示例实现，实际项目中应该从令牌中获取用户角色并验证
-        return true;
+        boolean hasPermission = true;
+        logger.debug("Permission check result: {}", hasPermission);
+        return hasPermission;
     }
 
     /**

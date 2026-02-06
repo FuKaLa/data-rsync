@@ -1,69 +1,66 @@
 package com.data.rsync.monitor.service;
 
-import java.util.Map;
-
 /**
  * 告警服务接口
+ * 负责发送告警信息，在任务执行异常时发送告警通知
  */
 public interface AlertService {
 
     /**
-     * 发送告警
-     * @param severity 告警级别
+     * 发送任务失败告警
+     * @param taskId 任务ID
+     * @param errorMessage 错误信息
+     */
+    void sendTaskFailureAlert(Long taskId, String errorMessage);
+
+    /**
+     * 发送任务警告告警
+     * @param taskId 任务ID
+     * @param warningMessage 警告信息
+     */
+    void sendTaskWarningAlert(Long taskId, String warningMessage);
+
+    /**
+     * 发送任务超时告警
+     * @param taskId 任务ID
+     * @param timeoutMessage 超时信息
+     */
+    void sendTaskTimeoutAlert(Long taskId, String timeoutMessage);
+
+    /**
+     * 发送任务状态告警
+     * @param taskId 任务ID
+     * @param statusMessage 状态信息
+     */
+    void sendTaskStatusAlert(Long taskId, String statusMessage);
+
+    /**
+     * 发送系统资源告警
+     * @param resourceType 资源类型
+     * @param usage 资源使用率
+     */
+    void sendSystemResourceAlert(String resourceType, double usage);
+
+    /**
+     * 发送自定义告警
+     * @param type 告警类型
+     * @param title 告警标题
      * @param message 告警消息
-     * @param metrics 相关指标
-     * @return 发送结果
+     * @param taskId 任务ID
      */
-    boolean sendAlert(String severity, String message, Map<String, Object> metrics);
+    void sendCustomAlert(String type, String title, String message, Long taskId);
 
     /**
-     * 检查指标是否超过阈值
-     * @param metricName 指标名称
-     * @param metricValue 指标值
-     * @return 检查结果
+     * 检查告警频率限制
+     * @param type 告警类型
+     * @param taskId 任务ID
+     * @return 是否允许发送告警
      */
-    Map<String, Object> checkThreshold(String metricName, double metricValue);
+    boolean checkAlertRateLimit(String type, Long taskId);
 
     /**
-     * 发送邮件告警
-     * @param to 收件人
-     * @param subject 主题
-     * @param content 内容
-     * @return 发送结果
+     * 清理过期告警
      */
-    boolean sendEmailAlert(String to, String subject, String content);
-
-    /**
-     * 发送钉钉告警
-     * @param webhook 钉钉机器人 webhook
-     * @param message 告警消息
-     * @return 发送结果
-     */
-    boolean sendDingtalkAlert(String webhook, String message);
-
-    /**
-     * 发送企业微信告警
-     * @param webhook 企业微信机器人 webhook
-     * @param message 告警消息
-     * @return 发送结果
-     */
-    boolean sendWechatAlert(String webhook, String message);
-
-    /**
-     * 执行异常自愈
-     * @param alertType 告警类型
-     * @param metrics 相关指标
-     * @return 自愈结果
-     */
-    boolean executeSelfHealing(String alertType, Map<String, Object> metrics);
-
-    /**
-     * 检查并执行异常自愈
-     * @param severity 告警级别
-     * @param message 告警消息
-     * @param metrics 相关指标
-     * @return 检查结果
-     */
-    Map<String, Object> checkAndHeal(String severity, String message, Map<String, Object> metrics);
+    void cleanExpiredAlerts();
 
 }

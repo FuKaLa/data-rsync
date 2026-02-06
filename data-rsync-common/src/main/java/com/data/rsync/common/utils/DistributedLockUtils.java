@@ -26,6 +26,10 @@ public class DistributedLockUtils {
      */
     public static boolean acquireLock(String lockKey, String lockValue, long expireTime) {
         try {
+            if (redisTemplate == null) {
+                log.error("RedisTemplate is not initialized, cannot acquire distributed lock");
+                return false;
+            }
             Boolean result = redisTemplate.opsForValue().setIfAbsent(lockKey, lockValue, expireTime, TimeUnit.SECONDS);
             return result != null && result;
         } catch (Exception e) {
@@ -42,6 +46,10 @@ public class DistributedLockUtils {
      */
     public static boolean releaseLock(String lockKey, String lockValue) {
         try {
+            if (redisTemplate == null) {
+                log.error("RedisTemplate is not initialized, cannot release distributed lock");
+                return false;
+            }
             String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
             RedisScript<Long> redisScript = new DefaultRedisScript<>(script, Long.class);
             Long result = redisTemplate.execute(redisScript, Collections.singletonList(lockKey), lockValue);

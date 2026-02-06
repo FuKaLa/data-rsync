@@ -16,6 +16,9 @@ import com.data.rsync.task.manager.repository.TaskErrorDataRepository;
 import com.data.rsync.task.manager.repository.VectorizationConfigRepository;
 import com.data.rsync.task.manager.repository.MilvusIndexRepository;
 import com.data.rsync.task.manager.service.TaskService;
+import com.data.rsync.common.model.Task;
+import com.data.rsync.common.feign.DataSourceFeignClient;
+import com.data.rsync.log.listener.service.LogListenerService;
 import io.milvus.client.MilvusClient;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import com.data.rsync.common.utils.DistributedLockUtils;
 import com.data.rsync.common.utils.MilvusUtils;
+import com.data.rsync.common.exception.TaskException;
 
 /**
  * 任务服务实现类
@@ -62,6 +66,12 @@ public class TaskServiceImpl implements TaskService {
     @Resource
     private MilvusIndexRepository milvusIndexRepository;
 
+    @Resource
+    private LogListenerService logListenerService;
+
+    @Resource
+    private DataSourceFeignClient dataSourceFeignClient;
+
     // 线程池用于异步执行任务
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -86,85 +96,146 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional
     public TaskEntity createTask(TaskEntity taskEntity) {
-        // 检查任务名称是否已存在
-        QueryWrapper<TaskEntity> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("name", taskEntity.getName());
-        if (taskRepository.exists(queryWrapper)) {
-            throw new IllegalArgumentException("任务名称已存在");
+        log.info("[TaskServiceImpl] 开始创建任务，任务名称：{}，任务类型：{}", taskEntity.getName(), taskEntity.getType());
+        try {
+            // 检查任务名称是否已存在
+            QueryWrapper<TaskEntity> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("name", taskEntity.getName());
+            if (taskRepository.exists(queryWrapper)) {
+                log.warn("[TaskServiceImpl] 任务名称已存在：{}", taskEntity.getName());
+                throw new IllegalArgumentException("任务名称已存在");
+            }
+
+            // 检查并设置数据源ID默认值
+            if (taskEntity.getDataSourceId() == null) {
+                log.info("[TaskServiceImpl] 数据源ID为null，设置默认值1");
+                taskEntity.setDataSourceId(1L);
+            }
+
+            // 计算下次执行时间
+            log.info("[TaskServiceImpl] 计算下次执行时间");
+            taskEntity = calculateNextExecTime(taskEntity);
+            log.info("[TaskServiceImpl] 下次执行时间：{}", taskEntity.getNextExecTime());
+
+            // 保存任务
+            log.info("[TaskServiceImpl] 保存任务到数据库，任务名称：{}，数据源ID：{}", taskEntity.getName(), taskEntity.getDataSourceId());
+            taskRepository.insert(taskEntity);
+            log.info("[TaskServiceImpl] 任务保存成功，任务ID：{}", taskEntity.getId());
+            return taskEntity;
+        } catch (Exception e) {
+            log.error("[TaskServiceImpl] 创建任务失败：{}，错误信息：{}", taskEntity.getName(), e.getMessage(), e);
+            throw e;
         }
-
-        // 计算下次执行时间
-        taskEntity = calculateNextExecTime(taskEntity);
-
-        // 保存任务
-        taskRepository.insert(taskEntity);
-        return taskEntity;
     }
 
     @Override
     @Transactional
     public TaskEntity updateTask(TaskEntity taskEntity) {
-        // 检查任务是否存在
-        TaskEntity existingTask = taskRepository.selectById(taskEntity.getId());
-        if (existingTask == null) {
-            throw new IllegalArgumentException("任务不存在");
-        }
-
-        // 检查任务名称是否与其他任务重复
-        if (!existingTask.getName().equals(taskEntity.getName())) {
-            QueryWrapper<TaskEntity> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("name", taskEntity.getName());
-            queryWrapper.ne("id", taskEntity.getId());
-            if (taskRepository.exists(queryWrapper)) {
-                throw new IllegalArgumentException("任务名称已存在");
+        log.info("[TaskServiceImpl] 开始更新任务，任务ID：{}，任务名称：{}", taskEntity.getId(), taskEntity.getName());
+        try {
+            // 检查任务是否存在
+            TaskEntity existingTask = taskRepository.selectById(taskEntity.getId());
+            if (existingTask == null) {
+                log.warn("[TaskServiceImpl] 任务不存在，任务ID：{}", taskEntity.getId());
+                throw new IllegalArgumentException("任务不存在");
             }
+
+            // 检查任务名称是否与其他任务重复
+            if (!existingTask.getName().equals(taskEntity.getName())) {
+                QueryWrapper<TaskEntity> queryWrapper = new QueryWrapper<>();
+                queryWrapper.eq("name", taskEntity.getName());
+                queryWrapper.ne("id", taskEntity.getId());
+                if (taskRepository.exists(queryWrapper)) {
+                    log.warn("[TaskServiceImpl] 任务名称已存在：{}", taskEntity.getName());
+                    throw new IllegalArgumentException("任务名称已存在");
+                }
+            }
+
+            // 更新任务
+            log.info("[TaskServiceImpl] 更新任务属性，任务ID：{}", taskEntity.getId());
+            existingTask.setName(taskEntity.getName());
+            existingTask.setType(taskEntity.getType());
+            // 检查并设置数据源ID
+            if (taskEntity.getDataSourceId() != null) {
+                log.info("[TaskServiceImpl] 更新数据源ID：{} -> {}", existingTask.getDataSourceId(), taskEntity.getDataSourceId());
+                existingTask.setDataSourceId(taskEntity.getDataSourceId());
+            }
+            existingTask.setDatabaseName(taskEntity.getDatabaseName());
+            existingTask.setTableName(taskEntity.getTableName());
+            existingTask.setConfig(taskEntity.getConfig());
+            existingTask.setEnabled(taskEntity.getEnabled());
+            existingTask.setConcurrency(taskEntity.getConcurrency());
+            existingTask.setBatchSize(taskEntity.getBatchSize());
+            existingTask.setRetryCount(taskEntity.getRetryCount());
+            existingTask.setTimeoutSeconds(taskEntity.getTimeoutSeconds());
+            existingTask.setScheduleType(taskEntity.getScheduleType());
+            existingTask.setScheduleExpression(taskEntity.getScheduleExpression());
+            existingTask.setRemark(taskEntity.getRemark());
+
+            // 重新计算下次执行时间
+            log.info("[TaskServiceImpl] 重新计算下次执行时间，任务ID：{}", taskEntity.getId());
+            existingTask = calculateNextExecTime(existingTask);
+            log.info("[TaskServiceImpl] 下次执行时间：{}", existingTask.getNextExecTime());
+
+            // 保存更新后的任务
+            log.info("[TaskServiceImpl] 保存更新后的任务，任务ID：{}", taskEntity.getId());
+            taskRepository.updateById(existingTask);
+            log.info("[TaskServiceImpl] 任务更新成功，任务ID：{}", taskEntity.getId());
+            return existingTask;
+        } catch (Exception e) {
+            log.error("[TaskServiceImpl] 更新任务失败，任务ID：{}，错误信息：{}", taskEntity.getId(), e.getMessage(), e);
+            throw e;
         }
-
-        // 更新任务
-        existingTask.setName(taskEntity.getName());
-        existingTask.setType(taskEntity.getType());
-        existingTask.setDataSourceId(taskEntity.getDataSourceId());
-        existingTask.setDatabaseName(taskEntity.getDatabaseName());
-        existingTask.setTableName(taskEntity.getTableName());
-        existingTask.setConfig(taskEntity.getConfig());
-        existingTask.setEnabled(taskEntity.getEnabled());
-        existingTask.setConcurrency(taskEntity.getConcurrency());
-        existingTask.setBatchSize(taskEntity.getBatchSize());
-        existingTask.setRetryCount(taskEntity.getRetryCount());
-        existingTask.setTimeoutSeconds(taskEntity.getTimeoutSeconds());
-        existingTask.setScheduleType(taskEntity.getScheduleType());
-        existingTask.setScheduleExpression(taskEntity.getScheduleExpression());
-        existingTask.setRemark(taskEntity.getRemark());
-
-        // 重新计算下次执行时间
-        existingTask = calculateNextExecTime(existingTask);
-
-        // 保存更新后的任务
-        taskRepository.updateById(existingTask);
-        return existingTask;
     }
 
     @Override
     @Transactional
     public void deleteTask(Long id) {
-        taskRepository.deleteById(id);
+        log.info("[TaskServiceImpl] 开始删除任务，任务ID：{}", id);
+        try {
+            // 检查任务是否存在
+            TaskEntity taskEntity = taskRepository.selectById(id);
+            if (taskEntity == null) {
+                log.warn("[TaskServiceImpl] 任务不存在，任务ID：{}", id);
+                return;
+            }
+            log.info("[TaskServiceImpl] 删除任务，任务名称：{}", taskEntity.getName());
+            taskRepository.deleteById(id);
+            log.info("[TaskServiceImpl] 任务删除成功，任务ID：{}", id);
+        } catch (Exception e) {
+            log.error("[TaskServiceImpl] 删除任务失败，任务ID：{}，错误信息：{}", id, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override
     @Transactional
     public void toggleTask(Long id, Boolean enabled) {
-        TaskEntity taskEntity = taskRepository.selectById(id);
-        if (taskEntity == null) {
-            throw new IllegalArgumentException("任务不存在");
-        }
+        log.info("[TaskServiceImpl] 开始切换任务状态，任务ID：{}，目标状态：{}", id, enabled ? "启用" : "禁用");
+        try {
+            TaskEntity taskEntity = taskRepository.selectById(id);
+            if (taskEntity == null) {
+                log.warn("[TaskServiceImpl] 任务不存在，任务ID：{}", id);
+                throw new IllegalArgumentException("任务不存在");
+            }
 
-        taskEntity.setEnabled(enabled);
-        if (enabled) {
-            // 启用任务时，计算下次执行时间
-            taskEntity = calculateNextExecTime(taskEntity);
-        }
+            log.info("[TaskServiceImpl] 切换任务状态，任务名称：{}，当前状态：{} -> 目标状态：{}", 
+                    taskEntity.getName(), taskEntity.getEnabled() ? "启用" : "禁用", enabled ? "启用" : "禁用");
+            taskEntity.setEnabled(enabled);
+            if (enabled) {
+                // 启用任务时，计算下次执行时间
+                log.info("[TaskServiceImpl] 启用任务，计算下次执行时间，任务ID：{}", id);
+                taskEntity = calculateNextExecTime(taskEntity);
+                log.info("[TaskServiceImpl] 下次执行时间：{}", taskEntity.getNextExecTime());
+            }
 
-        taskRepository.updateById(taskEntity);
+            taskRepository.updateById(taskEntity);
+            log.info("[TaskServiceImpl] 任务状态切换成功，任务ID：{}，新状态：{}", id, enabled ? "启用" : "禁用");
+        } catch (Exception e) {
+            log.error("[TaskServiceImpl] 切换任务状态失败，任务ID：{}，目标状态：{}，错误信息：{}", 
+                    id, enabled ? "启用" : "禁用", e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override
@@ -201,159 +272,241 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional
     public Map<String, Object> triggerTask(Long id) {
-        TaskEntity taskEntity = taskRepository.selectById(id);
-        if (taskEntity == null) {
-            throw new IllegalArgumentException("任务不存在");
-        }
-
-        if (!taskEntity.getEnabled()) {
-            throw new IllegalArgumentException("任务已禁用");
-        }
-
-        // 生成分布式锁键
-        String lockKey = DistributedLockUtils.generateLockKey("task", id);
-        String lockValue = DistributedLockUtils.generateLockValue();
-
-        // 尝试获取分布式锁
-        boolean acquired = DistributedLockUtils.tryAcquireLock(lockKey, lockValue, 60, 3, 1000);
-        if (!acquired) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "任务正在执行中，无法重复触发");
-            result.put("taskId", id);
-            return result;
-        }
-
+        log.info("[TaskServiceImpl] 开始触发任务，任务ID：{}", id);
         try {
-            // 更新任务状态为运行中
-            taskEntity.setStatus("RUNNING");
-            taskEntity.setStartTime(LocalDateTime.now());
-            taskEntity.setProgress(0);
-            taskRepository.updateById(taskEntity);
+            TaskEntity taskEntity = taskRepository.selectById(id);
+            if (taskEntity == null) {
+                log.warn("[TaskServiceImpl] 任务不存在，任务ID：{}", id);
+                throw new IllegalArgumentException("任务不存在");
+            }
 
-            // 创建任务实体的副本，用于lambda表达式中
-            final Long taskId = id;
-            final String finalLockKey = lockKey;
-            final String finalLockValue = lockValue;
+            if (!taskEntity.getEnabled()) {
+                log.warn("[TaskServiceImpl] 任务已禁用，任务ID：{}，任务名称：{}", id, taskEntity.getName());
+                throw new IllegalArgumentException("任务已禁用");
+            }
 
-            // 检查任务是否正在执行（本地缓存双重检查）
-            if (taskExecutionMap.containsKey(id) && taskExecutionMap.get(id)) {
+            // 生成分布式锁键
+            String lockKey = DistributedLockUtils.generateLockKey("task", id);
+            String lockValue = DistributedLockUtils.generateLockValue();
+            log.info("[TaskServiceImpl] 生成分布式锁，锁键：{}", lockKey);
+
+            // 尝试获取分布式锁
+            boolean acquired = DistributedLockUtils.tryAcquireLock(lockKey, lockValue, 60, 3, 1000);
+            if (!acquired) {
+                log.warn("[TaskServiceImpl] 任务正在执行中，无法重复触发，任务ID：{}", id);
                 Map<String, Object> result = new HashMap<>();
                 result.put("success", false);
-                result.put("message", "任务正在执行中");
+                result.put("message", "任务正在执行中，无法重复触发");
                 result.put("taskId", id);
                 return result;
             }
 
-            // 标记任务为正在执行
-            taskExecutionMap.put(id, true);
+            try {
+                // 更新任务状态为运行中
+                log.info("[TaskServiceImpl] 更新任务状态为运行中，任务ID：{}，任务名称：{}", id, taskEntity.getName());
+                taskEntity.setStatus("RUNNING");
+                taskEntity.setStartTime(LocalDateTime.now());
+                taskEntity.setProgress(0);
+                taskRepository.updateById(taskEntity);
 
-            // 异步执行任务
-            executorService.submit(() -> {
-                // 重新查询任务，确保获取最新状态
-                TaskEntity task = taskRepository.selectById(taskId);
-                if (task == null) {
-                    taskExecutionMap.put(taskId, false);
-                    DistributedLockUtils.releaseLock(finalLockKey, finalLockValue);
-                    return;
+                // 创建任务实体的副本，用于lambda表达式中
+                final Long taskId = id;
+                final String finalLockKey = lockKey;
+                final String finalLockValue = lockValue;
+
+                // 检查任务是否正在执行（本地缓存双重检查）
+                if (taskExecutionMap.containsKey(id) && taskExecutionMap.get(id)) {
+                    log.warn("[TaskServiceImpl] 任务正在执行中，本地缓存检查，任务ID：{}", id);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", false);
+                    result.put("message", "任务正在执行中");
+                    result.put("taskId", id);
+                    return result;
                 }
 
-                try {
-                    // 执行任务逻辑
-                    // 调用相应的服务执行具体的同步任务
-                    // 1. 根据任务类型调用不同的服务
-                    String taskType = task.getType();
-                    switch (taskType) {
-                        case "DATA_SOURCE_SYNC":
-                            // 调用数据源同步服务
-                            executeDataSourceSync(task);
-                            break;
-                        case "MILVUS_SYNC":
-                            // 调用Milvus同步服务
-                            executeMilvusSync(task);
-                            break;
-                        case "DATA_PROCESS":
-                            // 调用数据处理服务
-                            executeDataProcess(task);
-                            break;
-                        default:
-                            // 默认处理
-                            executeDefaultSync(task);
-                            break;
+                // 标记任务为正在执行
+                log.info("[TaskServiceImpl] 标记任务为正在执行，任务ID：{}", id);
+                taskExecutionMap.put(id, true);
+
+                // 异步执行任务
+                executorService.submit(() -> {
+                    // 重新查询任务，确保获取最新状态
+                    TaskEntity task = taskRepository.selectById(taskId);
+                    if (task == null) {
+                        log.warn("[TaskServiceImpl] 任务不存在，任务ID：{}", taskId);
+                        taskExecutionMap.put(taskId, false);
+                        DistributedLockUtils.releaseLock(finalLockKey, finalLockValue);
+                        return;
                     }
-                    // 模拟任务执行
-                    Thread.sleep(2000);
 
-                    // 更新任务状态为成功
-                    task.setStatus("SUCCESS");
-                    task.setProgress(100);
-                    task.setEndTime(LocalDateTime.now());
-                    task.setExecCount(task.getExecCount() + 1);
-                    task.setErrorMessage(null);
-                } catch (Exception e) {
-                    // 更新任务状态为失败
-                    task.setStatus("FAILED");
-                    task.setEndTime(LocalDateTime.now());
-                    task.setErrorMessage(e.getMessage());
-                } finally {
-                    // 计算下次执行时间
-                    task = calculateNextExecTime(task);
-                    // 保存任务状态
-                    taskRepository.updateById(task);
-                    // 标记任务执行完成
-                    taskExecutionMap.put(taskId, false);
-                    // 释放分布式锁
-                    DistributedLockUtils.releaseLock(finalLockKey, finalLockValue);
-                }
-            });
+                    log.info("[TaskServiceImpl] 开始异步执行任务，任务ID：{}，任务名称：{}，任务类型：{}", 
+                            taskId, task.getName(), task.getType());
+                    try {
+                        // 执行任务逻辑
+                        // 调用相应的服务执行具体的同步任务
+                        // 1. 根据任务类型调用不同的服务
+                        String taskType = task.getType();
+                        log.info("[TaskServiceImpl] 任务类型：{}", taskType);
+                        switch (taskType) {
+                            case "DATA_SOURCE_SYNC":
+                                // 调用数据源同步服务
+                                log.info("[TaskServiceImpl] 调用数据源同步服务，任务ID：{}", taskId);
+                                executeDataSourceSync(task);
+                                break;
+                            case "MILVUS_SYNC":
+                                // 调用Milvus同步服务
+                                log.info("[TaskServiceImpl] 调用Milvus同步服务，任务ID：{}", taskId);
+                                executeMilvusSync(task);
+                                break;
+                            case "DATA_PROCESS":
+                                // 调用数据处理服务
+                                log.info("[TaskServiceImpl] 调用数据处理服务，任务ID：{}", taskId);
+                                executeDataProcess(task);
+                                break;
+                            case "FULL":
+                                // 执行全量同步
+                                log.info("[TaskServiceImpl] 执行全量同步任务，任务ID：{}", taskId);
+                                // 转换为Task类型
+                                Task commonTask = convertToCommonTask(task);
+                                boolean fullScanResult = logListenerService.executeFullScan(commonTask);
+                                log.info("[TaskServiceImpl] 全量同步执行结果：{}", fullScanResult);
+                                break;
+                            case "INCREMENTAL":
+                                // 启动增量同步
+                                log.info("[TaskServiceImpl] 启动增量同步任务，任务ID：{}", taskId);
+                                // 转换为Task类型
+                                Task incrementalTask = convertToCommonTask(task);
+                                boolean listenerResult = logListenerService.startLogListener(incrementalTask);
+                                log.info("[TaskServiceImpl] 增量同步启动结果：{}", listenerResult);
+                                break;
+                            case "FULL_AND_INCREMENTAL":
+                                // 先执行全量同步，然后启动增量同步
+                                log.info("[TaskServiceImpl] 执行全量+增量同步任务，任务ID：{}", taskId);
+                                // 转换为Task类型
+                                Task fullAndIncrementalTask = convertToCommonTask(task);
+                                // 执行全量扫描
+                                boolean fullResult = logListenerService.executeFullScan(fullAndIncrementalTask);
+                                log.info("[TaskServiceImpl] 全量同步执行结果：{}", fullResult);
+                                // 启动日志监听
+                                if (fullResult) {
+                                    boolean incrementalResult = logListenerService.startLogListener(fullAndIncrementalTask);
+                                    log.info("[TaskServiceImpl] 增量同步启动结果：{}", incrementalResult);
+                                }
+                                break;
+                            default:
+                                // 默认处理
+                                log.info("[TaskServiceImpl] 执行默认同步任务，任务ID：{}", taskId);
+                                executeDefaultSync(task);
+                                break;
+                        }
+                        // 模拟任务执行
+                        Thread.sleep(2000);
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", true);
-            result.put("message", "任务已触发");
-            result.put("taskId", id);
-            return result;
+                        // 更新任务状态为成功
+                        log.info("[TaskServiceImpl] 任务执行成功，任务ID：{}", taskId);
+                        task.setStatus("SUCCESS");
+                        task.setProgress(100);
+                        task.setEndTime(LocalDateTime.now());
+                        task.setExecCount(task.getExecCount() + 1);
+                        task.setErrorMessage(null);
+                    } catch (Exception e) {
+                        // 更新任务状态为失败
+                        log.error("[TaskServiceImpl] 任务执行失败，任务ID：{}，错误信息：{}", taskId, e.getMessage(), e);
+                        task.setStatus("FAILED");
+                        task.setEndTime(LocalDateTime.now());
+                        task.setErrorMessage(e.getMessage());
+                    } finally {
+                        // 计算下次执行时间
+                        log.info("[TaskServiceImpl] 计算下次执行时间，任务ID：{}", taskId);
+                        task = calculateNextExecTime(task);
+                        // 保存任务状态
+                        log.info("[TaskServiceImpl] 保存任务状态，任务ID：{}，新状态：{}", taskId, task.getStatus());
+                        taskRepository.updateById(task);
+                        // 标记任务执行完成
+                        log.info("[TaskServiceImpl] 标记任务执行完成，任务ID：{}", taskId);
+                        taskExecutionMap.put(taskId, false);
+                        // 释放分布式锁
+                        log.info("[TaskServiceImpl] 释放分布式锁，任务ID：{}", taskId);
+                        DistributedLockUtils.releaseLock(finalLockKey, finalLockValue);
+                        log.info("[TaskServiceImpl] 任务执行完成，任务ID：{}", taskId);
+                    }
+                });
+
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", true);
+                result.put("message", "任务已触发");
+                result.put("taskId", id);
+                log.info("[TaskServiceImpl] 任务触发成功，任务ID：{}", id);
+                return result;
+            } catch (Exception e) {
+                // 释放分布式锁
+                log.error("[TaskServiceImpl] 任务触发失败，任务ID：{}，错误信息：{}", id, e.getMessage(), e);
+                DistributedLockUtils.releaseLock(lockKey, lockValue);
+                throw e;
+            }
         } catch (Exception e) {
-            // 释放分布式锁
-            DistributedLockUtils.releaseLock(lockKey, lockValue);
+            log.error("[TaskServiceImpl] 触发任务失败，任务ID：{}，错误信息：{}", id, e.getMessage(), e);
             throw e;
         }
     }
 
     @Override
     public TaskEntity calculateNextExecTime(TaskEntity taskEntity) {
-        // 根据调度类型计算下次执行时间
-        String scheduleType = taskEntity.getScheduleType();
-        String scheduleExpression = taskEntity.getScheduleExpression();
+        log.info("[TaskServiceImpl] 开始计算下次执行时间，任务ID：{}，任务名称：{}", taskEntity.getId(), taskEntity.getName());
+        try {
+            // 根据调度类型计算下次执行时间
+            String scheduleType = taskEntity.getScheduleType();
+            String scheduleExpression = taskEntity.getScheduleExpression();
+            log.info("[TaskServiceImpl] 调度类型：{}，调度表达式：{}", scheduleType, scheduleExpression);
 
-        // 实现具体的下次执行时间计算逻辑
-        LocalDateTime nextExecTime = LocalDateTime.now();
-        
-        switch (scheduleType) {
-            case "CRON":
-                // 根据CRON表达式计算下次执行时间
-                nextExecTime = calculateCronNextExecTime(scheduleExpression);
-                break;
-            case "FIXED_RATE":
-                // 根据固定速率计算下次执行时间
-                nextExecTime = calculateFixedRateNextExecTime(scheduleExpression);
-                break;
-            case "FIXED_DELAY":
-                // 根据固定延迟计算下次执行时间
-                nextExecTime = calculateFixedDelayNextExecTime(scheduleExpression);
-                break;
-            case "ONCE":
-                // 一次性任务，设置为null
-                nextExecTime = null;
-                break;
-            default:
+            // 实现具体的下次执行时间计算逻辑
+            LocalDateTime nextExecTime = LocalDateTime.now();
+            
+            // 检查scheduleType是否为null，如果是null则使用默认值
+            if (scheduleType == null) {
                 // 默认处理，设置为当前时间后10分钟
+                log.info("[TaskServiceImpl] 调度类型为null，使用默认值：当前时间后10分钟");
                 nextExecTime = LocalDateTime.now().plusMinutes(10);
-                break;
-        }
-        
-        taskEntity.setNextExecTime(nextExecTime);
+            } else {
+                switch (scheduleType) {
+                    case "CRON":
+                        // 根据CRON表达式计算下次执行时间
+                        log.info("[TaskServiceImpl] 根据CRON表达式计算下次执行时间：{}", scheduleExpression);
+                        nextExecTime = calculateCronNextExecTime(scheduleExpression);
+                        break;
+                    case "FIXED_RATE":
+                        // 根据固定速率计算下次执行时间
+                        log.info("[TaskServiceImpl] 根据固定速率计算下次执行时间：{}", scheduleExpression);
+                        nextExecTime = calculateFixedRateNextExecTime(scheduleExpression);
+                        break;
+                    case "FIXED_DELAY":
+                        // 根据固定延迟计算下次执行时间
+                        log.info("[TaskServiceImpl] 根据固定延迟计算下次执行时间：{}", scheduleExpression);
+                        nextExecTime = calculateFixedDelayNextExecTime(scheduleExpression);
+                        break;
+                    case "ONCE":
+                        // 一次性任务，设置为null
+                        log.info("[TaskServiceImpl] 一次性任务，设置下次执行时间为null");
+                        nextExecTime = null;
+                        break;
+                    default:
+                        // 默认处理，设置为当前时间后10分钟
+                        log.info("[TaskServiceImpl] 未知调度类型：{}，使用默认值：当前时间后10分钟", scheduleType);
+                        nextExecTime = LocalDateTime.now().plusMinutes(10);
+                        break;
+                }
+            }
+            
+            log.info("[TaskServiceImpl] 计算得到下次执行时间：{}", nextExecTime);
+            taskEntity.setNextExecTime(nextExecTime);
 
-        return taskEntity;
+            return taskEntity;
+        } catch (Exception e) {
+            log.error("[TaskServiceImpl] 计算下次执行时间失败，任务ID：{}，错误信息：{}", taskEntity.getId(), e.getMessage(), e);
+            // 发生异常时，设置默认的下次执行时间
+            taskEntity.setNextExecTime(LocalDateTime.now().plusMinutes(10));
+            return taskEntity;
+        }
     }
 
     /**
@@ -399,20 +552,29 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public void executeScheduledTasks() {
-        // 查询需要执行的任务
-        QueryWrapper<TaskEntity> queryWrapper = new QueryWrapper<>();
-        queryWrapper.le("next_exec_time", LocalDateTime.now());
-        queryWrapper.eq("enabled", true);
-        List<TaskEntity> tasks = taskRepository.selectList(queryWrapper);
+        log.info("[TaskServiceImpl] 开始执行定时任务");
+        try {
+            // 查询需要执行的任务
+            QueryWrapper<TaskEntity> queryWrapper = new QueryWrapper<>();
+            queryWrapper.le("next_exec_time", LocalDateTime.now());
+            queryWrapper.eq("enabled", true);
+            List<TaskEntity> tasks = taskRepository.selectList(queryWrapper);
+            log.info("[TaskServiceImpl] 查询到需要执行的任务数量：{}", tasks.size());
 
-        // 执行任务
-        for (TaskEntity task : tasks) {
-            try {
-                triggerTask(task.getId());
-            } catch (Exception e) {
-                // 记录错误日志
-                log.error("执行定时任务失败: {}", e.getMessage(), e);
+            // 执行任务
+            for (TaskEntity task : tasks) {
+                try {
+                    log.info("[TaskServiceImpl] 执行定时任务，任务ID：{}，任务名称：{}", task.getId(), task.getName());
+                    triggerTask(task.getId());
+                    log.info("[TaskServiceImpl] 定时任务执行触发成功，任务ID：{}", task.getId());
+                } catch (Exception e) {
+                    // 记录错误日志
+                    log.error("[TaskServiceImpl] 执行定时任务失败，任务ID：{}，错误信息：{}", task.getId(), e.getMessage(), e);
+                }
             }
+            log.info("[TaskServiceImpl] 定时任务执行完成");
+        } catch (Exception e) {
+            log.error("[TaskServiceImpl] 执行定时任务过程中发生异常：{}", e.getMessage(), e);
         }
     }
 
@@ -540,7 +702,9 @@ public class TaskServiceImpl implements TaskService {
             version2.put("version", "1.1");
             version2.put("timestamp", LocalDateTime.now().minusHours(6));
             version2.put("description", "更新配置");
-            version2.put("operator", "admin");
+            // 从请求上下文中获取实际操作人，这里暂时使用系统用户
+            String operator = "system";
+            version2.put("operator", operator);
             versions.add(version2);
         }
 
@@ -1063,4 +1227,80 @@ public class TaskServiceImpl implements TaskService {
         System.out.println("执行错误数据重试逻辑: 任务ID: " + errorData.getTaskId() + ", 错误类型: " + errorData.getErrorType());
     }
 
+    /**
+     * 将 TaskEntity 转换为 Task 类型
+     * @param taskEntity 任务实体
+     * @return Task 类型
+     */
+    private Task convertToCommonTask(TaskEntity taskEntity) {
+        Task task = new Task();
+        task.setId(taskEntity.getId());
+        task.setName(taskEntity.getName());
+        task.setType(taskEntity.getType());
+        task.setDataSourceId(taskEntity.getDataSourceId());
+        task.setDatabaseName(taskEntity.getDatabaseName());
+        task.setTableName(taskEntity.getTableName());
+        task.setStatus(taskEntity.getStatus());
+        task.setConfig(taskEntity.getConfig());
+        task.setProgress(taskEntity.getProgress());
+        task.setStartTime(taskEntity.getStartTime());
+        task.setEndTime(taskEntity.getEndTime());
+        task.setErrorMessage(taskEntity.getErrorMessage());
+        task.setCreateTime(taskEntity.getCreateTime());
+        task.setUpdateTime(taskEntity.getUpdateTime());
+        task.setConcurrency(taskEntity.getConcurrency());
+        task.setRetryCount(taskEntity.getRetryCount());
+        // 从 TaskEntity 映射到 Task 的其他字段
+        task.setSyncFrequency(taskEntity.getScheduleExpression());
+        task.setSyncTables(taskEntity.getTableName());
+        
+        // 根据数据源ID获取实际的数据源信息
+        try {
+            Long dataSourceId = taskEntity.getDataSourceId();
+            if (dataSourceId == null) {
+                String errorMessage = "数据源ID为null，无法获取数据源信息";
+                log.error("[TaskServiceImpl] {}", errorMessage);
+                // 暂停任务并设置错误信息
+                taskEntity.setStatus("PAUSED");
+                taskEntity.setErrorMessage(errorMessage);
+                taskRepository.updateById(taskEntity);
+                task.setStatus("PAUSED");
+                task.setErrorMessage(errorMessage);
+                throw new TaskException(errorMessage);
+            }
+            
+            log.info("[TaskServiceImpl] 根据数据源ID获取数据源信息，数据源ID：{}", dataSourceId);
+            com.data.rsync.common.model.DataSource dataSource = dataSourceFeignClient.getDataSourceById(dataSourceId);
+            
+            if (dataSource == null) {
+                String errorMessage = "未找到数据源信息，数据源ID：" + dataSourceId;
+                log.error("[TaskServiceImpl] {}", errorMessage);
+                // 暂停任务并设置错误信息
+                taskEntity.setStatus("PAUSED");
+                taskEntity.setErrorMessage(errorMessage);
+                taskRepository.updateById(taskEntity);
+                task.setStatus("PAUSED");
+                task.setErrorMessage(errorMessage);
+                throw new TaskException(errorMessage);
+            }
+            
+            log.info("[TaskServiceImpl] 获取到数据源信息，数据源名称：{}", dataSource.getName());
+            task.setDataSource(dataSource);
+        } catch (Exception e) {
+            String errorMessage = "获取数据源信息失败：" + e.getMessage();
+            log.error("[TaskServiceImpl] {}", errorMessage, e);
+            // 暂停任务并设置错误信息
+            taskEntity.setStatus("PAUSED");
+            taskEntity.setErrorMessage(errorMessage);
+            taskRepository.updateById(taskEntity);
+            task.setStatus("PAUSED");
+            task.setErrorMessage(errorMessage);
+            throw new TaskException(errorMessage, e);
+        }
+        
+        log.info("[TaskServiceImpl] 数据源配置完成，数据源类型：{}，数据源名称：{}", 
+                task.getDataSource().getType(), task.getDataSource().getName());
+        
+        return task;
+    }
 }  

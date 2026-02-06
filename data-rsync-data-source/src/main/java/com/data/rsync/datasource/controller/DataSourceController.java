@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -37,6 +38,39 @@ public class DataSourceController {
         } catch (Exception e) {
             log.error("Failed to create data source: {}", e.getMessage(), e);
             return Response.failure(500, "Failed to create data source: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 创建数据源（Feign客户端使用）
+     * @param dataSource 数据源模型
+     * @return 创建结果
+     */
+    @PostMapping("/create")
+    public boolean createDataSourceFeign(@RequestBody DataSource dataSource) {
+        log.info("Received request to create data source (Feign): {}", dataSource.getName());
+        try {
+            dataSourceService.createDataSource(dataSource);
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to create data source (Feign): {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 测试数据源连接（Feign客户端使用）
+     * @param dataSource 数据源模型
+     * @return 连接结果
+     */
+    @PostMapping("/test-connection")
+    public boolean testDataSourceConnection(@RequestBody DataSource dataSource) {
+        log.info("Received request to test data source connection (Feign): {}", dataSource.getName());
+        try {
+            return dataSourceService.testDataSourceConnection(dataSource);
+        } catch (Exception e) {
+            log.error("Failed to test data source connection (Feign): {}", e.getMessage(), e);
+            return false;
         }
     }
 
@@ -80,7 +114,7 @@ public class DataSourceController {
      * @param id 数据源ID
      * @return 数据源
      */
-    @GetMapping("/{id}")
+    @GetMapping("/detail/{id}")
     public Response<DataSource> getDataSource(@PathVariable(name = "id") Long id) {
         log.info("Received request to get data source: {}", id);
         try {
@@ -89,6 +123,22 @@ public class DataSourceController {
         } catch (Exception e) {
             log.error("Failed to get data source: {}", e.getMessage(), e);
             return Response.failure(500, "Failed to get data source: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 根据ID获取数据源（Feign客户端使用）
+     * @param id 数据源ID
+     * @return 数据源
+     */
+    @GetMapping("/{id}")
+    public DataSource getDataSourceById(@PathVariable("id") Long id) {
+        log.info("Received request to get data source by ID (Feign): {}", id);
+        try {
+            return dataSourceService.getDataSource(id);
+        } catch (Exception e) {
+            log.error("Failed to get data source by ID (Feign): {}", e.getMessage(), e);
+            return null;
         }
     }
 
@@ -105,6 +155,21 @@ public class DataSourceController {
         } catch (Exception e) {
             log.error("Failed to get all data sources: {}", e.getMessage(), e);
             return Response.failure(500, "Failed to get all data sources: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取数据源列表（Feign客户端使用）
+     * @return 数据源列表
+     */
+    @GetMapping("/list")
+    public List<DataSource> getDataSourceList() {
+        log.info("Received request to get data source list (Feign)");
+        try {
+            return dataSourceService.getAllDataSources();
+        } catch (Exception e) {
+            log.error("Failed to get data source list: {}", e.getMessage(), e);
+            return Collections.emptyList();
         }
     }
 

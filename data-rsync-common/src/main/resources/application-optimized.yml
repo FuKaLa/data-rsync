@@ -1,0 +1,325 @@
+# 系统优化配置文件
+# 提升同步性能和可靠性
+
+# 线程池配置
+thread-pool:
+  # 任务执行线程池
+  task:
+    core-size: 20
+    max-size: 100
+    queue-capacity: 10000
+    keep-alive-seconds: 60
+    thread-name-prefix: "task-executor-"
+  # 数据处理线程池
+  data-process:
+    core-size: 30
+    max-size: 150
+    queue-capacity: 20000
+    keep-alive-seconds: 60
+    thread-name-prefix: "data-process-"
+  # 网络请求线程池
+  network:
+    core-size: 10
+    max-size: 50
+    queue-capacity: 5000
+    keep-alive-seconds: 60
+    thread-name-prefix: "network-executor-"
+
+# 数据库连接池配置（Druid）
+spring:
+  datasource:
+    druid:
+      # 基本配置
+      initial-size: 10
+      min-idle: 10
+      max-active: 100
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      max-evictable-idle-time-millis: 600000
+      validation-query: SELECT 1 FROM DUAL
+      validation-query-timeout: 5000
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      pool-prepared-statements: true
+      max-pool-prepared-statement-per-connection-size: 20
+      # 连接属性
+      connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000;druid.stat.logSlowSql=true
+      # 过滤器
+      filters: stat,wall,log4j2
+      # 监控配置
+      stat-view-servlet:
+        enabled: true
+        url-pattern: /druid/*
+        login-username: admin
+        login-password: admin
+        reset-enable: false
+      web-stat-filter:
+        enabled: true
+        url-pattern: /*
+        exclusions: "*.js,*.gif,*.jpg,*.png,*.css,*.ico,/druid/*"
+
+# Redis配置
+redis:
+  host: localhost
+  port: 6379
+  password:
+  database: 1
+  # 连接池配置
+  lettuce:
+    pool:
+      max-active: 100
+      max-wait: 60000
+      max-idle: 50
+      min-idle: 10
+  # 超时配置
+  timeout: 10000
+
+# Kafka配置
+kafka:
+  bootstrap-servers: localhost:9092
+  # 生产者配置
+  producer:
+    bootstrap-servers: ${kafka.bootstrap-servers}
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    # 批量发送配置
+    batch-size: 16384
+    # 缓存大小
+    buffer-memory: 33554432
+    # 重试配置
+    retries: 3
+    # acks配置
+    acks: all
+    # 事务配置
+    enable-idempotence: true
+  # 消费者配置
+  consumer:
+    bootstrap-servers: ${kafka.bootstrap-servers}
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    # 组ID
+    group-id: data-rsync-group
+    # 自动提交偏移量
+    enable-auto-commit: true
+    # 自动提交间隔
+    auto-commit-interval: 1000
+    # 自动重置偏移量
+    auto-offset-reset: earliest
+    # 批量拉取配置
+    max-poll-records: 500
+    # 拉取超时
+    fetch-max-wait: 500
+    # 拉取大小
+    fetch-min-size: 1
+  # 监听器配置
+  listener:
+    missing-topics-fatal: false
+    type: batch
+
+# Feign配置
+feign:
+  client:
+    config:
+      default:
+        # 连接超时
+        connectTimeout: 10000
+        # 读取超时
+        readTimeout: 30000
+        # 日志级别
+        loggerLevel: basic
+  # 重试配置
+  retry:
+    enabled: true
+    max-attempts: 3
+    backoff-period: 1000
+    max-backoff-period: 5000
+
+# 任务配置
+task:
+  # 调度配置
+  scheduled:
+    enabled: true
+    cron: 0/30 * * * * ? # 每30秒执行一次
+  # 执行配置
+  execution:
+    # 超时配置
+    timeout-seconds: 3600
+    # 重试配置
+    retry-count: 3
+    # 并发配置
+    concurrency: 10
+  # 批处理配置
+  batch:
+    size: 1000
+    timeout: 5000
+  # 分片配置
+  shard:
+    count: 10
+    max-size: 100000
+
+# 数据处理配置
+data-process:
+  # 清理配置
+  cleaning:
+    batch-size: 500
+    thread-count: 20
+  # 转换配置
+  transformation:
+    batch-size: 500
+    thread-count: 20
+  # 向量化配置
+  vectorization:
+    batch-size: 100
+    thread-count: 10
+    timeout: 10000
+  # 缓存配置
+  cache:
+    enabled: true
+    size: 10000
+    expire-seconds: 3600
+
+# Milvus配置
+milvus:
+  # 连接配置
+  connection:
+    timeout: 30000
+    max-connections: 50
+  # 批处理配置
+  batch:
+    size: 100
+    timeout: 5000
+  # 重试配置
+  retry:
+    max-attempts: 3
+    backoff-millis: 1000
+
+# 监控配置
+monitor:
+  # 指标采集配置
+  metrics:
+    enabled: true
+    frequency: 30 # 秒
+  # 健康检查配置
+  health:
+    enabled: true
+    frequency: 10 # 秒
+  # 告警配置
+  alert:
+    enabled: true
+    rate-limit: 60 # 秒
+
+# 缓存配置
+cache:
+  # 本地缓存配置
+  caffeine:
+    enabled: true
+    maximum-size: 10000
+    expire-after-write: 3600 # 秒
+    expire-after-access: 1800 # 秒
+  # Redis缓存配置
+  redis:
+    enabled: true
+    default-ttl: 3600 # 秒
+    key-prefix: "data_rsync:"
+
+# 安全配置
+security:
+  # 加密配置
+  encryption:
+    enabled: true
+    algorithm: "AES"
+    key: "your-secure-encryption-key"
+  # 签名配置
+  signature:
+    enabled: true
+    algorithm: "HMAC-SHA256"
+    key: "your-secure-signature-key"
+
+# 日志配置
+logging:
+  level:
+    root: info
+    com.data.rsync: debug
+  # 异步日志配置
+  async:
+    enabled: true
+    queue-size: 10000
+    ring-buffer-size: 262144
+  # 滚动策略配置
+  file:
+    max-size: 10MB
+    max-history: 7
+
+# 系统配置
+system:
+  # 环境配置
+  env: ${spring.profiles.active}
+  # 时区配置
+  timezone: Asia/Shanghai
+  # 字符集配置
+  charset: UTF-8
+  # 最大线程数
+  max-threads: 200
+  # 内存配置
+  memory:
+    max-heap: 2g
+    min-heap: 512m
+
+# 性能优化配置
+performance:
+  # 并行处理配置
+  parallel:
+    enabled: true
+    core-threads: 20
+    max-threads: 100
+    queue-capacity: 10000
+  # 批处理配置
+  batching:
+    enabled: true
+    default-size: 1000
+    max-size: 10000
+  # 预热配置
+  warmup:
+    enabled: true
+    delay: 30 # 秒
+  # 降级配置
+  fallback:
+    enabled: true
+    timeout: 5000
+
+# 可靠性配置
+reliability:
+  # 幂等性配置
+  idempotent:
+    enabled: true
+    cache-size: 10000
+    expire-seconds: 3600
+  # 事务配置
+  transaction:
+    enabled: true
+    timeout: 30000
+  # 补偿配置
+  compensation:
+    enabled: true
+    max-attempts: 5
+    interval: 60 # 秒
+
+# 网络配置
+network:
+  # 连接池配置
+  pool:
+    max-total: 200
+    max-per-route: 50
+    validate-after-inactivity: 30000
+  # 超时配置
+  timeout:
+    connect: 10000
+    read: 30000
+    write: 30000
+  # 重试配置
+  retry:
+    enabled: true
+    max-attempts: 3
+    backoff: 1000

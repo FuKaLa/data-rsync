@@ -105,6 +105,7 @@ public class DataRsyncConstants {
         public static final String MONITOR_PREFIX = "monitor:";
         public static final String BREAKPOINT_PREFIX = "breakpoint:";
         public static final String HEARTBEAT_PREFIX = "heartbeat:";
+        public static final String PROCESSED_RECORD_PREFIX = "processed_record:";
     }
 
     /**

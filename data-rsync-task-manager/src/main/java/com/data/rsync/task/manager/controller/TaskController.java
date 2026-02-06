@@ -34,9 +34,13 @@ public class TaskController {
     @PostMapping
     public Response<TaskEntity> createTask(@RequestBody TaskEntity taskEntity) {
         try {
+            System.out.println("收到任务创建请求，参数：" + taskEntity.toString());
             TaskEntity createdTask = taskService.createTask(taskEntity);
+            System.out.println("任务创建成功，创建的任务：" + createdTask.toString());
             return Response.success("任务创建成功", createdTask);
         } catch (Exception e) {
+            System.out.println("任务创建失败，错误信息：" + e.getMessage());
+            e.printStackTrace();
             return Response.failure(500, e.getMessage());
         }
     }

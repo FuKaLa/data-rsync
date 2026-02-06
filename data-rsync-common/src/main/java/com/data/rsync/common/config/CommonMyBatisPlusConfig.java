@@ -24,13 +24,13 @@ public class CommonMyBatisPlusConfig {
     @Value("${spring.datasource.driver-class-name:com.mysql.cj.jdbc.Driver}")
     private String driverClassName;
 
-    @Value("${spring.datasource.url:jdbc:mysql://localhost:3306/data_rsync?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai}")
+    @Value("${spring.datasource.url:${DB_URL:jdbc:mysql://localhost:3306/data_rsync?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai}}")
     private String url;
 
-    @Value("${spring.datasource.username:root}")
+    @Value("${spring.datasource.username:${DB_USERNAME:root}}")
     private String username;
 
-    @Value("${spring.datasource.password:123456}")
+    @Value("${spring.datasource.password:${DB_PASSWORD:123456}}")
     private String password;
 
     /**

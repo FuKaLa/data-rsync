@@ -4,7 +4,9 @@ import com.data.rsync.common.constants.DataRsyncConstants;
 import com.data.rsync.common.config.NacosConfig;
 import com.data.rsync.common.model.Task;
 import com.data.rsync.common.kafka.DeadLetterQueueHandler;
+import com.data.rsync.common.service.DataConsistencyService;
 import com.data.rsync.common.utils.ConfigUtils;
+import com.data.rsync.common.utils.IdGeneratorUtils;
 import com.data.rsync.common.utils.MilvusUtils;
 import com.data.rsync.milvus.sync.service.MilvusSyncService;
 import io.milvus.client.MilvusClient;
@@ -43,6 +45,9 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
 
     @Resource
     private DeadLetterQueueHandler deadLetterQueueHandler;
+
+    @Resource
+    private DataConsistencyService dataConsistencyService;
 
     /**
      * Milvus 客户端
@@ -430,6 +435,225 @@ public class MilvusSyncServiceImpl implements MilvusSyncService {
         } catch (Exception e) {
             log.error("Failed to delete data from Milvus for task {}: {}", taskId, e.getMessage(), e);
             return false;
+        }
+    }
+
+    /**
+     * 清空 Milvus 集合中的所有数据
+     * @param taskId 任务ID
+     * @return 清空结果
+     */
+    @Override
+    public boolean clearCollectionData(Long taskId) {
+        log.info("Clearing collection data for task: {}", taskId);
+        try {
+            // 1. 获取集合名称
+            String collectionName = getCollectionName(taskId);
+            
+            // 2. 检查集合是否存在
+            if (!hasCollection(collectionName)) {
+                log.error("Collection {} does not exist", collectionName);
+                return false;
+            }
+            
+            // 3. 构建删除条件（删除所有数据）
+            String expr = "id > 0";
+            
+            // 4. 创建删除参数
+            DeleteParam deleteParam = DeleteParam.newBuilder()
+                    .withCollectionName(collectionName)
+                    .withExpr(expr)
+                    .build();
+            
+            // 5. 执行删除
+            R<?> response = milvusClient.delete(deleteParam);
+            if (response.getStatus() != R.Status.Success.getCode()) {
+                log.error("Failed to clear collection data: {}", response.getMessage());
+                return false;
+            }
+            
+            log.info("Cleared collection data for task: {}", taskId);
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to clear collection data for task {}: {}", taskId, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 基于主键的幂等写入
+     * @param taskId 任务ID
+     * @param data 数据
+     * @return 写入结果
+     */
+    @Override
+    public boolean idempotentWriteDataToMilvus(Long taskId, Map<String, Object> data) {
+        log.info("Performing idempotent write to Milvus for task: {}", taskId);
+        try {
+            // 1. 检查 Milvus 连接
+            if (!checkMilvusConnection()) {
+                log.error("Milvus connection is not available");
+                // 发送到死信队列
+                sendToDeadLetterQueue(taskId, data, "Milvus connection is not available");
+                return false;
+            }
+
+            // 2. 获取集合名称
+            String collectionName = getCollectionName(taskId);
+
+            // 3. 检查集合是否存在
+            if (!hasCollection(collectionName)) {
+                log.error("Collection {} does not exist", collectionName);
+                // 发送到死信队列
+                sendToDeadLetterQueue(taskId, data, "Collection " + collectionName + " does not exist");
+                return false;
+            }
+
+            // 4. 提取主键
+            Long id = null;
+            if (data.containsKey("id")) {
+                id = Long.valueOf(data.get("id").toString());
+            } else {
+                // 生成基于数据内容的稳定哈希作为主键
+                id = generateStableId(data);
+            }
+
+            // 5. 检查数据是否已存在
+            if (dataExists(collectionName, id)) {
+                log.debug("Data with id {} already exists, updating...", id);
+                // 已存在，执行更新操作
+                return updateDataInMilvus(taskId, id, data);
+            } else {
+                log.debug("Data with id {} does not exist, inserting...", id);
+                // 不存在，执行插入操作
+                return insertDataToMilvus(taskId, id, data);
+            }
+        } catch (Exception e) {
+            log.error("Failed to perform idempotent write to Milvus for task {}: {}", taskId, e.getMessage(), e);
+            syncStatusMap.put(taskId, "FAILED");
+            redisTemplate.opsForValue().set(DataRsyncConstants.RedisKey.MILVUS_SYNC_PREFIX + taskId, "FAILED");
+            // 发送到死信队列
+            sendToDeadLetterQueue(taskId, data, "Exception: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 检查数据是否已存在
+     * @param collectionName 集合名称
+     * @param id 主键
+     * @return 是否存在
+     */
+    private boolean dataExists(String collectionName, Long id) {
+        try {
+            QueryParam queryParam = QueryParam.newBuilder()
+                    .withCollectionName(collectionName)
+                    .withExpr("id = " + id)
+                    .withLimit(1L)
+                    .build();
+
+            R<?> response = milvusClient.query(queryParam);
+            if (response.getStatus() != R.Status.Success.getCode()) {
+                log.warn("Failed to check data existence: {}", response.getMessage());
+                return false;
+            }
+
+            // 检查查询结果是否为空
+            // 注意：具体实现需要根据实际使用的Milvus SDK版本进行调整
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to check data existence: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 插入数据到 Milvus
+     * @param taskId 任务ID
+     * @param id 主键
+     * @param data 数据
+     * @return 插入结果
+     */
+    private boolean insertDataToMilvus(Long taskId, Long id, Map<String, Object> data) {
+        try {
+            String collectionName = getCollectionName(taskId);
+            
+            // 提取向量
+            float[] vector = (float[]) data.get("vector");
+            if (vector == null || vector.length == 0) {
+                log.error("Vector field is missing or empty");
+                return false;
+            }
+            
+            // 提取文本
+            String text = data.getOrDefault("text", "").toString();
+            
+            // 构建字段数据
+            List<InsertParam.Field> fields = new ArrayList<>();
+            fields.add(new InsertParam.Field("id", Collections.singletonList(id)));
+            fields.add(new InsertParam.Field("vector", Collections.singletonList(vector)));
+            fields.add(new InsertParam.Field("text", Collections.singletonList(text)));
+            
+            // 创建插入参数
+            InsertParam insertParam = InsertParam.newBuilder()
+                    .withCollectionName(collectionName)
+                    .withFields(fields)
+                    .build();
+
+            // 执行插入
+            R<?> response = milvusClient.insert(insertParam);
+            if (response.getStatus() != R.Status.Success.getCode()) {
+                log.error("Failed to insert data: {}", response.getMessage());
+                return false;
+            }
+
+            log.info("Inserted data to Milvus for task: {}, id: {}", taskId, id);
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to insert data to Milvus for task {}: {}", taskId, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 更新 Milvus 中的数据
+     * @param taskId 任务ID
+     * @param id 主键
+     * @param data 数据
+     * @return 更新结果
+     */
+    private boolean updateDataInMilvus(Long taskId, Long id, Map<String, Object> data) {
+        try {
+            String collectionName = getCollectionName(taskId);
+            
+            // Milvus 的更新操作需要先删除再插入
+            // 1. 删除旧数据
+            boolean deleted = deleteDataFromMilvus(taskId, id);
+            if (!deleted) {
+                log.error("Failed to delete old data for update");
+                return false;
+            }
+            
+            // 2. 插入新数据
+            return insertDataToMilvus(taskId, id, data);
+        } catch (Exception e) {
+            log.error("Failed to update data in Milvus for task {}: {}", taskId, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 生成基于数据内容的稳定哈希作为主键
+     * @param data 数据
+     * @return 稳定的主键ID
+     */
+    private Long generateStableId(Map<String, Object> data) {
+        try {
+            // 使用统一的ID生成工具类
+            return IdGeneratorUtils.generateStableLongId(data);
+        } catch (Exception e) {
+            log.error("Failed to generate stable id: {}", e.getMessage(), e);
+            return System.currentTimeMillis();
         }
     }
 
