@@ -231,12 +231,14 @@
         </div>
         <el-divider />
         <div class="diagnose-items">
-          <div class="diagnose-item" v-for="(item, key) in diagnoseReport" :key="key" v-if="key !== 'overallStatus' && key !== 'dataSourceId' && key !== 'diagnoseTime' && key !== 'diagnoseDuration'">
-            <div class="diagnose-item-header">
-              <h4>{{ getItemTitle(key) }}</h4>
-              <el-tag :type="item === 'SUCCESS' ? 'success' : 'danger'">{{ item }}</el-tag>
+          <template v-for="(value, key) in diagnoseReport" :key="key">
+            <div class="diagnose-item" v-if="key !== 'overallStatus' && key !== 'dataSourceId' && key !== 'diagnoseTime' && key !== 'diagnoseDuration'">
+              <div class="diagnose-item-header">
+                <h4>{{ getItemTitle(key as string) }}</h4>
+                <el-tag :type="value === 'SUCCESS' ? 'success' : 'danger'"> {{ value }} </el-tag>
+              </div>
             </div>
-          </div>
+          </template>
         </div>
       </div>
       <div v-else class="loading">
@@ -380,8 +382,8 @@ const handleTestConnection = async (id: number) => {
   try {
     const result = await dataSourceApi.testConnection(id)
     testResult.value = {
-      success: result.data,
-      message: result.data ? '连接成功' : '连接失败'
+      success: result.data.success,
+      message: result.data.message
     }
     testResultVisible.value = true
   } catch (error) {

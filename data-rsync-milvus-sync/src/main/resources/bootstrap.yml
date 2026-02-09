@@ -7,6 +7,3 @@ spring:
     name: data-rsync-milvus-sync
   profiles:
     active: dev
-  filter:
-    config:
-      enabled: false

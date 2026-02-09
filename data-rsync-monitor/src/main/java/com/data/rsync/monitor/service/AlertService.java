@@ -1,5 +1,7 @@
 package com.data.rsync.monitor.service;
 
+import java.util.Map;
+
 /**
  * 告警服务接口
  * 负责发送告警信息，在任务执行异常时发送告警通知
@@ -62,5 +64,22 @@ public interface AlertService {
      * 清理过期告警
      */
     void cleanExpiredAlerts();
+
+    /**
+     * 检查指标阈值
+     * @param metricName 指标名称
+     * @param metricValue 指标值
+     * @return 检查结果
+     */
+    Map<String, Object> checkThreshold(String metricName, double metricValue);
+
+    /**
+     * 发送告警
+     * @param severity 告警级别
+     * @param message 告警消息
+     * @param metrics 相关指标
+     * @return 是否发送成功
+     */
+    boolean sendAlert(String severity, String message, Map<String, Object> metrics);
 
 }

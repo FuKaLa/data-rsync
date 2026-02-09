@@ -3,12 +3,14 @@ package com.data.rsync.auth.controller;
 import com.data.rsync.common.model.Response;
 import com.data.rsync.auth.service.AuthService;
 import com.data.rsync.auth.model.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +25,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("")
+@EnableConfigurationProperties(AuthController.JwtConfig.class)
 public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
@@ -34,11 +37,41 @@ public class AuthController {
     private PasswordEncoder passwordEncoder;
 
     // JWT 配置
-    @Value("${jwt.secret:${JWT_SECRET:your-secret-key-for-jwt-token-generation}}")
-    private String jwtSecret;
+    @Resource
+    private JwtConfig jwtConfig;
 
-    @Value("${jwt.expiration:${JWT_EXPIRATION:86400000}}") // 默认 24 小时
-    private long jwtExpiration;
+    @ConfigurationProperties(prefix = "auth.jwt")
+    public static class JwtConfig {
+        private String secret;
+        private long expireTime = 3600; // 默认 1小时
+        private long refreshTime = 7200; // 默认 2小时
+
+        public String getSecret() {
+            return secret;
+        }
+
+        public void setSecret(String secret) {
+            this.secret = secret;
+        }
+
+        public long getExpireTime() {
+            return expireTime;
+        }
+
+        public void setExpireTime(long expireTime) {
+            this.expireTime = expireTime;
+        }
+
+        public long getRefreshTime() {
+            return refreshTime;
+        }
+
+        public void setRefreshTime(long refreshTime) {
+            this.refreshTime = refreshTime;
+        }
+    }
+
+
 
     /**
      * 登录
@@ -82,8 +115,8 @@ public class AuthController {
                 .claim("phone", user.getPhone())
                 .claim("status", user.getStatus())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
-                .signWith(SignatureAlgorithm.HS256, jwtSecret.getBytes())
+                .setExpiration(new Date(System.currentTimeMillis() + jwtConfig.getExpireTime() * 1000))
+                .signWith(SignatureAlgorithm.HS256, jwtConfig.getSecret().getBytes())
                 .compact();
         
         logger.info("登录成功，用户：{}", username);
@@ -125,20 +158,25 @@ public class AuthController {
             logger.debug("Extracted token: {}", token.substring(0, Math.min(token.length(), 20)) + "...");
             
             // 解析 JWT token，获取用户信息
-            // 这里应该使用真实的 JWT 解析逻辑
-            // 简化实现，返回模拟的用户信息
-            Map<String, Object> userInfo = new HashMap<>();
-            userInfo.put("username", "admin");
-            userInfo.put("name", "管理员");
-            userInfo.put("email", "admin@example.com");
-            userInfo.put("phone", "13800138000");
-            userInfo.put("status", "ENABLE");
+            Claims claims = Jwts.parser()
+                    .setSigningKey(jwtConfig.getSecret().getBytes())
+                    .parseClaimsJws(token)
+                    .getBody();
             
-            logger.info("获取当前用户信息成功");
+            // 从 claims 中提取用户信息
+            Map<String, Object> userInfo = new HashMap<>();
+            userInfo.put("username", claims.getSubject());
+            userInfo.put("userId", claims.get("userId"));
+            userInfo.put("name", claims.get("name"));
+            userInfo.put("email", claims.get("email"));
+            userInfo.put("phone", claims.get("phone"));
+            userInfo.put("status", claims.get("status"));
+            
+            logger.info("获取当前用户信息成功，用户：{}", claims.getSubject());
             return Response.success("获取成功", userInfo);
         } catch (Exception e) {
             logger.error("获取当前用户信息失败", e);
-            return Response.failure(500, "获取用户信息失败");
+            return Response.failure(401, "无效的token，请重新登录");
         }
     }
 

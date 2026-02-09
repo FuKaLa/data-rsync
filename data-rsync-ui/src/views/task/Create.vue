@@ -345,6 +345,7 @@ const handleSubmit = async () => {
           // 构建任务数据
           const taskData = {
             ...form,
+            dataSourceId: 1, // 暂时设置为1作为默认值，实际应该从用户选择中获取
             flowConfig: flowConfig,
             dependency: dependencyForm
           }

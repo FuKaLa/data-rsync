@@ -18,18 +18,5 @@ spring:
         group: ${NACOS_GROUP:DEFAULT_GROUP}
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
-        lifecycle:
-          enabled: false
-    openfeign:
-      circuitbreaker:
-        enabled: true
-      client:
-        config:
-          default:
-            connectTimeout: 5000
-            readTimeout: 10000
-            loggerLevel: basic
-      hystrix:
-        enabled: false
 
 

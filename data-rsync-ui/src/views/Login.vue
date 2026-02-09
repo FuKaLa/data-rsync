@@ -129,7 +129,7 @@ const handleLogin = async () => {
     })
     
     if (response && response.code === 200 && response.data) {
-      localStorage.setItem('token', response.data)
+      sessionStorage.setItem('token', response.data)
       router.push('/dashboard')
     } else {
       error.value = response?.message || '登录失败'

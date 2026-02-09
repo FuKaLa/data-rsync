@@ -8,6 +8,10 @@ spring:
         file-extension: yml
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
+        shared-configs:
+          - dataId: data-rsync-gateway.yml
+            group: DEFAULT_GROUP
+            refresh: true
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:dev}

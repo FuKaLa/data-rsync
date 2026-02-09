@@ -7,6 +7,3 @@ spring:
     name: data-rsync-log-listener
   profiles:
     active: dev
-  filter:
-    config:
-      enabled: false

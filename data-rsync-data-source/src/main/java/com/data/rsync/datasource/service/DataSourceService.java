@@ -13,6 +13,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,8 +28,11 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import jakarta.annotation.PostConstruct;
 
 /**
  * 数据源服务
@@ -54,7 +58,7 @@ public class DataSourceService {
     /**
      * 恢复线程池
      */
-    private final ExecutorService recoveryExecutor = Executors.newFixedThreadPool(10);
+    private ExecutorService recoveryExecutor;
 
     /**
      * 日志监听器状态跟踪
@@ -64,7 +68,26 @@ public class DataSourceService {
     /**
      * 日志监听线程池
      */
-    private final ExecutorService logMonitorExecutor = Executors.newFixedThreadPool(10);
+    private ExecutorService logMonitorExecutor;
+
+    // 线程池配置参数
+    @Value("${threadpool.recovery.core-size:10}")
+    private int recoveryCoreSize;
+
+    @Value("${threadpool.recovery.max-size:20}")
+    private int recoveryMaxSize;
+
+    @Value("${threadpool.recovery.queue-capacity:100}")
+    private int recoveryQueueCapacity;
+
+    @Value("${threadpool.log-monitor.core-size:10}")
+    private int logMonitorCoreSize;
+
+    @Value("${threadpool.log-monitor.max-size:20}")
+    private int logMonitorMaxSize;
+
+    @Value("${threadpool.log-monitor.queue-capacity:100}")
+    private int logMonitorQueueCapacity;
 
     /**
      * 日志监听器状态枚举
@@ -530,17 +553,8 @@ public class DataSourceService {
     try {
       for (int i = 0; i < maxRetries; i++) {
         try {
-          // 解密密码
-          String password = EncryptUtils.decrypt(entity.getPassword());
-
-          // 加载驱动
-          Class.forName(getDriverClassName(entity.getType()));
-
-          // 构建连接URL
-          String url = entity.getUrl();
-
-          // 建立连接（添加网络抖动处理）
-          connection = establishConnectionWithNetworkResilience(url, entity.getUsername(), password, entity);
+          // 从连接池获取连接
+          connection = getConnectionPool(entity).getConnection();
 
           // 测试连接
           if (connection != null && connection.isValid(5)) {
@@ -1259,6 +1273,35 @@ public class DataSourceService {
   }
 
     /**
+     * 初始化线程池
+     */
+    @PostConstruct
+    public void initThreadPools() {
+        log.info("Initializing thread pools with configuration: recoveryCoreSize={}, recoveryMaxSize={}, recoveryQueueCapacity={}, logMonitorCoreSize={}, logMonitorMaxSize={}, logMonitorQueueCapacity={}",
+                recoveryCoreSize, recoveryMaxSize, recoveryQueueCapacity, logMonitorCoreSize, logMonitorMaxSize, logMonitorQueueCapacity);
+        
+        // 初始化恢复线程池
+        recoveryExecutor = new ThreadPoolExecutor(
+                recoveryCoreSize,
+                recoveryMaxSize,
+                60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(recoveryQueueCapacity),
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+        
+        // 初始化日志监听线程池
+        logMonitorExecutor = new ThreadPoolExecutor(
+                logMonitorCoreSize,
+                logMonitorMaxSize,
+                60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(logMonitorQueueCapacity),
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+        
+        log.info("Thread pools initialized successfully");
+    }
+
+    /**
      * 清理过期的日志监听状态
      */
     private void cleanupLogMonitorStatus() {
@@ -1269,21 +1312,98 @@ public class DataSourceService {
     }
 
     /**
+     * 连接池管理器，用于管理不同数据源的连接池
+     */
+    private final Map<Long, com.alibaba.druid.pool.DruidDataSource> connectionPools = new ConcurrentHashMap<>();
+
+    /**
+     * 获取数据源的连接池
+     * @param entity 数据源实体
+     * @return 连接池
+     * @throws SQLException SQL异常
+     */
+    private com.alibaba.druid.pool.DruidDataSource getConnectionPool(DataSourceEntity entity) throws SQLException {
+        return connectionPools.computeIfAbsent(entity.getId(), id -> {
+            try {
+                // 解密密码
+                String password = EncryptUtils.decrypt(entity.getPassword());
+                
+                // 创建Druid连接池
+                com.alibaba.druid.pool.DruidDataSource dataSource = new com.alibaba.druid.pool.DruidDataSource();
+                dataSource.setUrl(entity.getUrl());
+                dataSource.setUsername(entity.getUsername());
+                dataSource.setPassword(password);
+                dataSource.setDriverClassName(getDriverClassName(entity.getType()));
+                
+                // 连接池配置
+                dataSource.setInitialSize(5);
+                dataSource.setMinIdle(5);
+                dataSource.setMaxActive(20);
+                dataSource.setMaxWait(60000);
+                dataSource.setTimeBetweenEvictionRunsMillis(60000);
+                dataSource.setMinEvictableIdleTimeMillis(300000);
+                dataSource.setValidationQuery("SELECT 1");
+                dataSource.setTestWhileIdle(true);
+                dataSource.setTestOnBorrow(false);
+                dataSource.setTestOnReturn(false);
+                
+                // 初始化连接池
+                dataSource.init();
+                log.info("Created connection pool for data source: {}", entity.getName());
+                return dataSource;
+            } catch (Exception e) {
+                log.error("Failed to create connection pool for data source: {}", entity.getName(), e);
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    /**
+     * 关闭数据源的连接池
+     * @param dataSourceId 数据源ID
+     */
+    public void closeConnectionPool(Long dataSourceId) {
+        com.alibaba.druid.pool.DruidDataSource dataSource = connectionPools.remove(dataSourceId);
+        if (dataSource != null) {
+            try {
+                dataSource.close();
+                log.info("Closed connection pool for data source: {}", dataSourceId);
+            } catch (Exception e) {
+                log.error("Failed to close connection pool for data source: {}", dataSourceId, e);
+            }
+        }
+    }
+
+    /**
      * 关闭资源
      */
     public void shutdown() {
-        recoveryExecutor.shutdown();
-        logMonitorExecutor.shutdown();
+        // 关闭所有连接池
+        for (Long dataSourceId : connectionPools.keySet()) {
+            closeConnectionPool(dataSourceId);
+        }
+        
+        // 关闭线程池
+        if (recoveryExecutor != null) {
+            recoveryExecutor.shutdown();
+        }
+        if (logMonitorExecutor != null) {
+            logMonitorExecutor.shutdown();
+        }
         try {
-            if (!recoveryExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+            if (recoveryExecutor != null && !recoveryExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
                 recoveryExecutor.shutdownNow();
             }
-            if (!logMonitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+            if (logMonitorExecutor != null && !logMonitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
                 logMonitorExecutor.shutdownNow();
             }
         } catch (InterruptedException e) {
-            recoveryExecutor.shutdownNow();
-            logMonitorExecutor.shutdownNow();
+            if (recoveryExecutor != null) {
+                recoveryExecutor.shutdownNow();
+            }
+            if (logMonitorExecutor != null) {
+                logMonitorExecutor.shutdownNow();
+            }
             Thread.currentThread().interrupt();
         }
     }

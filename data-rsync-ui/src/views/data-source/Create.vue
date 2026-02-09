@@ -233,45 +233,45 @@ const portError = ref('')
 const testResultVisible = ref(false)
 const testResult = ref({ success: false, message: '' })
 
-const form = reactive({
+const form = ref({
   name: '',
   type: '',
   host: '',
-  port: null,
+  port: null as number | null,
   databaseName: '',
   username: '',
   password: '',
   url: '',
   driverClass: '',
   logMonitorType: '',
-  logMonitorInterval: 5000,
-  logMonitorTimeout: 60000,
-  connectionTimeout: 30000,
+  logMonitorInterval: 60,
+  logMonitorTimeout: 30,
+  connectionTimeout: 30,
   enabled: true,
   description: ''
 })
 
 // 计算属性：根据数据库类型显示/隐藏主机和端口字段
 const showHostPortFields = computed(() => {
-  const type = form.type
+  const type = form.value.type
   return type && ['MYSQL', 'POSTGRESQL', 'ORACLE', 'SQL_SERVER', 'MONGODB', 'REDIS'].includes(type)
 })
 
 // 计算属性：根据数据库类型显示/隐藏数据库名称字段
 const showDatabaseNameField = computed(() => {
-  const type = form.type
+  const type = form.value.type
   return type && ['MYSQL', 'POSTGRESQL', 'SQL_SERVER', 'MONGODB'].includes(type)
 })
 
 // 计算属性：根据数据库类型显示/隐藏凭证字段
 const showCredentialsFields = computed(() => {
-  const type = form.type
+  const type = form.value.type
   return type && ['MYSQL', 'POSTGRESQL', 'ORACLE', 'SQL_SERVER', 'MONGODB', 'REDIS'].includes(type)
 })
 
 // 计算属性：是否可以自动生成URL
 const canGenerateUrl = computed(() => {
-  const type = form.type
+  const type = form.value.type
   return type && ['MYSQL', 'POSTGRESQL', 'ORACLE', 'SQL_SERVER', 'MONGODB', 'REDIS'].includes(type)
 })
 
@@ -340,25 +340,25 @@ const templates = {
 
 // 数据库类型对应的连接URL模板
 const urlTemplates = {
-  MYSQL: (host: string, port: string, database: string) => 
+  MYSQL: (host: string, port: string, database: string = '') => 
     `jdbc:mysql://${host}:${port}/${database}?useSSL=false&serverTimezone=UTC`,
-  POSTGRESQL: (host: string, port: string, database: string) => 
+  POSTGRESQL: (host: string, port: string, database: string = '') => 
     `jdbc:postgresql://${host}:${port}/${database}`,
-  ORACLE: (host: string, port: string, database: string) => 
+  ORACLE: (host: string, port: string, database: string = '') => 
     `jdbc:oracle:thin:@${host}:${port}:${database}`,
-  SQL_SERVER: (host: string, port: string, database: string) => 
+  SQL_SERVER: (host: string, port: string, database: string = '') => 
     `jdbc:sqlserver://${host}:${port};databaseName=${database}`,
-  MONGODB: (host: string, port: string, database: string) => 
+  MONGODB: (host: string, port: string, database: string = '') => 
     `mongodb://${host}:${port}/${database}`,
-  REDIS: (host: string, port: string) => 
+  REDIS: (host: string, port: string, database: string = '') => 
     `redis://${host}:${port}`
 }
 
 const handleTypeChange = (type: string) => {
   // 重置相关字段
-  form.host = ''
-  form.databaseName = ''
-  form.url = ''
+  form.value.host = ''
+  form.value.databaseName = ''
+  form.value.url = ''
   
   // 根据数据源类型自动选择对应模板
   if (type === 'MYSQL') {
@@ -384,10 +384,10 @@ const handleTemplateChange = (template: string) => {
 
 // 生成连接URL
 const generateUrl = () => {
-  const type = form.type
-  const host = form.host
-  const port = form.port
-  const database = form.databaseName
+  const type = form.value.type
+  const host = form.value.host
+  const port = form.value.port
+  const database = form.value.databaseName
   
   if (!type || !host || !port) {
     urlError.value = '请填写主机和端口信息'
@@ -395,12 +395,13 @@ const generateUrl = () => {
   }
   
   try {
-    const portStr = port.toString()
-    if (urlTemplates[type as keyof typeof urlTemplates]) {
+    const portStr = port ? port.toString() : ''
+    const template = urlTemplates[type as keyof typeof urlTemplates]
+    if (template) {
       if (type === 'REDIS') {
-        form.url = urlTemplates[type as keyof typeof urlTemplates](host, portStr)
+        form.value.url = template(host, portStr)
       } else {
-        form.url = urlTemplates[type as keyof typeof urlTemplates](host, portStr, database)
+        form.value.url = template(host, portStr, database)
       }
       urlError.value = ''
     }
@@ -410,13 +411,13 @@ const generateUrl = () => {
 }
 
 const validateUrl = () => {
-  const url = form.url
+  const url = form.value.url
   if (!url) {
     urlError.value = ''
     return
   }
   
-  const type = form.type
+  const type = form.value.type
   let isValid = true
   
   // 根据数据库类型进行特定的URL格式校验
@@ -452,17 +453,18 @@ const validateUrl = () => {
 }
 
 const validatePort = () => {
-  const port = form.port
-  if (port === null || port === '') {
+  const port = form.value.port
+  if (port === null) {
     portError.value = ''
     return
   }
   
-  const portNum = parseInt(port)
+  const portStr = port.toString()
+  const portNum = parseInt(portStr)
   if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
     portError.value = '端口必须是1-65535之间的数字'
   } else {
-    form.port = portNum
+    form.value.port = portNum
     portError.value = ''
   }
 }
@@ -478,7 +480,12 @@ const handleSubmit = async () => {
     await formRef.value.validate(async (valid: boolean) => {
       if (valid) {
         try {
-          const result = await dataSourceApi.create(form)
+          // 转换form对象以符合CreateDataSourceRequest类型
+          const createData = {
+            ...form.value,
+            port: form.value.port || undefined
+          }
+          const result = await dataSourceApi.create(createData)
           console.log('Create result:', result)
           router.push('/data-source/list')
         } catch (error) {

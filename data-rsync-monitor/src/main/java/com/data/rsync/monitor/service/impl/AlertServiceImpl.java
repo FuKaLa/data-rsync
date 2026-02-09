@@ -369,4 +369,79 @@ public class AlertServiceImpl implements AlertService {
             log.error("Failed to clean expired alerts: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * 检查指标阈值
+     * @param metricName 指标名称
+     * @param metricValue 指标值
+     * @return 检查结果
+     */
+    @Override
+    public Map<String, Object> checkThreshold(String metricName, double metricValue) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            log.info("Checking threshold for metric: {} with value: {}", metricName, metricValue);
+            
+            // 定义不同指标的阈值
+            Map<String, Double> thresholds = new HashMap<>();
+            thresholds.put("cpu_usage", 80.0);
+            thresholds.put("memory_usage", 85.0);
+            thresholds.put("disk_usage", 90.0);
+            thresholds.put("network_usage", 75.0);
+            
+            Double threshold = thresholds.get(metricName);
+            boolean exceeded = false;
+            String message = "";
+            
+            if (threshold != null) {
+                exceeded = metricValue > threshold;
+                message = exceeded ? "指标超出阈值" : "指标在正常范围内";
+            } else {
+                message = "未知指标，无法检查阈值";
+            }
+            
+            result.put("exceeded", exceeded);
+            result.put("threshold", threshold);
+            result.put("currentValue", metricValue);
+            result.put("message", message);
+            result.put("metricName", metricName);
+            
+        } catch (Exception e) {
+            log.error("Failed to check threshold: {}", e.getMessage(), e);
+            result.put("exceeded", false);
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     * 发送告警
+     * @param severity 告警级别
+     * @param message 告警消息
+     * @param metrics 相关指标
+     * @return 是否发送成功
+     */
+    @Override
+    public boolean sendAlert(String severity, String message, Map<String, Object> metrics) {
+        try {
+            log.info("Sending alert: severity={}, message={}, metrics={}", severity, message, metrics);
+            
+            // 构建告警信息
+            Map<String, Object> alertInfo = new HashMap<>();
+            alertInfo.put("type", "CUSTOM_ALERT");
+            alertInfo.put("title", "自定义告警");
+            alertInfo.put("message", message);
+            alertInfo.put("severity", severity);
+            alertInfo.put("metrics", metrics);
+            alertInfo.put("timestamp", LocalDateTime.now().toString());
+            
+            // 发送告警
+            sendAlert(alertInfo);
+            
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to send alert: {}", e.getMessage(), e);
+            return false;
+        }
+    }
 }
