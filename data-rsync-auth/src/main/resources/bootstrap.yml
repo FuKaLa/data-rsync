@@ -1,9 +1,0 @@
-server:
-  port: 8706
-  servlet:
-    context-path: /auth
-spring:
-  application:
-    name: data-rsync-auth
-  profiles:
-    active: dev

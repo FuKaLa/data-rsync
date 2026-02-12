@@ -1,0 +1,42 @@
+spring:
+  # 数据源配置
+  datasource:
+    url: jdbc:mysql://test-db:3306/data_rsync_test?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: data_rsync_test
+    password: ${DB_PASSWORD}
+
+# 日志配置
+logging:
+  level:
+    root: debug
+    com.data.rsync: debug
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Milvus 配置
+milvus:
+  host: test-milvus
+  port: 19530
+  collection:
+    name: data_rsync_collection_test
+    dimension: 128
+
+# 系统配置
+data-rsync:
+  sync:
+    batch-size: 1000
+    thread-pool-size: 10
+  monitor:
+    enabled: true
+  security:
+    enabled: true
+  jwt:
+    secret: your-secret-key-here
+    expires-in: 86400
+  cors:
+    enabled: true
+    allowed-origins: "*"
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    allowed-headers: "*"
+    max-age: 3600

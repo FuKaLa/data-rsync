@@ -1,0 +1,136 @@
+spring:
+  application:
+    name: data-rsync
+  profiles:
+    active: dev
+  # 数据源配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    
+    # Druid 连接池配置
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1 FROM DUAL
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      pool-prepared-statements: true
+      max-pool-prepared-statement-per-connection-size: 20
+      filters: stat,wall
+      connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
+  
+  # 禁用数据库初始化的自动配置
+  sql:
+    init:
+      enabled: false
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.data.rsync.auth.model,com.data.rsync.task.entity,com.data.rsync.data.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      table-prefix: 
+
+# 服务器配置
+server:
+  servlet:
+    context-path: /data-rsync
+  port: 8889
+
+
+# 日志配置
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# 系统配置
+data-rsync:
+  monitor:
+    enabled: true
+  security:
+    enabled: true
+  cors:
+    enabled: true
+    allowed-origins: "*"
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    allowed-headers: "*"
+    max-age: 3600
+  
+  # 向量数据库配置
+  vector-db:
+    milvus:
+      type: "MILVUS"
+      host: "192.168.1.81"
+      port: 19530
+      enabled: true
+  
+  # 同步服务配置
+  sync:
+    batch-size: 1000
+    write-timeout-ms: 60000
+    retry-count: 3
+    retry-delay-ms: 1000
+    connection-timeout-ms: 5000
+    dimension: 128
+  
+  # 数据处理配置
+  data-process:
+    thread-pool:
+      core-size: 5
+      max-size: 20
+      queue-capacity: 1000
+      keep-alive-seconds: 60
+    batch-size: 50
+    timeout-seconds: 30
+  
+  # 资源监控配置
+  resource:
+    check-interval: 30000
+    alert-thresholds:
+      cpu-usage: 80.0
+      memory-usage: 85.0
+      disk-usage: 90.0
+      task-failure-rate: 10.0
+      task-timeout-minutes: 30.0
+      task-progress-stall-minutes: 15.0
+  
+  # LangChain4j配置
+  langchain4j:
+    community:
+      dashscope:
+        embedding-model:
+          model-name: bge_m3
+          base-url: http://10.8.0.26:6003/v1
+          api-key: dev-key
+  
+  # 文档处理配置
+  document:
+    chunk:
+      size: 1000
+      overlap: 200
+  
+  # Tika配置
+  tika:
+    extract:
+      max-length: 1000000  # 提取文本的最大长度（字符）
+      timeout: 30  # 提取超时时间（秒）
+  
+  # Jieba配置
+  jieba:
+    stopword:
+      filter: true  # 是否启用停用词过滤
+    min-word-length: 2  # 最小词长
+
+

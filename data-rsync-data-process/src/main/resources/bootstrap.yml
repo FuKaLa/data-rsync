@@ -1,9 +1,0 @@
-server:
-  port: 8702
-  servlet:
-    context-path: /process
-spring:
-  application:
-    name: data-rsync-data-process
-  profiles:
-    active: dev

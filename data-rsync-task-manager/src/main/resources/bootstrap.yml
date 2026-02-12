@@ -1,9 +1,0 @@
-server:
-  port: 8083
-  servlet:
-    context-path: /manager
-spring:
-  application:
-    name: data-rsync-task-manager
-  profiles:
-    active: dev

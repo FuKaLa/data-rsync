@@ -1,47 +1,39 @@
 # Data Rsync System
 
-基于 Java 微服务架构开发的企业级数据同步系统，核心目标是监听多源数据库的日志，支持全量 / 增量数据同步至 Milvus 向量数据库。系统具备高可靠性、高性能、高一致性的特点，适用于企业级数据同步场景。
+基于 Java 单体架构开发的企业级数据同步系统，核心目标是支持从关系型数据库到 Milvus 向量数据库的全量 / 增量数据同步。系统具备高可靠性、高性能、高一致性的特点，适用于企业级数据同步场景。
 
 ## 1. 项目架构
 
 ### 1.1 整体架构
 
-采用 "接入层 - 应用层 - 数据层 - 基础设施层" 分层架构，微服务按功能模块拆分，基于 Spring Cloud 生态实现。
+采用 "控制层 - 服务层 - 数据访问层 - 基础设施层" 分层架构，基于 Spring Boot 生态实现。
 
-### 1.2 微服务模块
+### 1.2 核心模块
 
 | 模块名称 | 功能描述 | 技术栈 |
 |---------|---------|--------|
-| data-rsync-gateway | API 网关，负责路由、鉴权、限流 | Spring Cloud Gateway + Nacos + Sentinel |
-| data-rsync-auth | 认证授权服务，负责用户认证、权限管理 | Spring Boot + Spring Security + JWT + MyBatis-Plus + MySQL + Druid + Nacos |
-| data-rsync-data-source | 数据源管理服务，负责数据源配置、生命周期管理 | Spring Boot + MyBatis-Plus + MySQL + Redis + Druid + Nacos |
-| data-rsync-log-listener | 日志监听服务，负责多源数据库日志监听、CDC 捕获 | Spring Boot + Debezium + Kafka + Redis + Nacos |
-| data-rsync-data-process | 数据处理服务，负责数据转换、向量化处理 | Spring Boot + Kafka + Redis + Nacos |
-| data-rsync-milvus-sync | Milvus 同步服务，负责数据写入、索引管理 | Spring Boot + Milvus Java SDK + Kafka + Redis + Nacos |
-| data-rsync-task-manager | 任务管理服务，负责任务配置、调度、监控 | Spring Boot + XXL-Job + MyBatis-Plus + MySQL + Redis + Druid + Nacos |
-| data-rsync-monitor | 监控服务，负责系统监控、告警、日志收集 | Spring Boot + Prometheus + Grafana + ELK + Nacos |
-| data-rsync-common | 公共模块，包含工具类、常量定义、数据模型 | Spring Boot |
+| auth | 认证授权模块，负责用户认证、权限管理 | Spring Security + JWT + MyBatis-Plus + MySQL + Druid |
+| data | 数据处理模块，负责数据源管理、数据同步、Milvus 操作 | Spring Boot + Milvus Java SDK + Debezium + MyBatis-Plus + MySQL + Druid + Redis |
+| task | 任务管理模块，负责任务配置、调度、监控 | Spring Boot + Quartz + MyBatis-Plus + MySQL + Redis + Druid |
+| common | 公共模块，包含工具类、常量定义、数据模型 | Spring Boot |
+| monitor | 监控模块，负责系统监控、告警、日志收集 | Spring Boot + Prometheus + Grafana |
 
 ## 2. 环境准备
 
 ### 2.1 硬件要求
 
-- CPU: 8 核以上
-- 内存: 16GB 以上
-- 磁盘: 500GB 以上
+- CPU: 4 核以上
+- 内存: 8GB 以上
+- 磁盘: 200GB 以上
 
 ### 2.2 软件要求
 
-- JDK 17+
-- Maven 3.8+
+- JDK 17+ 或 21+
+- Maven 3.6.3+
 - MySQL 8.0+
 - Redis 7.0+
-- Kafka 3.5+
-- Zookeeper 3.8+
-- Nacos 2.2+
 - Prometheus 2.40+
 - Grafana 9.0+
-- ELK Stack (Elasticsearch 8.0+, Logstash 8.0+, Kibana 8.0+)
 - Milvus 2.4+
 
 ## 3. 项目初始化
@@ -56,20 +48,18 @@ cd data-rsync
 ### 3.2 构建项目
 
 ```bash
-# 构建整个项目
-mvn clean install
+# 构建项目
+mvn clean compile -DskipTests
 
-# 构建单个模块
-mvn clean install -pl data-rsync-common -am
-mvn clean install -pl data-rsync-gateway -am
-# 以此类推构建其他模块
+# 构建并运行
+mvn spring-boot:run
 ```
 
 ### 3.3 配置文件
 
-每个微服务模块都有自己的配置文件，主要包括：
+项目使用统一的配置文件，位于 `src/main/resources` 目录：
 
-- `application.yml` - 本地开发配置
+- `application.yml` - 主配置文件
 - `application-dev.yml` - 开发环境配置
 - `application-test.yml` - 测试环境配置
 - `application-prod.yml` - 生产环境配置
@@ -77,17 +67,20 @@ mvn clean install -pl data-rsync-gateway -am
 ### 3.4 数据库初始化
 
 1. 创建 MySQL 数据库：`data_rsync`
-2. 执行 SQL 脚本初始化表结构（脚本位于 `sql` 目录）
+2. 执行 SQL 脚本初始化表结构（脚本位于 `db-script.sql` 文件）
 
 ### 3.5 启动服务
 
-按照以下顺序启动服务：
-
-1. 启动基础设施：MySQL、Redis、Kafka、Zookeeper、Nacos
-2. 启动核心服务：data-rsync-auth、data-rsync-data-source、data-rsync-task-manager
-3. 启动数据处理服务：data-rsync-log-listener、data-rsync-data-process、data-rsync-milvus-sync
-4. 启动辅助服务：data-rsync-monitor
-5. 启动网关：data-rsync-gateway
+1. 启动基础设施：MySQL、Redis、Milvus
+2. 启动应用：
+   ```bash
+   # 直接启动
+   mvn spring-boot:run
+   
+   # 或使用编译后的 jar 包启动
+   mvn clean package -DskipTests
+   java -jar target/data-rsync.jar
+   ```
 
 ## 4. 开发流程
 

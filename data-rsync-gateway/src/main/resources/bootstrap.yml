@@ -1,9 +1,0 @@
-server:
-  port: 8701
-  servlet:
-    context-path: /gateway
-spring:
-  application:
-    name: data-rsync-gateway
-  profiles:
-    active: dev

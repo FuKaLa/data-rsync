@@ -1,9 +1,0 @@
-server:
-  port: 8707
-  servlet:
-    context-path: /sync
-spring:
-  application:
-    name: data-rsync-milvus-sync
-  profiles:
-    active: dev

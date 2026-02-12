@@ -1,9 +1,0 @@
-server:
-  port: 8708
-  servlet:
-    context-path: /monitor
-spring:
-  application:
-    name: data-rsync-monitor
-  profiles:
-    active: dev

@@ -1,5 +1,0 @@
-spring:
-  application:
-    name: data-rsync-common
-  profiles:
-    active: dev

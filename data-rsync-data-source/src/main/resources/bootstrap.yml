@@ -1,9 +1,0 @@
-server:
-  port: 8704
-  servlet:
-    context-path: /source
-spring:
-  application:
-    name: data-rsync-data-source
-  profiles:
-    active: dev

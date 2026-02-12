@@ -1,0 +1,87 @@
+spring:
+  # 数据源配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/data_rsync?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    # Druid连接池配置
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      # 初始化连接池大小
+      initial-size: 5
+      # 最小空闲连接数
+      min-idle: 5
+      # 最大活跃连接数
+      max-active: 20
+      # 获取连接超时时间
+      max-wait: 60000
+      # 连接验证时间间隔
+      time-between-eviction-runs-millis: 60000
+      # 连接最大生存时间
+      min-evictable-idle-time-millis: 300000
+      # 连接验证查询
+      validation-query: SELECT 1 FROM DUAL
+      # 申请连接时验证
+      test-on-borrow: false
+      # 归还连接时验证
+      test-on-return: false
+      # 空闲时验证
+      test-while-idle: true
+      # 打开PSCache
+      pool-prepared-statements: true
+      # PSCache大小
+      max-pool-prepared-statement-per-connection-size: 20
+      # 连接池监控
+      stat-view-servlet:
+        enabled: true
+        url-pattern: /druid/*
+        login-username: admin
+        login-password: admin
+      # 过滤器配置
+      filter:
+        stat:
+          enabled: true
+          log-slow-sql: true
+          slow-sql-millis: 2000
+        wall:
+          enabled: true
+        slf4j:
+          enabled: true
+
+
+
+# 日志配置
+logging:
+  level:
+    root: info
+    com.data.rsync: info
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Milvus 配置
+milvus:
+  host: localhost
+  port: 19530
+  collection:
+    name: data_rsync_collection_dev
+    dimension: 128
+
+# 系统配置
+data-rsync:
+  sync:
+    batch-size: 1000
+    thread-pool-size: 10
+  monitor:
+    enabled: true
+  security:
+    enabled: true
+  jwt:
+    secret: your-secret-key-here
+    expires-in: 86400
+  cors:
+    enabled: true
+    allowed-origins: "*"
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    allowed-headers: "*"
+    max-age: 3600

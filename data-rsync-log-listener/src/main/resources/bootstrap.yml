@@ -1,9 +1,0 @@
-server:
-  port: 8705
-  servlet:
-    context-path: /listener
-spring:
-  application:
-    name: data-rsync-log-listener
-  profiles:
-    active: dev
