@@ -253,12 +253,19 @@ public interface MilvusSyncService {
     MilvusSyncResponse syncTableToVectorDB(Map<String, Object> databaseConfig, String collectionName, String databaseName, String tableName, List<String> vectorFields, String whereClause);
 
     /**
-     * 验证数据库数据是否成功同步到向量库
-     * @param collectionName 向量库集合名称
+     * 验证数据库同步到向量库的结果
+     * @param collectionName 集合名称
      * @param expectedCount 预期数据数量
      * @return 验证结果
      */
     MilvusVerifyResponse verifyDatabaseSyncToVectorDB(String collectionName, long expectedCount);
+
+    /**
+     * 获取同步任务进度
+     * @param taskId 任务ID
+     * @return 同步进度
+     */
+    com.data.rsync.common.model.SyncProgress getSyncProgress(Long taskId);
 
     /**
      * 一致性检查结果类

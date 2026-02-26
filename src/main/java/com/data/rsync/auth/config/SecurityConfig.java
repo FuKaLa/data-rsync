@@ -36,16 +36,10 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             
-            // 配置请求授权
+            // 配置请求授权 - 暂时允许所有请求
             .authorizeHttpRequests(authorize -> authorize
-                // 允许所有OPTIONS请求（CORS预检请求）
-                .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // 允许所有匿名访问登录接口
-                .antMatchers("/auth/login", "/auth/register").permitAll()
-                // 允许健康检查接口
-                .antMatchers("/actuator/health").permitAll()
-                // 其他所有请求需要认证
-                .anyRequest().authenticated()
+                // 允许所有请求
+                .anyRequest().permitAll()
             )
             
             // 禁用默认的认证方式

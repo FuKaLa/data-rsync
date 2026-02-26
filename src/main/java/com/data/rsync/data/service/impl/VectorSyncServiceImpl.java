@@ -11,6 +11,7 @@ import com.data.rsync.common.vector.db.VectorDatabaseAdapterFactory;
 import com.data.rsync.data.service.MilvusSyncService;
 import com.data.rsync.data.service.VectorSyncService;
 import com.data.rsync.data.vo.*;
+import com.data.rsync.common.model.SyncProgress;
 import com.data.rsync.task.entity.TaskEntity;
 import com.data.rsync.task.entity.VectorizationConfigEntity;
 import org.slf4j.Logger;
@@ -74,7 +75,7 @@ public class VectorSyncServiceImpl implements MilvusSyncService, VectorSyncServi
     @Value("${data-rsync.sync.connection-timeout-ms}")
     private long connectionTimeoutMs;
 
-    @Value("${data-rsync.sync.dimension}")
+    @Value("${data-rsync.vector-db.milvus.vector.dimension}")
     private int defaultDimension;
 
     // 兼容旧代码的常量
@@ -570,8 +571,27 @@ public class VectorSyncServiceImpl implements MilvusSyncService, VectorSyncServi
     public List<MilvusIndexResponse> listCollectionIndexes(String collectionName) {
         try {
             VectorDatabaseAdapter adapter = getVectorDatabaseAdapter();
-            // 暂时返回空列表，后续需要实现
-            return new ArrayList<>();
+            // 使用executeOperation执行列出索引操作
+            Map<String, Object> params = new HashMap<>();
+            params.put("collectionName", collectionName);
+            Object result = adapter.executeOperation("listIndexes", params);
+            
+            List<MilvusIndexResponse> indexes = new ArrayList<>();
+            if (result instanceof List) {
+                List<?> indexList = (List<?>) result;
+                for (Object item : indexList) {
+                    if (item instanceof Map) {
+                        Map<?, ?> indexInfo = (Map<?, ?>) item;
+                        MilvusIndexResponse indexResponse = new MilvusIndexResponse();
+                        indexResponse.setIndexName(indexInfo.get("indexName").toString());
+                        indexResponse.setFieldName(indexInfo.get("fieldName").toString());
+                        indexResponse.setIndexType(indexInfo.get("indexType").toString());
+                        indexResponse.setStatus("READY");
+                        indexes.add(indexResponse);
+                    }
+                }
+            }
+            return indexes;
         } catch (Exception e) {
             log.error("列出Milvus集合索引失败，集合: {}", collectionName, e);
             throw new RuntimeException("列出Milvus集合索引失败: " + e.getMessage(), e);
@@ -601,7 +621,11 @@ public class VectorSyncServiceImpl implements MilvusSyncService, VectorSyncServi
     public void dropCollectionIndex(String collectionName, String indexName) {
         try {
             VectorDatabaseAdapter adapter = getVectorDatabaseAdapter();
-            // 暂时不实现，后续需要实现
+            // 使用executeOperation执行删除索引操作
+            Map<String, Object> params = new HashMap<>();
+            params.put("collectionName", collectionName);
+            params.put("indexName", indexName);
+            adapter.executeOperation("dropIndex", params);
         } catch (Exception e) {
             log.error("删除Milvus索引失败，集合: {}, 索引: {}", collectionName, indexName, e);
             throw new RuntimeException("删除Milvus索引失败: " + e.getMessage(), e);
@@ -642,12 +666,21 @@ public class VectorSyncServiceImpl implements MilvusSyncService, VectorSyncServi
     public MilvusOptimizeResponse optimizeCollection(String collectionName) {
         try {
             VectorDatabaseAdapter adapter = getVectorDatabaseAdapter();
-            // 暂时返回成功，后续需要实现
+            long startTime = System.currentTimeMillis();
+            
+            // 使用optimizeIndex方法优化集合
+            Map<String, Object> params = new HashMap<>();
+            boolean success = adapter.optimizeIndex(collectionName, params);
+            
+            long endTime = System.currentTimeMillis();
+            long optimizeTimeMs = endTime - startTime;
+            
             MilvusOptimizeResponse result = new MilvusOptimizeResponse();
             result.setCollectionName(collectionName);
-            result.setOptimizeTimeMs(0);
+            result.setOptimizeTimeMs(optimizeTimeMs);
             Map<String, Object> optimizeDetails = new HashMap<>();
-            optimizeDetails.put("message", "集合优化成功");
+            optimizeDetails.put("message", success ? "集合优化成功" : "集合优化失败");
+            optimizeDetails.put("optimizeTimeMs", optimizeTimeMs);
             result.setOptimizeDetails(optimizeDetails);
             return result;
         } catch (Exception e) {
@@ -681,6 +714,20 @@ public class VectorSyncServiceImpl implements MilvusSyncService, VectorSyncServi
             VectorDatabaseAdapter adapter = getVectorDatabaseAdapter();
             Map<String, Object> config = new HashMap<>();
             boolean success = adapter.createCollection(collectionName, dimension, config);
+            
+            // 验证集合是否真正创建成功
+            boolean exists = false;
+            try {
+                exists = adapter.hasCollection(collectionName);
+                if (!exists) {
+                    log.error("集合创建失败：{} 不存在", collectionName);
+                    success = false;
+                }
+            } catch (Exception e) {
+                log.error("验证集合存在性失败: {}", e.getMessage());
+                success = false;
+            }
+            
             MilvusCollectionResponse result = new MilvusCollectionResponse();
             result.setCollectionName(collectionName);
             result.setDimension(dimension);
@@ -689,6 +736,7 @@ public class VectorSyncServiceImpl implements MilvusSyncService, VectorSyncServi
             result.setStatus(success ? "CREATED" : "FAILED");
             Map<String, Object> properties = new HashMap<>();
             properties.put("message", success ? "集合创建成功" : "集合创建失败");
+            properties.put("exists", exists);
             result.setProperties(properties);
             return result;
         } catch (Exception e) {
@@ -1053,20 +1101,145 @@ public class VectorSyncServiceImpl implements MilvusSyncService, VectorSyncServi
     }
 
     @Override
+    public SyncProgress getSyncProgress(Long taskId) {
+        // 实现获取同步进度的方法
+        SyncProgress progress = new SyncProgress(taskId);
+        progress.setStatus("IDLE");
+        progress.setCurrentOperation("等待同步开始");
+        return progress;
+    }
+
+    @Override
     public MilvusSyncResponse syncTableToVectorDB(Map<String, Object> databaseConfig, String collectionName, String databaseName, String tableName, List<String> vectorFields, String whereClause) {
         return executeWithRetry(() -> {
             log.info("Syncing table to vector DB, collection: {}, table: {}", collectionName, tableName);
+            long startTime = System.currentTimeMillis();
             
-            MilvusSyncResponse response = new MilvusSyncResponse();
-            response.setCollectionName(collectionName);
-            response.setSuccess(true);
-            response.setTotalCount(0);
-            response.setSyncedCount(0);
-            response.setFailedCount(0);
-            response.setSyncTimeMs(0);
-            response.setMessage("Table to vector DB sync not implemented");
-            
-            return response;
+            try {
+                // 1. 从数据库配置中获取连接信息
+                String host = (String) databaseConfig.getOrDefault("host", "localhost");
+                int port = (Integer) databaseConfig.getOrDefault("port", 3306);
+                String database = (String) databaseConfig.getOrDefault("database", databaseName);
+                String username = (String) databaseConfig.getOrDefault("username", "root");
+                String password = (String) databaseConfig.getOrDefault("password", "password");
+                int vectorDimension = (Integer) databaseConfig.getOrDefault("vectorDimension", 128);
+                
+                // 2. 构建SQL查询语句
+                StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM ");
+                sqlBuilder.append(tableName);
+                if (whereClause != null && !whereClause.isEmpty()) {
+                    sqlBuilder.append(" WHERE " + whereClause);
+                }
+                String sql = sqlBuilder.toString();
+                
+                // 3. 从数据库中读取数据
+                DataSource dataSource = new DataSource();
+                dataSource.setType("MYSQL");
+                dataSource.setHost(host);
+                dataSource.setPort(port);
+                dataSource.setDatabase(database);
+                dataSource.setUsername(username);
+                dataSource.setPassword(password);
+                
+                DataSourceAdapter dataSourceAdapter = DataSourceAdapterFactory.getAdapter(dataSource);
+                List<Map<String, Object>> dataList = dataSourceAdapter.executeQuery(dataSource, sql, new ArrayList<>());
+                long totalCount = dataList.size();
+                
+                log.info("从数据库表获取数据成功，数量: {}", totalCount);
+                
+                if (totalCount == 0) {
+                    MilvusSyncResponse response = new MilvusSyncResponse();
+                    response.setCollectionName(collectionName);
+                    response.setSuccess(true);
+                    response.setTotalCount(0);
+                    response.setSyncedCount(0);
+                    response.setFailedCount(0);
+                    response.setSyncTimeMs(System.currentTimeMillis() - startTime);
+                    response.setMessage("从数据库表获取数据为空，同步完成");
+                    return response;
+                }
+                
+                // 4. 获取向量数据库适配器
+                VectorDatabaseAdapter vectorAdapter = getVectorDatabaseAdapter();
+                
+                // 5. 检查集合是否存在，如果不存在，创建集合
+                if (!vectorAdapter.hasCollection(collectionName)) {
+                    log.info("集合不存在，创建集合: {}", collectionName);
+                    Map<String, Object> config = new HashMap<>();
+                    boolean collectionCreated = vectorAdapter.createCollection(collectionName, vectorDimension, config);
+                    if (!collectionCreated) {
+                        throw new RuntimeException("集合创建失败: " + collectionName);
+                    }
+                    log.info("集合创建成功: {}", collectionName);
+                }
+                
+                // 6. 对数据进行向量化处理
+                List<Map<String, Object>> vectorizedData = new ArrayList<>();
+                for (Map<String, Object> data : dataList) {
+                    try {
+                        // 构建需要向量化的文本
+                        StringBuilder textBuilder = new StringBuilder();
+                        for (String field : vectorFields) {
+                            if (data.containsKey(field)) {
+                                Object value = data.get(field);
+                                if (value != null) {
+                                    textBuilder.append(value.toString()).append(" ");
+                                }
+                            }
+                        }
+                        String text = textBuilder.toString().trim();
+                        
+                        // 对文本进行向量化
+                        if (!text.isEmpty()) {
+                            float[] vector = vectorizationService.vectorize(text);
+                            data.put("vector", vector);
+                        }
+                        
+                        vectorizedData.add(data);
+                    } catch (Exception e) {
+                        log.warn("对数据进行向量化处理失败: {}", e.getMessage());
+                        // 跳过向量化失败的数据
+                    }
+                }
+                
+                // 7. 批量写入向量库
+                long syncedCount = 0;
+                if (!vectorizedData.isEmpty()) {
+                    boolean success = vectorAdapter.batchInsertData(collectionName, vectorizedData);
+                    if (success) {
+                        syncedCount = vectorizedData.size();
+                    }
+                }
+                long failedCount = totalCount - syncedCount;
+                boolean success = failedCount == 0;
+                String message = success ? "数据同步成功" : "部分数据同步失败";
+                long syncTimeMs = System.currentTimeMillis() - startTime;
+                
+                log.info("数据库表到向量库同步完成，集合: {}, 总数据: {}, 成功: {}, 失败: {}, 耗时: {}ms", 
+                        collectionName, totalCount, syncedCount, failedCount, syncTimeMs);
+                
+                MilvusSyncResponse response = new MilvusSyncResponse();
+                response.setCollectionName(collectionName);
+                response.setSuccess(success);
+                response.setTotalCount(totalCount);
+                response.setSyncedCount(syncedCount);
+                response.setFailedCount(failedCount);
+                response.setSyncTimeMs(syncTimeMs);
+                response.setMessage(message);
+                
+                return response;
+            } catch (Exception e) {
+                log.error("数据库表到向量库同步失败: {}", e.getMessage(), e);
+                MilvusSyncResponse response = new MilvusSyncResponse();
+                response.setCollectionName(collectionName);
+                response.setSuccess(false);
+                response.setTotalCount(0);
+                response.setSyncedCount(0);
+                response.setFailedCount(0);
+                response.setSyncTimeMs(System.currentTimeMillis() - startTime);
+                response.setMessage("同步失败: " + e.getMessage());
+                return response;
+            }
         }, MAX_RETRY_COUNT, RETRY_DELAY_MS);
     }
 

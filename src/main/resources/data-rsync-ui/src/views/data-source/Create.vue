@@ -167,6 +167,9 @@
             <el-form-item label="启用状态" prop="enabled" class="form-item">
               <el-switch v-model="form.enabled" active-color="#4361ee" inactive-color="#6b7280" inline-prompt active-text="启用" inactive-text="禁用" />
             </el-form-item>
+            <el-form-item label="Docker部署" prop="dockerDeployed" v-if="form.type === 'MYSQL'" class="form-item">
+              <el-switch v-model="form.dockerDeployed" active-color="#4361ee" inactive-color="#6b7280" inline-prompt active-text="是" inactive-text="否" />
+            </el-form-item>
           </div>
         </div>
 
@@ -249,6 +252,7 @@ const form = ref({
   logMonitorTimeout: 30,
   connectionTimeout: 30,
   enabled: true,
+  dockerDeployed: false,
   description: ''
 })
 

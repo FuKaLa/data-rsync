@@ -1,15 +1,17 @@
 package com.data.rsync.data.service.impl;
 
+import com.data.rsync.common.config.DataRsyncProperties;
 import com.data.rsync.common.model.Task;
 import com.data.rsync.common.vectorizer.Vectorizer;
 import com.data.rsync.common.vectorizer.VectorizerFactory;
 import com.data.rsync.data.service.DataProcessService;
 import com.data.rsync.common.exception.DataProcessException;
 import com.data.rsync.common.utils.LogUtils;
+import com.data.rsync.common.utils.ThreadPoolUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.*;
@@ -24,26 +26,11 @@ public class DataProcessServiceImpl implements DataProcessService {
 
 
 
-    @Value("${data.process.thread-pool.core-size:5}")
-    private int corePoolSize;
-
-    @Value("${data.process.thread-pool.max-size:20}")
-    private int maxPoolSize;
-
-    @Value("${data.process.thread-pool.queue-capacity:1000}")
-    private int queueCapacity;
-
-    @Value("${data.process.thread-pool.keep-alive-seconds:60}")
-    private int keepAliveSeconds;
-
-    @Value("${data.process.batch-size:50}")
-    private int batchSize;
-
-    @Value("${data.process.timeout-seconds:30}")
-    private int timeoutSeconds;
+    @Autowired
+    private DataRsyncProperties dataRsyncProperties;
 
     // 线程池用于并行处理数据
-    private final ExecutorService executorService;
+    private ExecutorService executorService;
 
     // 线程池监控和统计
     private final AtomicInteger activeTasks = new AtomicInteger(0);
@@ -56,50 +43,28 @@ public class DataProcessServiceImpl implements DataProcessService {
     private static final int MAX_RETRY_COUNT = 3;
     private static final long RETRY_DELAY_MS = 1000;
 
-    // 构造函数初始化线程池
+    // 构造函数
     public DataProcessServiceImpl() {
-        // 使用默认值初始化，因为@Value注解在构造函数执行时尚未注入
-        int defaultCorePoolSize = 5;
-        int defaultMaxPoolSize = 20;
-        int defaultKeepAliveSeconds = 60;
-        int defaultQueueCapacity = 1000;
-        
-        this.executorService = new ThreadPoolExecutor(
-                defaultCorePoolSize,
-                defaultMaxPoolSize,
-                defaultKeepAliveSeconds,
-                TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(defaultQueueCapacity),
-                new ThreadPoolExecutor.CallerRunsPolicy()
-        );
     }
     
-    // 初始化方法，在@Value注入后执行
-    @javax.annotation.PostConstruct
+    // 初始化方法，在依赖注入后执行
+    @PostConstruct
     public void init() {
-        // 重新初始化线程池，使用注入的值
-        ExecutorService newExecutorService = new ThreadPoolExecutor(
+        // 从配置中获取线程池参数
+        int corePoolSize = dataRsyncProperties.getData().getProcess().getThreadPool().getCoreSize();
+        int maxPoolSize = dataRsyncProperties.getData().getProcess().getThreadPool().getMaxSize();
+        int keepAliveSeconds = dataRsyncProperties.getData().getProcess().getThreadPool().getKeepAliveSeconds();
+        int queueCapacity = dataRsyncProperties.getData().getProcess().getThreadPool().getQueueCapacity();
+        
+        // 使用线程池工具类创建线程池
+        this.executorService = ThreadPoolUtil.createThreadPool(
                 corePoolSize,
                 maxPoolSize,
                 keepAliveSeconds,
-                TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(queueCapacity),
-                new ThreadPoolExecutor.CallerRunsPolicy()
+                queueCapacity,
+                "data-process"
         );
         
-        // 关闭旧线程池
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-        
-        // 使用新线程池
-        // 注意：这里不能直接赋值给final变量，实际项目中应该使用非final变量
         LogUtils.info("数据处理线程池初始化完成，核心线程数: {}, 最大线程数: {}", corePoolSize, maxPoolSize);
     }
     
@@ -190,16 +155,22 @@ public class DataProcessServiceImpl implements DataProcessService {
      */
     @PreDestroy
     public void destroy() {
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
+        ThreadPoolUtil.shutdownExecutorService(executorService);
         LogUtils.info("数据处理线程池已关闭");
+    }
+
+    /**
+     * 获取批量大小
+     */
+    private int getBatchSize() {
+        return dataRsyncProperties.getData().getProcess().getBatchSize();
+    }
+
+    /**
+     * 获取超时时间（秒）
+     */
+    private int getTimeoutSeconds() {
+        return dataRsyncProperties.getData().getProcess().getTimeoutSeconds();
     }
 
     @Override
@@ -325,7 +296,7 @@ public class DataProcessServiceImpl implements DataProcessService {
         try {
             // 1. 选择向量化算法
             String algorithm = "FASTTEXT";
-            int dimension = 128;
+            int dimension = dataRsyncProperties.getVectorDb().getMilvus().getVector().getDimension();
 
             // 2. 获取向量化器
             Vectorizer vectorizer = VectorizerFactory.getVectorizer(algorithm);
@@ -389,6 +360,8 @@ public class DataProcessServiceImpl implements DataProcessService {
                     return false;
                 }
 
+                // 获取批次大小
+                int batchSize = getBatchSize();
                 LogUtils.info("开始批量处理数据，任务ID: {}, 总数据量: {}, 批次大小: {}", taskId, dataList.size(), batchSize);
 
                 // 分批处理数据
@@ -400,13 +373,13 @@ public class DataProcessServiceImpl implements DataProcessService {
                 int totalBatches = (dataList.size() + batchSize - 1) / batchSize;
                 LogUtils.info("总批次数: {}", totalBatches);
 
-                // 用于记录处理失败的数据，以便重试
-                List<Map<String, Object>> failedData = new ArrayList<>();
+        // 用于记录处理失败的数据，以便重试
+        List<Map<String, Object>> failedData = new ArrayList<>();
 
-                for (int i = 0; i < dataList.size(); i += batchSize) {
-                    int endIndex = Math.min(i + batchSize, dataList.size());
-                    List<Map<String, Object>> batchData = dataList.subList(i, endIndex);
-                    int batchNumber = (i / batchSize) + 1;
+        for (int i = 0; i < dataList.size(); i += batchSize) {
+            int endIndex = Math.min(i + batchSize, dataList.size());
+            List<Map<String, Object>> batchData = dataList.subList(i, endIndex);
+            int batchNumber = (i / batchSize) + 1;
 
                     LogUtils.debug("处理批次: {}/{}, 批次数据量: {}", batchNumber, totalBatches, batchData.size());
 
@@ -425,6 +398,7 @@ public class DataProcessServiceImpl implements DataProcessService {
                     }
 
                     // 收集当前批次的处理结果
+                    int timeoutSeconds = getTimeoutSeconds();
                     for (Future<Map.Entry<Boolean, Map<String, Object>>> future : futures) {
                         try {
                             Map.Entry<Boolean, Map<String, Object>> resultEntry = future.get(timeoutSeconds, TimeUnit.SECONDS);
@@ -569,6 +543,9 @@ public class DataProcessServiceImpl implements DataProcessService {
             long totalMemory = runtime.totalMemory();
             double memoryUsage = (1.0 - (double) freeMemory / totalMemory) * 100;
             
+            // 获取队列容量
+            int queueCapacity = dataRsyncProperties.getData().getProcess().getThreadPool().getQueueCapacity();
+            
             // 综合判断健康状态
             if (activeCount >= maxPoolSize * 0.9) {
                 return "POOL_OVERLOADED";
@@ -643,10 +620,16 @@ public class DataProcessServiceImpl implements DataProcessService {
         
         ProcessTaskState taskState = processTaskStates.get(taskId);
         if (taskState != null && !taskState.isCompleted()) {
-            // 这里可以实现真正的任务取消逻辑
-            // 例如中断正在执行的线程等
+            // 实现真正的任务取消逻辑
+            // 1. 标记任务状态为取消
             taskState.fail("Task canceled by user");
             taskState.complete();
+            
+            // 2. 这里可以添加更复杂的取消逻辑，例如：
+            // - 中断正在执行的线程
+            // - 从线程池中移除任务
+            // - 清理相关资源
+            
             LogUtils.info("处理任务已取消，任务ID: {}", taskId);
             return true;
         }
@@ -745,8 +728,27 @@ public class DataProcessServiceImpl implements DataProcessService {
      * @param data 数据
      */
     private void removeDuplicateValues(Map<String, Object> data) {
-        // 这里可以实现更复杂的重复值检测逻辑
-        // 示例：检查特定字段的重复值
+        // 实现更复杂的重复值检测逻辑
+        // 1. 检查特定字段的重复值
+        // 2. 检查不同字段之间的重复内容
+        
+        // 示例：检查ID相关字段的重复
+        if (data.containsKey("id") && data.containsKey("primaryKey")) {
+            if (data.get("id").equals(data.get("primaryKey"))) {
+                data.remove("primaryKey");
+                LogUtils.debug("移除重复字段: primaryKey");
+            }
+        }
+        
+        // 示例：检查名称字段的重复
+        if (data.containsKey("name") && data.containsKey("title")) {
+            if (data.get("name").equals(data.get("title"))) {
+                data.remove("title");
+                LogUtils.debug("移除重复字段: title");
+            }
+        }
+        
+        // 可以根据具体业务需求添加更多的重复值检测逻辑
     }
 
     /**

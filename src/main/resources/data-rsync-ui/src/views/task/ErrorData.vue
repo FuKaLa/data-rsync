@@ -134,6 +134,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { taskApi } from '../../api'
 
 const route = useRoute()
 const taskId = ref(Number(route.params.id))
@@ -161,31 +162,11 @@ onMounted(() => {
 
 const loadErrorData = async () => {
   try {
-    // 这里模拟数据，实际应调用API获取错误数据
-    const mockData = [
-      {
-        id: 1,
-        taskId: taskId.value,
-        taskName: '测试任务',
-        sourceData: '{"id": 1, "name": "测试数据", "content": "这是一条测试数据"}',
-        errorMessage: '向量维度不匹配，期望128维，实际256维',
-        errorType: 'VECTOR_DIMENSION_MISMATCH',
-        syncStage: 'VECTOR_GENERATION',
-        errorTime: '2026-02-02 10:00:00'
-      },
-      {
-        id: 2,
-        taskId: taskId.value,
-        taskName: '测试任务',
-        sourceData: '{"id": 2, "name": "测试数据2", "content": "这是另一条测试数据"}',
-        errorMessage: 'Milvus写入超时，连接超时时间30秒',
-        errorType: 'MILVUS_WRITE_TIMEOUT',
-        syncStage: 'MILVUS_WRITE',
-        errorTime: '2026-02-02 10:05:00'
-      }
-    ]
-    errorDataList.value = mockData
-    total.value = mockData.length
+    const response = await taskApi.getErrorData(taskId.value, filterForm.value.errorType, filterForm.value.syncStage)
+    if (response.data.code === 200) {
+      errorDataList.value = response.data.data || []
+      total.value = errorDataList.value.length
+    }
   } catch (error) {
     console.error('Failed to load error data:', error)
     ElMessage.error('加载错误数据失败')
@@ -193,8 +174,7 @@ const loadErrorData = async () => {
 }
 
 const handleFilter = () => {
-  // 实际应根据筛选条件调用API
-  console.log('Filter form:', filterForm.value)
+  currentPage.value = 1
   loadErrorData()
 }
 
@@ -203,6 +183,7 @@ const resetFilter = () => {
     errorType: '',
     syncStage: ''
   }
+  currentPage.value = 1
   loadErrorData()
 }
 
@@ -220,22 +201,36 @@ const handleSelectionChange = (val: any[]) => {
   selectedRows.value = val
 }
 
-const handleRetrySelected = () => {
+const handleRetrySelected = async () => {
   if (selectedRows.value.length === 0) {
     ElMessage.warning('请选择要重推的数据')
     return
   }
   
   const ids = selectedRows.value.map(row => row.id)
-  console.log('Retry selected ids:', ids)
-  // 实际应调用API重推选中数据
-  ElMessage.success(`已重推 ${selectedRows.value.length} 条数据`)
+  try {
+    const response = await taskApi.batchRetryErrorData(ids)
+    if (response.data.code === 200) {
+      ElMessage.success(`已重推 ${selectedRows.value.length} 条数据`)
+      loadErrorData()
+    }
+  } catch (error) {
+    console.error('Failed to retry selected error data:', error)
+    ElMessage.error('重推数据失败')
+  }
 }
 
-const handleRetrySingle = (id: number) => {
-  console.log('Retry single id:', id)
-  // 实际应调用API重推单条数据
-  ElMessage.success('数据重推成功')
+const handleRetrySingle = async (id: number) => {
+  try {
+    const response = await taskApi.retryErrorData(id)
+    if (response.data.code === 200) {
+      ElMessage.success('数据重推成功')
+      loadErrorData()
+    }
+  } catch (error) {
+    console.error('Failed to retry error data:', error)
+    ElMessage.error('重推数据失败')
+  }
 }
 
 const handleViewDetails = (row: any) => {

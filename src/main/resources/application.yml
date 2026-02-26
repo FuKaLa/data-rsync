@@ -72,9 +72,18 @@ data-rsync:
   vector-db:
     milvus:
       type: "MILVUS"
-      host: "192.168.1.81"
+      host: "192.168.1.95"
       port: 19530
       enabled: true
+      collection:
+        name: "data_rsync_collection"
+      vector:
+        dimension: 128
+      thread-pool:
+        core-size: 5
+        max-size: 20
+        queue-capacity: 1000
+        keep-alive-seconds: 60
   
   # 同步服务配置
   sync:
@@ -83,17 +92,17 @@ data-rsync:
     retry-count: 3
     retry-delay-ms: 1000
     connection-timeout-ms: 5000
-    dimension: 128
   
   # 数据处理配置
-  data-process:
-    thread-pool:
-      core-size: 5
-      max-size: 20
-      queue-capacity: 1000
-      keep-alive-seconds: 60
-    batch-size: 50
-    timeout-seconds: 30
+  data:
+    process:
+      thread-pool:
+        core-size: 5
+        max-size: 20
+        queue-capacity: 1000
+        keep-alive-seconds: 60
+      batch-size: 50
+      timeout-seconds: 30
   
   # 资源监控配置
   resource:

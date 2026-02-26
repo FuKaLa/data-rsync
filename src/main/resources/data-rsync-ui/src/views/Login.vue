@@ -129,8 +129,7 @@ const handleLogin = async () => {
     })
     
     if (response && response.data && response.data.code === 200 && response.data.data) {
-      sessionStorage.setItem('data-rsync-token', response.data.data.token)
-      sessionStorage.setItem('user', JSON.stringify(response.data.data.user))
+      sessionStorage.setItem('data-rsync-token', response.data.data)
       router.push('/dashboard')
     } else {
       error.value = response?.data?.message || '登录失败'

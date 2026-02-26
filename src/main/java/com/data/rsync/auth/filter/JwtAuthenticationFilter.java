@@ -199,10 +199,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String requestURI = request.getRequestURI();
         
         // 跳过不需要认证的路径
-        return requestURI.startsWith("/api/auth/") ||
-               requestURI.startsWith("/api/public/") ||
+        return requestURI.contains("/auth/") ||
+               requestURI.contains("/public/") ||
                requestURI.startsWith("/actuator/") ||
-               requestURI.equals("/health") ||
+               requestURI.contains("/health") ||
                requestURI.equals("/favicon.ico");
     }
 }

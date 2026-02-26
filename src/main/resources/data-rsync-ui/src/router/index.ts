@@ -74,6 +74,16 @@ const router = createRouter({
       component: () => import('@/views/milvus/Health.vue')
     },
     {
+      path: '/milvus/sync',
+      name: 'MilvusSync',
+      component: () => import('@/views/milvus/Sync.vue')
+    },
+    {
+      path: '/vectorization/list',
+      name: 'VectorizationList',
+      component: () => import('@/views/vectorization/List.vue')
+    },
+    {
       path: '/system/users',
       name: 'SystemUsers',
       component: () => import('@/views/system/Users.vue')

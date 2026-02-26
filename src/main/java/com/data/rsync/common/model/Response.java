@@ -31,6 +31,21 @@ public class Response<T> {
     private long timestamp;
 
     /**
+     * 错误码
+     */
+    private String errorCode;
+
+    /**
+     * 错误详情
+     */
+    private String errorDetail;
+
+    /**
+     * 建议操作
+     */
+    private String suggestion;
+
+    /**
      * 构造方法
      */
     public Response() {
@@ -47,6 +62,25 @@ public class Response<T> {
         this.code = code;
         this.message = message;
         this.data = data;
+        this.timestamp = System.currentTimeMillis();
+    }
+
+    /**
+     * 构造方法
+     * @param code 状态码
+     * @param message 消息
+     * @param data 数据
+     * @param errorCode 错误码
+     * @param errorDetail 错误详情
+     * @param suggestion 建议操作
+     */
+    public Response(int code, String message, T data, String errorCode, String errorDetail, String suggestion) {
+        this.code = code;
+        this.message = message;
+        this.data = data;
+        this.errorCode = errorCode;
+        this.errorDetail = errorDetail;
+        this.suggestion = suggestion;
         this.timestamp = System.currentTimeMillis();
     }
 
@@ -102,6 +136,34 @@ public class Response<T> {
      */
     public static <T> Response<T> failure(int code, String message, T data) {
         return new Response<>(code, message, data);
+    }
+
+    /**
+     * 失败响应
+     * @param code 状态码
+     * @param message 消息
+     * @param data 数据
+     * @param errorCode 错误码
+     * @param errorDetail 错误详情
+     * @param suggestion 建议操作
+     * @param <T> 数据类型
+     * @return 响应对象
+     */
+    public static <T> Response<T> failure(int code, String message, T data, String errorCode, String errorDetail, String suggestion) {
+        return new Response<>(code, message, data, errorCode, errorDetail, suggestion);
+    }
+
+    /**
+     * 失败响应
+     * @param message 消息
+     * @param errorCode 错误码
+     * @param errorDetail 错误详情
+     * @param suggestion 建议操作
+     * @param <T> 数据类型
+     * @return 响应对象
+     */
+    public static <T> Response<T> failure(String message, String errorCode, String errorDetail, String suggestion) {
+        return new Response<>(500, message, null, errorCode, errorDetail, suggestion);
     }
 
 }

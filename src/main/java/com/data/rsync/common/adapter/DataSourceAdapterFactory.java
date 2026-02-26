@@ -44,11 +44,24 @@ public class DataSourceAdapterFactory {
      * @return 数据源适配器
      */
     public static DataSourceAdapter getAdapter(String dataSourceType) {
-        DataSourceAdapter adapter = adapterMap.get(dataSourceType);
-        if (adapter == null) {
-            throw new UnsupportedOperationException("Unsupported data source type: " + dataSourceType);
+        if (dataSourceType == null) {
+            throw new IllegalArgumentException("Data source type cannot be null");
         }
-        return adapter;
+        
+        // 尝试直接匹配
+        DataSourceAdapter adapter = adapterMap.get(dataSourceType);
+        if (adapter != null) {
+            return adapter;
+        }
+        
+        // 尝试大小写不敏感匹配
+        for (Map.Entry<String, DataSourceAdapter> entry : adapterMap.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(dataSourceType)) {
+                return entry.getValue();
+            }
+        }
+        
+        throw new UnsupportedOperationException("Unsupported data source type: " + dataSourceType);
     }
 
     /**

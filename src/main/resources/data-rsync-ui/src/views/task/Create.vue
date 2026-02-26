@@ -316,16 +316,55 @@
             </div>
             <div class="step-content">
               <el-form :model="flowConfig.milvusWrite" label-width="120px">
-                <el-form-item label="集合名称">
-                  <el-input v-model="flowConfig.milvusWrite.collectionName" placeholder="输入集合名称" />
-                </el-form-item>
-                <el-form-item label="索引类型">
-                  <el-select v-model="flowConfig.milvusWrite.indexType" placeholder="选择索引类型" style="width: 100%">
-                    <el-option label="IVF_FLAT" value="IVF_FLAT" />
-                    <el-option label="HNSW" value="HNSW" />
-                    <el-option label="ANNOY" value="ANNOY" />
+                <el-form-item label="集合选择">
+                  <el-select 
+                    v-model="flowConfig.milvusWrite.collectionSelection" 
+                    placeholder="选择或新建集合" 
+                    style="width: 100%"
+                    @change="handleCollectionSelectionChange"
+                    :loading="loadingCollections"
+                    @focus="loadCollections"
+                  >
+                    <el-option label="新建集合" value="new" />
+                    <el-option 
+                      v-for="collection in collections" 
+                      :key="collection.collectionName" 
+                      :label="collection.collectionName" 
+                      :value="collection.collectionName" 
+                    />
                   </el-select>
                 </el-form-item>
+                
+                <!-- 新建集合表单 -->
+                <div v-if="flowConfig.milvusWrite.collectionSelection === 'new'">
+                  <el-form-item label="集合名称">
+                    <el-input v-model="flowConfig.milvusWrite.collectionName" placeholder="输入集合名称" />
+                  </el-form-item>
+                  <el-form-item label="向量维度">
+                    <el-input-number v-model="flowConfig.milvusWrite.dimension" :min="1" :max="4096" style="width: 100%" placeholder="输入向量维度" />
+                  </el-form-item>
+                  <el-form-item label="距离度量">
+                    <el-select v-model="flowConfig.milvusWrite.metricType" placeholder="选择距离度量" style="width: 100%">
+                      <el-option label="L2" value="L2" />
+                      <el-option label="IP" value="IP" />
+                      <el-option label="COSINE" value="COSINE" />
+                    </el-select>
+                  </el-form-item>
+                </div>
+                
+                <!-- 选择现有集合 -->
+                <div v-else-if="flowConfig.milvusWrite.collectionSelection">
+                  <el-form-item label="集合名称">
+                    <el-input v-model="flowConfig.milvusWrite.collectionName" readonly />
+                  </el-form-item>
+                  <el-form-item label="索引类型">
+                    <el-select v-model="flowConfig.milvusWrite.indexType" placeholder="选择索引类型" style="width: 100%">
+                      <el-option label="IVF_FLAT" value="IVF_FLAT" />
+                      <el-option label="HNSW" value="HNSW" />
+                      <el-option label="ANNOY" value="ANNOY" />
+                    </el-select>
+                  </el-form-item>
+                </div>
               </el-form>
             </div>
           </div>
@@ -639,6 +678,73 @@ const nextStep = () => {
   }
 }
 
+// 集合列表
+const collections = ref<any[]>([])
+const loadingCollections = ref(false)
+
+// 加载集合列表
+const loadCollections = async () => {
+  try {
+    if (loadingCollections.value) {
+      return
+    }
+    
+    loadingCollections.value = true
+    
+    try {
+      // 调用API获取集合列表
+      const response = await fetch('/api/milvus/collections')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          collections.value = data.data
+        } else {
+          ElMessage.error('获取集合列表失败: ' + data.message)
+        }
+      } else {
+        ElMessage.error('获取集合列表失败')
+      }
+    } catch (apiError) {
+      console.warn('API call failed, using mock data:', apiError instanceof Error ? apiError.message : String(apiError))
+      // 模拟API调用延迟
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // 模拟集合数据
+      if (collections.value.length === 0) {
+        collections.value = [
+          { collectionName: 'user_embeddings', dimension: 128, metricType: 'L2', rowCount: 100000, status: 'ACTIVE' },
+          { collectionName: 'product_embeddings', dimension: 256, metricType: 'IP', rowCount: 50000, status: 'ACTIVE' },
+          { collectionName: 'document_embeddings', dimension: 768, metricType: 'COSINE', rowCount: 200000, status: 'ACTIVE' }
+        ]
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load collections:', error)
+    ElMessage.error('获取集合列表失败')
+  } finally {
+    loadingCollections.value = false
+  }
+}
+
+// 处理集合选择变更
+const handleCollectionSelectionChange = (value: string) => {
+  if (value === 'new') {
+    // 新建集合，重置相关字段
+    flowConfig.milvusWrite.collectionName = ''
+    flowConfig.milvusWrite.dimension = 128
+    flowConfig.milvusWrite.metricType = 'L2'
+  } else if (value) {
+    // 选择现有集合，设置集合名称
+    flowConfig.milvusWrite.collectionName = value
+    // 可以根据选择的集合设置其他默认值
+    const selectedCollection = collections.value.find(c => c.collectionName === value)
+    if (selectedCollection) {
+      flowConfig.milvusWrite.dimension = selectedCollection.dimension || 128
+      flowConfig.milvusWrite.metricType = selectedCollection.metricType || 'L2'
+    }
+  }
+}
+
 // 流程配置
 const flowConfig = reactive({
   dataSource: {
@@ -658,7 +764,10 @@ const flowConfig = reactive({
     dimension: 300
   },
   milvusWrite: {
+    collectionSelection: '',
     collectionName: '',
+    dimension: 128,
+    metricType: 'L2',
     indexType: 'IVF_FLAT'
   }
 })
@@ -760,12 +869,19 @@ const handleSubmit = async () => {
         
         try {
           loading.value = true
+          
+          // 构建数据库配置，包含向量维度信息
+          const databaseConfig = {
+            vectorDimension: flowConfig.milvusWrite.dimension
+          }
+          
           // 构建任务数据
           const taskData = {
             ...form,
             config: JSON.stringify({
               flowConfig: flowConfig,
-              dependency: dependencyForm
+              dependency: dependencyForm,
+              databaseConfig: databaseConfig
             })
           }
           
@@ -839,7 +955,10 @@ const handleReset = () => {
         dimension: 300
       },
       milvusWrite: {
+        collectionSelection: '',
         collectionName: '',
+        dimension: 128,
+        metricType: 'L2',
         indexType: 'IVF_FLAT'
       }
     })

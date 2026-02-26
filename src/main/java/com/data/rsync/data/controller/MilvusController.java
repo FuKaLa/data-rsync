@@ -375,4 +375,22 @@ public class MilvusController {
             return Response.failure(500, "数据库同步到向量库的验证失败");
         }
     }
+
+    /**
+     * 获取同步任务进度
+     * @param taskId 任务ID
+     * @return 同步进度
+     */
+    @GetMapping("/sync/progress")
+    public Response<com.data.rsync.common.model.SyncProgress> getSyncProgress(@RequestParam Long taskId) {
+        try {
+            com.data.rsync.common.model.SyncProgress progress = milvusSyncService.getSyncProgress(taskId);
+            if (progress == null) {
+                return Response.failure(404, "任务不存在");
+            }
+            return Response.success(progress);
+        } catch (Exception e) {
+            return Response.failure(500, "获取同步进度失败");
+        }
+    }
 }

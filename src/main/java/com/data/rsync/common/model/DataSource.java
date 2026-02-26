@@ -122,6 +122,11 @@ public class DataSource {
     private Integer failureCount;
 
     /**
+     * 是否为Docker部署
+     */
+    private Boolean dockerDeployed;
+
+    /**
      * 描述
      */
     private String description;
@@ -179,6 +184,7 @@ public class DataSource {
     public DataSource() {
         this.tenantId = 0L;
         this.enabled = true;
+        this.dockerDeployed = false;
         this.failureCount = 0;
         this.deleted = 0;
         this.version = 0;

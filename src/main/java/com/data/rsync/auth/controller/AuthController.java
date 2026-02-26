@@ -191,10 +191,12 @@ public class AuthController {
     @GetMapping("/current-user")
     public Response<UserInfoResponse> getCurrentUser(@RequestHeader(value = "Authorization", required = false) String authorization) {
         logger.info("开始处理获取当前用户信息请求");
+        logger.info("Authorization header: {}", authorization);
         
         try {
             // 从 Authorization 头中获取 token
             String token = jwtUtils.extractToken(authorization);
+            logger.info("Extracted token: {}", token);
             if (token == null) {
                 logger.warn("获取当前用户信息失败，缺少或无效的 Authorization 头");
                 return Response.failure(401, "未授权，请重新登录");
@@ -203,18 +205,31 @@ public class AuthController {
             logger.debug("Extracted token: {}", token.substring(0, Math.min(token.length(), 20)) + "...");
             
             // 验证并解析 JWT token
-            if (!jwtUtils.validateToken(token)) {
+            logger.info("Validating token...");
+            boolean isValid = jwtUtils.validateToken(token);
+            logger.info("Token validation result: {}", isValid);
+            if (!isValid) {
                 logger.warn("获取当前用户信息失败，无效的 token");
                 return Response.failure(401, "无效的token，请重新登录");
             }
             
             // 解析 token，获取用户信息
+            logger.info("Parsing token...");
             Claims claims = jwtUtils.parseToken(token);
+            logger.info("Token parsed successfully, subject: {}", claims.getSubject());
             
             // 从 claims 中提取用户信息
             UserInfoResponse userInfo = new UserInfoResponse();
             userInfo.setUsername(claims.getSubject());
-            userInfo.setUserId((Long) claims.get("userId"));
+            // 安全地转换userId类型
+            Object userIdObj = claims.get("userId");
+            if (userIdObj instanceof Integer) {
+                userInfo.setUserId(((Integer) userIdObj).longValue());
+            } else if (userIdObj instanceof Long) {
+                userInfo.setUserId((Long) userIdObj);
+            } else {
+                logger.warn("Invalid userId type: {}", userIdObj != null ? userIdObj.getClass() : "null");
+            }
             userInfo.setName((String) claims.get("name"));
             userInfo.setEmail((String) claims.get("email"));
             userInfo.setPhone((String) claims.get("phone"));

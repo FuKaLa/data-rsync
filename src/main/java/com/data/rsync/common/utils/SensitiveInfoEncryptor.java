@@ -62,6 +62,11 @@ public class SensitiveInfoEncryptor {
      */
     public String decrypt(String ciphertext) {
         try {
+            // Check if ciphertext is null or empty
+            if (ciphertext == null || ciphertext.isEmpty()) {
+                return ciphertext;
+            }
+            
             // Check if the input is Base64 encoded
             if (!isBase64Encoded(ciphertext)) {
                 // If not Base64, it's probably plain text

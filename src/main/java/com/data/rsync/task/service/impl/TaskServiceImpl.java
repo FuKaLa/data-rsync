@@ -1,6 +1,8 @@
 package com.data.rsync.task.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.data.rsync.data.entity.DataSourceEntity;
+import com.data.rsync.data.service.DataSourceService;
 import com.data.rsync.task.entity.MilvusIndexEntity;
 import com.data.rsync.task.entity.TaskConnectionEntity;
 import com.data.rsync.task.entity.TaskDependencyEntity;
@@ -74,9 +76,15 @@ public class TaskServiceImpl implements TaskService {
     @Qualifier("vectorSyncServiceImpl")
     private MilvusSyncService vectorSyncService;
 
+    @Autowired
+    private DataSourceService dataSourceService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TaskEntity createTask(TaskEntity taskEntity) {
+        // 校验任务配置
+        validateTaskConfig(taskEntity);
+        
         taskEntity.setCreateTime(LocalDateTime.now());
         taskEntity.setUpdateTime(LocalDateTime.now());
         taskEntity.setStatus("PENDING");
@@ -99,6 +107,9 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TaskEntity updateTask(TaskEntity taskEntity) {
+        // 校验任务配置
+        validateTaskConfig(taskEntity);
+        
         taskEntity.setUpdateTime(LocalDateTime.now());
         taskMapper.updateById(taskEntity);
         
@@ -114,6 +125,75 @@ public class TaskServiceImpl implements TaskService {
         }
         
         return taskEntity;
+    }
+    
+    /**
+     * 校验任务配置
+     * @param taskEntity 任务实体
+     * @throws TaskException 任务配置异常
+     */
+    private void validateTaskConfig(TaskEntity taskEntity) {
+        // 校验任务名称
+        if (taskEntity.getName() == null || taskEntity.getName().isEmpty()) {
+            throw new TaskException("任务名称不能为空");
+        }
+        
+        // 校验任务类型
+        if (taskEntity.getType() == null || taskEntity.getType().isEmpty()) {
+            throw new TaskException("任务类型不能为空");
+        }
+        
+        // 校验数据源ID
+        if (taskEntity.getDataSourceId() == null) {
+            throw new TaskException("数据源ID不能为空");
+        }
+        
+        // 校验数据库名称
+        if (taskEntity.getDatabaseName() == null || taskEntity.getDatabaseName().isEmpty()) {
+            throw new TaskException("数据库名称不能为空");
+        }
+        
+        // 校验表名称
+        if (taskEntity.getTableName() == null || taskEntity.getTableName().isEmpty()) {
+            throw new TaskException("表名称不能为空");
+        }
+        
+        // 校验任务配置
+        if (taskEntity.getConfig() == null || taskEntity.getConfig().isEmpty()) {
+            throw new TaskException("任务配置不能为空");
+        }
+        
+        // 校验数据源是否存在且健康
+        validateDataSourceHealth(taskEntity.getDataSourceId());
+    }
+    
+    /**
+     * 校验数据源健康状态
+     * @param dataSourceId 数据源ID
+     * @throws TaskException 数据源异常
+     */
+    private void validateDataSourceHealth(Long dataSourceId) {
+        DataSourceEntity dataSourceEntity = dataSourceService.getDataSourceById(dataSourceId);
+        if (dataSourceEntity == null) {
+            throw new TaskException("数据源不存在，ID：" + dataSourceId);
+        }
+        
+        // 校验数据源是否启用
+        if (dataSourceEntity.getEnabled() == null || !dataSourceEntity.getEnabled()) {
+            throw new TaskException("数据源未启用，ID：" + dataSourceId);
+        }
+        
+        // 校验数据源健康状态
+        if (dataSourceEntity.getHealthStatus() == null || "UNHEALTHY".equals(dataSourceEntity.getHealthStatus())) {
+            throw new TaskException("数据源健康状态异常，ID：" + dataSourceId);
+        }
+        
+        // 测试数据源连接
+        try {
+            dataSourceService.testDataSourceConnection(dataSourceEntity);
+        } catch (Exception e) {
+            throw new TaskException("数据源连接测试失败：" + e.getMessage());
+        }
     }
 
     @Override
@@ -202,40 +282,69 @@ public class TaskServiceImpl implements TaskService {
         TaskEntity taskEntity = getTaskById(id);
         TaskTriggerResponse response = new TaskTriggerResponse();
         if (taskEntity != null) {
-            taskEntity.setStatus("RUNNING");
-            taskEntity.setStartTime(LocalDateTime.now());
-            taskEntity.setLastExecTime(LocalDateTime.now());
-            // 防止空指针异常
-            Integer execCount = taskEntity.getExecCount();
-            taskEntity.setExecCount(execCount != null ? execCount + 1 : 1);
-            taskMapper.updateById(taskEntity);
-            
-            // 执行实际的同步逻辑
+            // 数据同步前的校验
             try {
-                logger.info("开始执行数据同步任务，任务ID：{}，类型：{}", id, taskEntity.getType());
+                // 校验任务配置
+                validateTaskConfig(taskEntity);
                 
-                // 模拟数据同步（实际应该从数据源读取数据并同步到Milvus）
-                if ("FULL_SYNC".equals(taskEntity.getType())) {
-                    // 全量同步
-                    executeFullSync(taskEntity);
-                } else if ("INCREMENTAL_SYNC".equals(taskEntity.getType())) {
-                    // 增量同步
-                    executeIncrementalSync(taskEntity);
+                // 校验数据源健康状态
+                validateDataSourceHealth(taskEntity.getDataSourceId());
+                
+                // 校验任务状态
+                if ("RUNNING".equals(taskEntity.getStatus())) {
+                    throw new TaskException("任务正在执行中，请勿重复触发");
                 }
                 
-                logger.info("数据同步任务执行成功，任务ID：{}", id);
-                
-                // 更新任务状态为成功
-                taskEntity.setStatus("SUCCESS");
-                taskEntity.setEndTime(LocalDateTime.now());
-                taskEntity.setErrorMessage(null);
+                taskEntity.setStatus("RUNNING");
+                taskEntity.setStartTime(LocalDateTime.now());
+                taskEntity.setLastExecTime(LocalDateTime.now());
+                // 防止空指针异常
+                Integer execCount = taskEntity.getExecCount();
+                taskEntity.setExecCount(execCount != null ? execCount + 1 : 1);
                 taskMapper.updateById(taskEntity);
                 
-                response.setSuccess(true);
-                response.setTaskId(id.toString());
-                response.setMessage("任务触发成功并执行完成");
+                // 执行实际的同步逻辑
+                try {
+                    logger.info("开始执行数据同步任务，任务ID：{}，类型：{}", id, taskEntity.getType());
+                    
+                    // 执行不同类型的同步任务
+                    if ("FULL_SYNC".equals(taskEntity.getType())) {
+                        // 全量同步
+                        executeFullSync(taskEntity);
+                    } else if ("INCREMENTAL_SYNC".equals(taskEntity.getType())) {
+                        // 增量同步
+                        executeIncrementalSync(taskEntity);
+                    } else if ("VECTOR_SYNC".equals(taskEntity.getType())) {
+                        // 向量同步
+                        executeVectorSync(taskEntity);
+                    }
+                    
+                    logger.info("数据同步任务执行成功，任务ID：{}", id);
+                    
+                    // 更新任务状态为成功
+                    taskEntity.setStatus("SUCCESS");
+                    taskEntity.setEndTime(LocalDateTime.now());
+                    taskEntity.setErrorMessage(null);
+                    taskMapper.updateById(taskEntity);
+                    
+                    response.setSuccess(true);
+                    response.setTaskId(id.toString());
+                    response.setMessage("任务触发成功并执行完成");
+                } catch (Exception e) {
+                    logger.error("数据同步任务执行失败，任务ID：{}", id, e);
+                    
+                    // 更新任务状态为失败
+                    taskEntity.setStatus("FAILED");
+                    taskEntity.setEndTime(LocalDateTime.now());
+                    taskEntity.setErrorMessage(e.getMessage());
+                    taskMapper.updateById(taskEntity);
+                    
+                    response.setSuccess(false);
+                    response.setTaskId(id.toString());
+                    response.setMessage("任务触发成功但执行失败：" + e.getMessage());
+                }
             } catch (Exception e) {
-                logger.error("数据同步任务执行失败，任务ID：{}", id, e);
+                logger.error("数据同步任务触发失败，任务ID：{}", id, e);
                 
                 // 更新任务状态为失败
                 taskEntity.setStatus("FAILED");
@@ -245,7 +354,7 @@ public class TaskServiceImpl implements TaskService {
                 
                 response.setSuccess(false);
                 response.setTaskId(id.toString());
-                response.setMessage("任务触发成功但执行失败：" + e.getMessage());
+                response.setMessage("任务触发失败：" + e.getMessage());
             }
         } else {
             response.setSuccess(false);
@@ -260,15 +369,72 @@ public class TaskServiceImpl implements TaskService {
     private void executeFullSync(TaskEntity taskEntity) {
         logger.info("执行全量同步，任务ID：{}", taskEntity.getId());
         
-        // 模拟从数据源读取数据
-        List<Map<String, Object>> dataList = generateMockData();
-        
-        // 同步数据到Milvus
-        if (!dataList.isEmpty()) {
-            vectorSyncService.batchWriteDataToMilvus(taskEntity.getId(), dataList);
+        try {
+            // 解析任务配置
+            String configJson = taskEntity.getConfig();
+            if (configJson == null || configJson.isEmpty()) {
+                throw new TaskException("任务配置为空");
+            }
+            
+            // 解析JSON配置
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, Object> config = objectMapper.readValue(configJson, Map.class);
+            
+            // 获取配置参数
+            String collectionName = (String) config.get("milvusCollection");
+            List<String> vectorFields = (List<String>) config.get("vectorFields");
+            Integer dimension = (Integer) config.get("dimension");
+            String metricType = (String) config.get("metricType");
+            
+            // 验证必要参数
+            if (collectionName == null || collectionName.isEmpty()) {
+                throw new TaskException("集合名称不能为空");
+            }
+            if (vectorFields == null || vectorFields.isEmpty()) {
+                throw new TaskException("向量字段不能为空");
+            }
+            
+            // 从数据源服务获取实际的数据源配置
+            Long dataSourceId = taskEntity.getDataSourceId();
+            if (dataSourceId == null) {
+                throw new TaskException("数据源ID不能为空");
+            }
+            
+            DataSourceEntity dataSourceEntity = dataSourceService.getDataSourceById(dataSourceId);
+            if (dataSourceEntity == null) {
+                throw new TaskException("数据源不存在，ID：" + dataSourceId);
+            }
+            
+            // 构建数据库配置
+            Map<String, Object> databaseConfig = new HashMap<>();
+            databaseConfig.put("type", dataSourceEntity.getType());
+            databaseConfig.put("host", dataSourceEntity.getHost());
+            databaseConfig.put("port", dataSourceEntity.getPort());
+            databaseConfig.put("database", taskEntity.getDatabaseName());
+            databaseConfig.put("username", dataSourceEntity.getUsername());
+            databaseConfig.put("password", dataSourceEntity.getPassword());
+            if (dimension != null) {
+                databaseConfig.put("vectorDimension", dimension);
+            }
+            
+            // 执行全量同步
+            logger.info("开始全量同步，集合：{}，数据库：{}，表：{}，向量字段：{}", 
+                    collectionName, taskEntity.getDatabaseName(), taskEntity.getTableName(), vectorFields);
+            
+            vectorSyncService.syncTableToVectorDB(
+                    databaseConfig,
+                    collectionName,
+                    taskEntity.getDatabaseName(),
+                    taskEntity.getTableName(),
+                    vectorFields,
+                    ""
+            );
+            
+            logger.info("全量同步完成，任务ID：{}", taskEntity.getId());
+        } catch (Exception e) {
+            logger.error("执行全量同步失败，任务ID：{}", taskEntity.getId(), e);
+            throw new TaskException("执行全量同步失败：" + e.getMessage(), e);
         }
-        
-        logger.info("全量同步完成，任务ID：{}，同步数据条数：{}", taskEntity.getId(), dataList.size());
     }
     
     /**
@@ -277,66 +443,161 @@ public class TaskServiceImpl implements TaskService {
     private void executeIncrementalSync(TaskEntity taskEntity) {
         logger.info("执行增量同步，任务ID：{}", taskEntity.getId());
         
-        // 模拟从数据源读取增量数据
-        List<Map<String, Object>> dataList = generateMockIncrementalData();
-        
-        // 同步数据到Milvus
-        if (!dataList.isEmpty()) {
-            vectorSyncService.batchWriteDataToMilvus(taskEntity.getId(), dataList);
+        try {
+            // 解析任务配置
+            String configJson = taskEntity.getConfig();
+            if (configJson == null || configJson.isEmpty()) {
+                throw new TaskException("任务配置为空");
+            }
+            
+            // 解析JSON配置
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, Object> config = objectMapper.readValue(configJson, Map.class);
+            
+            // 获取配置参数
+            String collectionName = (String) config.get("milvusCollection");
+            List<String> vectorFields = (List<String>) config.get("vectorFields");
+            Integer dimension = (Integer) config.get("dimension");
+            String metricType = (String) config.get("metricType");
+            String incrementField = (String) config.get("incrementField");
+            String lastSyncTime = (String) config.get("lastSyncTime");
+            
+            // 验证必要参数
+            if (collectionName == null || collectionName.isEmpty()) {
+                throw new TaskException("集合名称不能为空");
+            }
+            if (vectorFields == null || vectorFields.isEmpty()) {
+                throw new TaskException("向量字段不能为空");
+            }
+            if (incrementField == null || incrementField.isEmpty()) {
+                throw new TaskException("增量字段不能为空");
+            }
+            
+            // 从数据源服务获取实际的数据源配置
+            Long dataSourceId = taskEntity.getDataSourceId();
+            if (dataSourceId == null) {
+                throw new TaskException("数据源ID不能为空");
+            }
+            
+            DataSourceEntity dataSourceEntity = dataSourceService.getDataSourceById(dataSourceId);
+            if (dataSourceEntity == null) {
+                throw new TaskException("数据源不存在，ID：" + dataSourceId);
+            }
+            
+            // 构建数据库配置
+            Map<String, Object> databaseConfig = new HashMap<>();
+            databaseConfig.put("type", dataSourceEntity.getType());
+            databaseConfig.put("host", dataSourceEntity.getHost());
+            databaseConfig.put("port", dataSourceEntity.getPort());
+            databaseConfig.put("database", taskEntity.getDatabaseName());
+            databaseConfig.put("username", dataSourceEntity.getUsername());
+            databaseConfig.put("password", dataSourceEntity.getPassword());
+            if (dimension != null) {
+                databaseConfig.put("vectorDimension", dimension);
+            }
+            
+            // 执行增量同步
+            logger.info("开始增量同步，集合：{}，数据库：{}，表：{}，向量字段：{}，增量字段：{}", 
+                    collectionName, taskEntity.getDatabaseName(), taskEntity.getTableName(), vectorFields, incrementField);
+            
+            vectorSyncService.syncTableToVectorDB(
+                    databaseConfig,
+                    collectionName,
+                    taskEntity.getDatabaseName(),
+                    taskEntity.getTableName(),
+                    vectorFields,
+                    incrementField
+            );
+            
+            // 更新最后同步时间
+            if (config.containsKey("lastSyncTime")) {
+                config.put("lastSyncTime", LocalDateTime.now().toString());
+                taskEntity.setConfig(objectMapper.writeValueAsString(config));
+                taskMapper.updateById(taskEntity);
+            }
+            
+            logger.info("增量同步完成，任务ID：{}", taskEntity.getId());
+        } catch (Exception e) {
+            logger.error("执行增量同步失败，任务ID：{}", taskEntity.getId(), e);
+            throw new TaskException("执行增量同步失败：" + e.getMessage(), e);
         }
-        
-        logger.info("增量同步完成，任务ID：{}，同步数据条数：{}", taskEntity.getId(), dataList.size());
     }
     
     /**
-     * 生成模拟数据
+     * 执行向量同步
      */
-    private List<Map<String, Object>> generateMockData() {
-        List<Map<String, Object>> dataList = new ArrayList<>();
+    private void executeVectorSync(TaskEntity taskEntity) {
+        logger.info("执行向量同步，任务ID：{}", taskEntity.getId());
         
-        // 生成10条模拟数据
-        for (int i = 1; i <= 10; i++) {
-            Map<String, Object> data = new HashMap<>();
-            data.put("id", (long) i);
-            data.put("vector", generateMockVector());
-            data.put("data", "用户" + i + " - user" + i + "@example.com");
-            data.put("metadata", "{\"age\": " + (20 + i) + ", \"created_at\": \"" + LocalDateTime.now().minusDays(i) + "\"}");
-            dataList.add(data);
+        try {
+            // 解析任务配置
+            String configJson = taskEntity.getConfig();
+            if (configJson == null || configJson.isEmpty()) {
+                throw new TaskException("任务配置为空");
+            }
+            
+            // 解析JSON配置
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, Object> config = objectMapper.readValue(configJson, Map.class);
+            
+            // 获取配置参数
+            String collectionName = (String) config.get("milvusCollection");
+            List<String> vectorFields = (List<String>) config.get("vectorFields");
+            Integer dimension = (Integer) config.get("dimension");
+            String metricType = (String) config.get("metricType");
+            
+            // 验证必要参数
+            if (collectionName == null || collectionName.isEmpty()) {
+                throw new TaskException("集合名称不能为空");
+            }
+            if (vectorFields == null || vectorFields.isEmpty()) {
+                throw new TaskException("向量字段不能为空");
+            }
+            
+            // 从数据源服务获取实际的数据源配置
+            Long dataSourceId = taskEntity.getDataSourceId();
+            if (dataSourceId == null) {
+                throw new TaskException("数据源ID不能为空");
+            }
+            
+            DataSourceEntity dataSourceEntity = dataSourceService.getDataSourceById(dataSourceId);
+            if (dataSourceEntity == null) {
+                throw new TaskException("数据源不存在，ID：" + dataSourceId);
+            }
+            
+            // 构建数据库配置
+            Map<String, Object> databaseConfig = new HashMap<>();
+            databaseConfig.put("type", dataSourceEntity.getType());
+            databaseConfig.put("host", dataSourceEntity.getHost());
+            databaseConfig.put("port", dataSourceEntity.getPort());
+            databaseConfig.put("database", taskEntity.getDatabaseName());
+            databaseConfig.put("username", dataSourceEntity.getUsername());
+            databaseConfig.put("password", dataSourceEntity.getPassword());
+            if (dimension != null) {
+                databaseConfig.put("vectorDimension", dimension);
+            }
+            
+            // 执行向量同步
+            logger.info("开始向量同步，集合：{}，数据库：{}，表：{}，向量字段：{}", 
+                    collectionName, taskEntity.getDatabaseName(), taskEntity.getTableName(), vectorFields);
+            
+            vectorSyncService.syncTableToVectorDB(
+                    databaseConfig,
+                    collectionName,
+                    taskEntity.getDatabaseName(),
+                    taskEntity.getTableName(),
+                    vectorFields,
+                    ""
+            );
+            
+            logger.info("向量同步完成，任务ID：{}", taskEntity.getId());
+        } catch (Exception e) {
+            logger.error("执行向量同步失败，任务ID：{}", taskEntity.getId(), e);
+            throw new TaskException("执行向量同步失败：" + e.getMessage(), e);
         }
-        
-        return dataList;
     }
     
-    /**
-     * 生成模拟增量数据
-     */
-    private List<Map<String, Object>> generateMockIncrementalData() {
-        List<Map<String, Object>> dataList = new ArrayList<>();
-        
-        // 生成3条模拟增量数据
-        for (int i = 1; i <= 3; i++) {
-            Map<String, Object> data = new HashMap<>();
-            data.put("id", System.currentTimeMillis() + i);
-            data.put("vector", generateMockVector());
-            data.put("data", "新增用户" + i + " - newuser" + i + "@example.com");
-            data.put("metadata", "{\"age\": " + (25 + i) + ", \"created_at\": \"" + LocalDateTime.now() + "\"}");
-            dataList.add(data);
-        }
-        
-        return dataList;
-    }
-    
-    /**
-     * 生成模拟向量
-     */
-    private float[] generateMockVector() {
-        // 生成128维的模拟向量
-        float[] vector = new float[128];
-        for (int i = 0; i < 128; i++) {
-            vector[i] = (float) Math.random();
-        }
-        return vector;
-    }
+
 
     @Override
     public TaskEntity calculateNextExecTime(TaskEntity taskEntity) {
@@ -1183,20 +1444,41 @@ public class TaskServiceImpl implements TaskService {
             logger.info("记录任务执行历史，任务ID：{}，状态：{}，执行时长：{}ms，错误信息：{}", 
                     taskEntity.getId(), taskEntity.getStatus(), duration, errorMessage);
             
-            // 模拟任务执行历史记录
+            // 实际实现：创建任务执行历史记录并保存到数据库
+            // 由于目前没有TaskExecutionHistoryMapper，我们先记录详细日志
+            // 后续可以添加TaskExecutionHistory实体和Mapper来实现完整的历史记录存储
+            
+            // 构建历史记录对象
             Map<String, Object> historyRecord = new HashMap<>();
             historyRecord.put("taskId", taskEntity.getId());
             historyRecord.put("taskName", taskEntity.getName());
+            historyRecord.put("taskType", taskEntity.getType());
             historyRecord.put("status", taskEntity.getStatus());
             historyRecord.put("startTime", taskEntity.getStartTime());
             historyRecord.put("endTime", taskEntity.getEndTime());
             historyRecord.put("duration", duration);
             historyRecord.put("errorMessage", errorMessage);
             historyRecord.put("execCount", taskEntity.getExecCount());
+            historyRecord.put("dataSourceId", taskEntity.getDataSourceId());
+            historyRecord.put("databaseName", taskEntity.getDatabaseName());
+            historyRecord.put("tableName", taskEntity.getTableName());
             historyRecord.put("createdAt", LocalDateTime.now());
             
-            // 可以将历史记录保存到Redis或数据库
-            logger.info("任务执行历史记录：{}", historyRecord);
+            // 记录详细日志，模拟数据库存储
+            logger.info("任务执行历史详情：{}", historyRecord);
+            
+            // 这里可以添加实际的数据库存储逻辑，例如：
+            // TaskExecutionHistoryEntity historyEntity = new TaskExecutionHistoryEntity();
+            // historyEntity.setTaskId(taskEntity.getId());
+            // historyEntity.setTaskName(taskEntity.getName());
+            // historyEntity.setStatus(taskEntity.getStatus());
+            // historyEntity.setStartTime(taskEntity.getStartTime());
+            // historyEntity.setEndTime(taskEntity.getEndTime());
+            // historyEntity.setDuration(duration);
+            // historyEntity.setErrorMessage(errorMessage);
+            // historyEntity.setExecCount(taskEntity.getExecCount());
+            // historyEntity.setCreatedAt(LocalDateTime.now());
+            // taskExecutionHistoryMapper.insert(historyEntity);
         } catch (Exception e) {
             logger.error("记录任务执行历史失败，任务ID：{}", taskEntity.getId(), e);
         }

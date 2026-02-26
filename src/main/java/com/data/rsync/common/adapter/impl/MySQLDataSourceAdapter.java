@@ -43,6 +43,14 @@ public class MySQLDataSourceAdapter extends AbstractDataSourceAdapter {
         url.append("&autoReconnect=true&failOverReadOnly=false&maxReconnects=10");
         url.append("&allowPublicKeyRetrieval=true&useServerPrepStmts=true&cachePrepStmts=true");
         url.append("&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048");
+        
+        // Docker部署的MySQL特殊配置
+        if (dataSource.getDockerDeployed() != null && dataSource.getDockerDeployed()) {
+            url.append("&connectTimeout=30000&socketTimeout=60000");
+            url.append("&useLocalSessionState=true&rewriteBatchedStatements=true");
+            url.append("&useLocalTransactionState=true&maintainTimeStats=false");
+            url.append("&zeroDateTimeBehavior=CONVERT_TO_NULL&allowMultiQueries=true");
+        }
         return url.toString();
     }
 
@@ -69,6 +77,20 @@ public class MySQLDataSourceAdapter extends AbstractDataSourceAdapter {
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+        
+        // Docker部署的MySQL特殊配置
+        if (dataSource.getDockerDeployed() != null && dataSource.getDockerDeployed()) {
+            config.setConnectionTimeout(60000);
+            config.setValidationTimeout(10000);
+            config.addDataSourceProperty("connectTimeout", "30000");
+            config.addDataSourceProperty("socketTimeout", "60000");
+            config.addDataSourceProperty("useLocalSessionState", "true");
+            config.addDataSourceProperty("rewriteBatchedStatements", "true");
+            config.addDataSourceProperty("useLocalTransactionState", "true");
+            config.addDataSourceProperty("maintainTimeStats", "false");
+            config.addDataSourceProperty("zeroDateTimeBehavior", "CONVERT_TO_NULL");
+            config.addDataSourceProperty("allowMultiQueries", "true");
+        }
     }
 
     @Override

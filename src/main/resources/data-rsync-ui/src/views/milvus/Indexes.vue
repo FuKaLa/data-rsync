@@ -1,230 +1,133 @@
 <template>
-  <div class="milvus-indexes" v-animate="'fadeIn'">
-    <!-- 页面标题 -->
-    <div class="page-header" v-animate="'slideUp'">
-      <h1 class="page-title">Milvus 索引管理</h1>
-      <p class="page-description">高效管理和监控向量索引，提升查询性能</p>
-    </div>
-
-    <!-- 统计卡片 -->
-    <div class="stats-cards" v-animate="'fadeIn'" style="animation-delay: 0.2s">
-      <div class="stat-card">
-        <div class="stat-icon success">
-          <el-icon><Check /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ indexes.filter(i => i.status === 'READY').length }}</div>
-          <div class="stat-label">就绪索引</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon warning">
-          <el-icon><Loading /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ indexes.filter(i => i.status === 'BUILDING').length }}</div>
-          <div class="stat-label">构建中</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon danger">
-          <el-icon><Close /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ indexes.filter(i => i.status === 'FAILED').length }}</div>
-          <div class="stat-label">失败索引</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon info">
-          <el-icon><CollectionTag /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ collections.length }}</div>
-          <div class="stat-label">可用集合</div>
-        </div>
-      </div>
-    </div>
-
-    <el-card shadow="hover" v-animate="'fadeIn'" style="animation-delay: 0.4s">
+  <div class="milvus-indexes">
+    <el-card shadow="hover">
       <template #header>
         <div class="card-header">
-          <span>索引列表</span>
+          <span>Milvus索引管理</span>
           <div class="header-actions">
-            <el-button size="small" @click="loadCollections" plain>
-              <el-icon><Refresh /></el-icon>
-              刷新集合
+            <el-select v-model="selectedCollection" placeholder="选择集合" style="width: 200px; margin-right: 16px">
+              <el-option
+                v-for="collection in collections"
+                :key="collection.name"
+                :label="collection.name"
+                :value="collection.name"
+              />
+            </el-select>
+            <el-button type="primary" @click="handleCreateIndex" :disabled="!selectedCollection">
+              创建索引
             </el-button>
           </div>
         </div>
       </template>
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="120px" style="margin-bottom: 20px">
-        <el-form-item label="集合名称" prop="collectionName" v-animate="'slideRight'">
-          <el-select v-model="form.collectionName" placeholder="请选择集合名称" @change="loadIndexes" class="w-100">
-            <el-option v-for="collection in collections" :key="collection.name" :label="collection.name" :value="collection.name" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <el-table :data="indexes" style="width: 100%; animation-delay: 0.5s" v-animate="'fadeIn'">
-        <el-table-column prop="name" label="索引名称" />
-        <el-table-column prop="type" label="索引类型" />
-        <el-table-column prop="metricType" label="度量类型" />
-        <el-table-column prop="dimension" label="维度" />
-        <el-table-column prop="nlist" label="nlist" />
-        <el-table-column prop="status" label="状态">
-          <template #default="scope">
-            <el-tag :type="getStatusType(scope.row.status)" class="status-tag">{{ scope.row.status }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="progress" label="构建进度">
-          <template #default="scope">
-            <div v-if="scope.row.progress !== undefined" class="progress-container">
-              <el-progress :percentage="scope.row.progress" :format="() => `${scope.row.progress}%`" />
-            </div>
-            <span v-else>--</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="resources" label="占用资源">
-          <template #default="scope">
-            <div v-if="scope.row.resources" class="resources-info">
-              <div class="resource-item">
-              <el-icon class="resource-icon"><Memo /></el-icon>
-              {{ scope.row.resources.memory }} MB
-            </div>
-            <div class="resource-item">
-              <el-icon class="resource-icon"><DataAnalysis /></el-icon>
-              {{ scope.row.resources.disk }} MB
-            </div>
-            </div>
-            <span v-else>--</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdTime" label="创建时间" />
-        <el-table-column label="操作">
-          <template #default="scope">
-            <div class="action-buttons">
-              <el-button size="small" @click="handleViewIndex(scope.row)" class="action-btn view">
-                <el-icon><View /></el-icon>
-                详情
-              </el-button>
-              <el-button size="small" type="warning" @click="handleRebuildIndex(scope.row.name)" v-if="scope.row.status === 'FAILED'" class="action-btn rebuild">
-                <el-icon><Refresh /></el-icon>
+      
+      <!-- 索引列表 -->
+      <div v-if="selectedCollection" class="index-list">
+        <el-table :data="indexes" style="width: 100%" border>
+          <el-table-column prop="fieldName" label="字段名称" />
+          <el-table-column prop="indexName" label="索引名称" />
+          <el-table-column prop="indexType" label="索引类型" />
+          <el-table-column prop="metricType" label="度量类型" />
+          <el-table-column prop="indexParams" label="索引参数">
+            <template #default="scope">
+              <el-popover
+                placement="top"
+                :width="300"
+                trigger="click"
+              >
+                <template #reference>
+                  <el-button size="small" type="text">查看</el-button>
+                </template>
+                <div class="index-params">
+                  <pre>{{ JSON.stringify(scope.row.indexParams, null, 2) }}</pre>
+                </div>
+              </el-popover>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="scope">
+              <el-tag :type="getStatusType(scope.row.status)">
+                {{ scope.row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="200">
+            <template #default="scope">
+              <el-button size="small" @click="handleRebuildIndex(scope.row)">
                 重建
               </el-button>
-              <el-button size="small" type="danger" @click="handleDeleteIndex(scope.row.name)" class="action-btn delete">
-                <el-icon><Delete /></el-icon>
+              <el-button size="small" type="danger" @click="handleDeleteIndex(scope.row)">
                 删除
               </el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-divider>创建索引</el-divider>
-      <el-form :model="indexForm" :rules="indexRules" ref="indexFormRef" label-width="120px" v-animate="'fadeIn'" style="animation-delay: 0.6s">
-        <el-form-item label="索引名称" prop="name" v-animate="'slideRight'">
-          <el-input v-model="indexForm.name" placeholder="请输入索引名称" />
+            </template>
+          </el-table-column>
+        </el-table>
+        
+        <div v-if="indexes.length === 0" class="empty-state">
+          <el-empty
+            description="
+              <span>当前集合没有索引</span>
+            "
+          />
+        </div>
+      </div>
+      
+      <div v-else class="empty-state">
+        <el-empty
+          description="
+            <span>请选择一个集合查看索引</span>
+          "
+        />
+      </div>
+    </el-card>
+    
+    <!-- 创建索引对话框 -->
+    <el-dialog
+      v-model="createDialogVisible"
+      title="创建索引"
+      width="600px"
+    >
+      <el-form :model="indexForm" label-width="100px">
+        <el-form-item label="集合名称" prop="collectionName">
+          <el-input v-model="indexForm.collectionName" readonly />
         </el-form-item>
-        <el-form-item label="索引类型" prop="type" v-animate="'slideRight'" style="animation-delay: 0.1s">
-          <el-select v-model="indexForm.type" placeholder="请选择索引类型" @change="handleIndexTypeChange">
+        <el-form-item label="字段名称" prop="fieldName">
+          <el-select v-model="indexForm.fieldName" placeholder="请选择字段">
+            <el-option
+              v-for="field in collectionFields"
+              :key="field.name"
+              :label="field.name"
+              :value="field.name"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="索引类型" prop="indexType">
+          <el-select v-model="indexForm.indexType" placeholder="请选择索引类型">
+            <el-option label="FLAT" value="FLAT" />
             <el-option label="IVF_FLAT" value="IVF_FLAT" />
             <el-option label="IVF_SQ8" value="IVF_SQ8" />
             <el-option label="IVF_PQ" value="IVF_PQ" />
             <el-option label="HNSW" value="HNSW" />
-            <el-option label="FLAT" value="FLAT" />
-            <el-option label="BIN_FLAT" value="BIN_FLAT" />
+            <el-option label="ANNOY" value="ANNOY" />
           </el-select>
         </el-form-item>
-        <el-form-item label="度量类型" prop="metricType" v-animate="'slideRight'" style="animation-delay: 0.2s">
+        <el-form-item label="度量类型" prop="metricType">
           <el-select v-model="indexForm.metricType" placeholder="请选择度量类型">
             <el-option label="L2" value="L2" />
             <el-option label="IP" value="IP" />
             <el-option label="COSINE" value="COSINE" />
           </el-select>
         </el-form-item>
-        <el-form-item label="维度" prop="dimension" v-animate="'slideRight'" style="animation-delay: 0.3s">
-          <el-input v-model="indexForm.dimension" type="number" placeholder="请输入维度" />
-        </el-form-item>
-        <el-form-item label="nlist" prop="nlist" v-if="['IVF_FLAT', 'IVF_SQ8', 'IVF_PQ'].includes(indexForm.type)" v-animate="'slideRight'" style="animation-delay: 0.4s">
-          <el-input v-model="indexForm.nlist" type="number" placeholder="请输入nlist" />
-          <el-tooltip content="推荐值: 4 * sqrt(数据量)" placement="top">
-            <el-icon class="info-icon"><InfoFilled /></el-icon>
-          </el-tooltip>
-        </el-form-item>
-        <el-form-item label="efConstruction" prop="efConstruction" v-if="indexForm.type === 'HNSW'" v-animate="'slideRight'" style="animation-delay: 0.4s">
-          <el-input v-model="indexForm.efConstruction" type="number" placeholder="请输入efConstruction" />
-          <el-tooltip content="推荐值: 128-256" placement="top">
-            <el-icon class="info-icon"><InfoFilled /></el-icon>
-          </el-tooltip>
-        </el-form-item>
-        <el-form-item label="M" prop="M" v-if="indexForm.type === 'HNSW'" v-animate="'slideRight'" style="animation-delay: 0.5s">
-          <el-input v-model="indexForm.M" type="number" placeholder="请输入M" />
-          <el-tooltip content="推荐值: 16-64" placement="top">
-            <el-icon class="info-icon"><InfoFilled /></el-icon>
-          </el-tooltip>
-        </el-form-item>
-        <el-form-item v-animate="'slideUp'" style="animation-delay: 0.6s">
-          <el-button type="primary" @click="handleCreateIndex" class="create-btn">
-            <el-icon><Plus /></el-icon>
-            创建索引
-          </el-button>
+        <el-form-item label="索引参数" prop="indexParams">
+          <el-input type="textarea" v-model="indexForm.indexParams" placeholder="请输入索引参数（JSON格式）" :rows="4" />
+          <div class="form-tip">
+            例如：{"nlist": 1024}（IVF_FLAT）或 {"M": 16, "efConstruction": 200}（HNSW）
+          </div>
         </el-form-item>
       </el-form>
-    </el-card>
-
-    <!-- 索引详情对话框 -->
-    <el-dialog
-      v-model="indexDetailVisible"
-      title="索引详情"
-      width="800px"
-      custom-class="index-detail-dialog"
-    >
-      <div v-if="currentIndex" class="index-detail" v-animate="'fadeIn'">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="索引名称" class="desc-item">{{ currentIndex.name }}</el-descriptions-item>
-          <el-descriptions-item label="索引类型" class="desc-item">{{ currentIndex.type }}</el-descriptions-item>
-          <el-descriptions-item label="度量类型" class="desc-item">{{ currentIndex.metricType }}</el-descriptions-item>
-          <el-descriptions-item label="维度" class="desc-item">{{ currentIndex.dimension }}</el-descriptions-item>
-          <el-descriptions-item label="nlist" v-if="currentIndex.nlist" class="desc-item">{{ currentIndex.nlist }}</el-descriptions-item>
-          <el-descriptions-item label="efConstruction" v-if="currentIndex.efConstruction" class="desc-item">{{ currentIndex.efConstruction }}</el-descriptions-item>
-          <el-descriptions-item label="M" v-if="currentIndex.M" class="desc-item">{{ currentIndex.M }}</el-descriptions-item>
-          <el-descriptions-item label="状态" class="desc-item">
-            <el-tag :type="getStatusType(currentIndex.status)">{{ currentIndex.status }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="构建进度" class="desc-item">
-            <el-progress :percentage="currentIndex.progress || 0" :format="() => `${currentIndex.progress || 0}%`" />
-          </el-descriptions-item>
-          <el-descriptions-item label="占用资源" class="desc-item" :span="2">
-            <div v-if="currentIndex.resources" class="resource-detail">
-              <div class="resource-bar">
-                <div class="resource-label">内存</div>
-                <div class="resource-progress">
-                  <div class="resource-progress-bar" :style="{ width: Math.min(currentIndex.resources.memory / 100, 100) + '%' }"></div>
-                </div>
-                <div class="resource-value">{{ currentIndex.resources.memory }} MB</div>
-              </div>
-              <div class="resource-bar">
-                <div class="resource-label">磁盘</div>
-                <div class="resource-progress">
-                  <div class="resource-progress-bar disk" :style="{ width: Math.min(currentIndex.resources.disk / 200, 100) + '%' }"></div>
-                </div>
-                <div class="resource-value">{{ currentIndex.resources.disk }} MB</div>
-              </div>
-            </div>
-            <span v-else>--</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="创建时间" class="desc-item" :span="2">{{ currentIndex.createdTime }}</el-descriptions-item>
-          <el-descriptions-item label="错误信息" v-if="currentIndex.errorMessage" class="desc-item" :span="2">
-            <div class="error-message">
-              <el-icon class="error-icon"><Warning /></el-icon>
-              {{ currentIndex.errorMessage }}
-            </div>
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="indexDetailVisible = false" class="dialog-btn">关闭</el-button>
-          <el-button type="warning" @click="handleRebuildIndex(currentIndex?.name)" v-if="currentIndex?.status === 'FAILED'" class="dialog-btn rebuild">重建</el-button>
+          <el-button @click="createDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmCreateIndex">确认</el-button>
         </span>
       </template>
     </el-dialog>
@@ -232,246 +135,195 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { 
-  InfoFilled, 
-  Check, 
-  Loading, 
-  Close, 
-  CollectionTag, 
-  Refresh, 
-  View, 
-  Delete, 
-  Plus, 
-  Memo, 
-  DataAnalysis, 
-  Warning 
-} from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ref, onMounted, watch } from 'vue'
+import { milvusApi } from '../../api'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
-const form = ref({
-  collectionName: ''
-})
-
-const formRef = ref<any>(null)
-
-const indexForm = ref({
-  name: '',
-  type: 'IVF_FLAT',
-  metricType: 'L2',
-  dimension: 128,
-  nlist: 1024,
-  efConstruction: 256,
-  M: 16
-})
-
-const indexFormRef = ref<any>(null)
-
+// 集合列表
 const collections = ref<any[]>([])
+// 选中的集合
+const selectedCollection = ref('')
+// 索引列表
 const indexes = ref<any[]>([])
+// 集合字段
+const collectionFields = ref<any[]>([])
 
-// 索引详情对话框
-const indexDetailVisible = ref(false)
-const currentIndex = ref<any>(null)
-
-const rules = ref({
-  collectionName: [
-    { required: true, message: '请选择集合名称', trigger: 'change' }
-  ]
+// 创建索引对话框
+const createDialogVisible = ref(false)
+const indexForm = ref({
+  collectionName: '',
+  fieldName: '',
+  indexType: '',
+  metricType: '',
+  indexParams: ''
 })
 
-const indexRules = ref({
-  name: [
-    { required: true, message: '请输入索引名称', trigger: 'blur' }
-  ],
-  type: [
-    { required: true, message: '请选择索引类型', trigger: 'change' }
-  ],
-  metricType: [
-    { required: true, message: '请选择度量类型', trigger: 'change' }
-  ],
-  dimension: [
-    { required: true, message: '请输入维度', trigger: 'blur' }
-  ],
-  nlist: [
-    { required: true, message: '请输入nlist', trigger: 'blur' }
-  ],
-  efConstruction: [
-    { required: true, message: '请输入efConstruction', trigger: 'blur' }
-  ],
-  M: [
-    { required: true, message: '请输入M', trigger: 'blur' }
-  ]
-})
-
-onMounted(() => {
-  loadCollections()
-})
-
+// 加载集合列表
 const loadCollections = async () => {
   try {
-    // 暂时使用模拟数据，后续可根据实际API返回的数据更新
-    console.log('Loading collections...')
-    // 模拟数据
-    collections.value = [
-      {
-        name: 'user_embeddings',
-        description: '用户向量数据',
-        count: 100000,
-        createdTime: '2024-01-01 10:00:00'
-      },
-      {
-        name: 'product_embeddings',
-        description: '产品向量数据',
-        count: 50000,
-        createdTime: '2024-01-02 14:30:00'
-      }
-    ]
+    const response = await milvusApi.getCollections()
+    if (response.data.code === 200) {
+      collections.value = response.data.data || []
+    }
   } catch (error) {
     console.error('Failed to load collections:', error)
     ElMessage.error('加载集合列表失败')
   }
 }
 
-const loadIndexes = async () => {
-  if (!form.value.collectionName) return
+// 加载索引列表
+const loadIndexes = async (collectionName: string) => {
+  if (!collectionName) return
   
   try {
-    // 模拟索引数据，实际应调用API获取
-    setTimeout(() => {
-      indexes.value = [
-        {
-          name: 'idx_ivf_flat',
-          type: 'IVF_FLAT',
-          metricType: 'L2',
-          dimension: 128,
-          nlist: 1024,
-          status: 'READY',
-          progress: 100,
-          resources: {
-            memory: 512,
-            disk: 1024
-          },
-          createdTime: '2026-02-01 10:00:00'
-        },
-        {
-          name: 'idx_hnsw',
-          type: 'HNSW',
-          metricType: 'IP',
-          dimension: 256,
-          efConstruction: 256,
-          M: 16,
-          status: 'FAILED',
-          progress: 75,
-          resources: {
-            memory: 2048,
-            disk: 4096
-          },
-          errorMessage: '内存不足，无法完成索引构建',
-          createdTime: '2026-02-01 11:00:00'
-        },
-        {
-          name: 'idx_ivf_sq8',
-          type: 'IVF_SQ8',
-          metricType: 'COSINE',
-          dimension: 128,
-          nlist: 2048,
-          status: 'BUILDING',
-          progress: 45,
-          resources: {
-            memory: 1024,
-            disk: 2048
-          },
-          createdTime: '2026-02-01 12:00:00'
-        }
-      ]
-    }, 500)
+    const response = await milvusApi.getIndexes(collectionName)
+    if (response.data.code === 200) {
+      indexes.value = response.data.data || []
+    }
   } catch (error) {
     console.error('Failed to load indexes:', error)
     ElMessage.error('加载索引列表失败')
   }
 }
 
-const handleCreateIndex = async () => {
-  if (indexFormRef.value) {
-    await indexFormRef.value.validate(async (valid: boolean) => {
-      if (valid && form.value.collectionName) {
-        try {
-          // 模拟创建索引，实际应调用API
-          setTimeout(() => {
-            ElMessage.success('索引创建成功')
-            loadIndexes()
-          }, 1000)
-        } catch (error) {
-          console.error('Failed to create index:', error)
-          ElMessage.error('创建索引失败')
-        }
-      }
-    })
-  }
-}
-
-const handleDeleteIndex = async (indexName: string) => {
-  if (!form.value.collectionName) return
+// 加载集合字段
+const loadCollectionFields = async (collectionName: string) => {
+  if (!collectionName) return
   
   try {
-    // 模拟删除索引，实际应调用API
-    setTimeout(() => {
-      ElMessage.success('索引删除成功')
-      loadIndexes()
-    }, 500)
+    // 这里应该调用获取集合字段的API
+    // 暂时使用模拟数据
+    collectionFields.value = [
+      { name: 'vector', type: 'FLOAT_VECTOR' },
+      { name: 'data', type: 'VARCHAR' },
+      { name: 'metadata', type: 'JSON' },
+      { name: 'id', type: 'INT64' }
+    ]
   } catch (error) {
-    console.error('Failed to delete index:', error)
-    ElMessage.error('删除索引失败')
+    console.error('Failed to load collection fields:', error)
+    ElMessage.error('加载集合字段失败')
   }
 }
 
-const handleViewIndex = (index: any) => {
-  currentIndex.value = index
-  indexDetailVisible.value = true
-}
-
-const handleRebuildIndex = (indexName: string) => {
-  if (!form.value.collectionName) return
-  
-  try {
-    // 模拟重建索引，实际应调用API
-    setTimeout(() => {
-      ElMessage.success('索引重建成功')
-      loadIndexes()
-    }, 1000)
-  } catch (error) {
-    console.error('Failed to rebuild index:', error)
-    ElMessage.error('重建索引失败')
+// 监听选中集合变化
+watch(selectedCollection, (newValue) => {
+  if (newValue) {
+    loadIndexes(newValue)
+    loadCollectionFields(newValue)
+  } else {
+    indexes.value = []
+    collectionFields.value = []
   }
-}
+})
 
-const handleIndexTypeChange = () => {
-  // 根据索引类型设置默认值
-  if (indexForm.value.type === 'HNSW') {
-    indexForm.value.efConstruction = 256
-    indexForm.value.M = 16
-  } else if (['IVF_FLAT', 'IVF_SQ8', 'IVF_PQ'].includes(indexForm.value.type)) {
-    indexForm.value.nlist = 1024
-  }
-}
-
+// 状态类型
 const getStatusType = (status: string) => {
   switch (status) {
-    case 'READY':
+    case 'CREATED':
       return 'success'
-    case 'BUILDING':
+    case 'CREATING':
       return 'warning'
     case 'FAILED':
       return 'danger'
     default:
-      return 'info'
+      return ''
   }
 }
+
+// 创建索引
+const handleCreateIndex = () => {
+  indexForm.value = {
+    collectionName: selectedCollection.value,
+    fieldName: '',
+    indexType: '',
+    metricType: '',
+    indexParams: ''
+  }
+  createDialogVisible.value = true
+}
+
+// 确认创建索引
+const confirmCreateIndex = async () => {
+  try {
+    let indexParams
+    try {
+      indexParams = indexForm.value.indexParams ? JSON.parse(indexForm.value.indexParams) : {}
+    } catch (error) {
+      ElMessage.error('索引参数格式错误，请输入有效的JSON')
+      return
+    }
+    
+    const requestData = {
+      fieldName: indexForm.value.fieldName,
+      indexType: indexForm.value.indexType,
+      metricType: indexForm.value.metricType,
+      indexParams
+    }
+    
+    const response = await milvusApi.createIndex(selectedCollection.value, requestData)
+    if (response.data.code === 200) {
+      ElMessage.success('索引创建成功')
+      createDialogVisible.value = false
+      loadIndexes(selectedCollection.value)
+    }
+  } catch (error) {
+    console.error('Failed to create index:', error)
+    ElMessage.error('创建索引失败')
+  }
+}
+
+// 删除索引
+const handleDeleteIndex = async (index: any) => {
+  try {
+    await ElMessageBox.confirm('确定要删除该索引吗？此操作不可恢复。', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    const response = await milvusApi.deleteIndex(selectedCollection.value, index.indexName)
+    if (response.data.code === 200) {
+      ElMessage.success('索引删除成功')
+      loadIndexes(selectedCollection.value)
+    }
+  } catch (error) {
+    // 取消删除
+  }
+}
+
+// 重建索引
+const handleRebuildIndex = async (index: any) => {
+  try {
+    await ElMessageBox.confirm('确定要重建该索引吗？这可能需要一些时间。', '确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+    
+    const response = await milvusApi.rebuildIndex(selectedCollection.value, index.indexName)
+    if (response.data.code === 200) {
+      ElMessage.success('索引重建成功')
+      loadIndexes(selectedCollection.value)
+    }
+  } catch (error) {
+    // 取消重建
+  }
+}
+
+// 初始化
+onMounted(() => {
+  loadCollections()
+})
 </script>
 
 <style scoped>
-/* 动画关键帧 */
+.milvus-indexes {
+  padding: 20px;
+  min-height: 100vh;
+  animation: fadeIn 0.8s ease-out;
+  position: relative;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -483,18 +335,15 @@ const getStatusType = (status: string) => {
   }
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  animation: slideInLeft 0.6s ease-out;
 }
 
-@keyframes slideRight {
+@keyframes slideInLeft {
   from {
     opacity: 0;
     transform: translateX(-30px);
@@ -505,636 +354,473 @@ const getStatusType = (status: string) => {
   }
 }
 
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes gradientShift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-/* 动画指令 */
-[v-animate] {
-  animation-duration: 0.8s;
-  animation-fill-mode: both;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-[v-animate="fadeIn"] {
-  animation-name: fadeIn;
-}
-
-[v-animate="slideUp"] {
-  animation-name: slideUp;
-}
-
-[v-animate="slideRight"] {
-  animation-name: slideRight;
-}
-
-/* 主容器样式 */
-.milvus-indexes {
-  padding: 20px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
-  min-height: 100vh;
-  background-size: 200% 200%;
-  animation: gradientShift 15s ease infinite;
-}
-
-/* 页面标题样式 */
-.page-header {
-  text-align: center;
-  margin-bottom: 40px;
-  padding: 40px 0;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.page-title {
-  font-size: 32px;
-  font-weight: 700;
-  margin-bottom: 12px;
-  background: linear-gradient(90deg, #409eff, #667eea);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 2px 10px rgba(64, 158, 255, 0.3);
-}
-
-.page-description {
-  font-size: 16px;
-  color: #606266;
-  margin: 0;
-  opacity: 0.9;
-}
-
-/* 统计卡片样式 */
-.stats-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-.stat-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.stat-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  animation: pulse 2s infinite;
-}
-
-.stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-  font-size: 24px;
-  color: #fff;
-  transition: all 0.3s ease;
-}
-
-.stat-icon.success {
-  background: linear-gradient(135deg, #67c23a, #85ce61);
-  box-shadow: 0 4px 20px rgba(103, 194, 58, 0.4);
-}
-
-.stat-icon.warning {
-  background: linear-gradient(135deg, #e6a23c, #ebb563);
-  box-shadow: 0 4px 20px rgba(230, 162, 60, 0.4);
-}
-
-.stat-icon.danger {
-  background: linear-gradient(135deg, #f56c6c, #f78989);
-  box-shadow: 0 4px 20px rgba(245, 108, 108, 0.4);
-}
-
-.stat-icon.info {
-  background: linear-gradient(135deg, #409eff, #667eea);
-  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.4);
-}
-
-.stat-value {
-  font-size: 32px;
-  font-weight: 700;
-  color: #303133;
-  margin-bottom: 8px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #606266;
-  opacity: 0.8;
-}
-
-/* 卡片头部样式 */
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 20px;
-  margin-bottom: 20px;
-}
-
 .card-header span {
   font-size: 20px;
-  font-weight: 600;
-  background: linear-gradient(90deg, #409eff, #667eea);
+  font-weight: 700;
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  position: relative;
+  padding: 12px 0;
+}
+
+.card-header span::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
+  border-radius: 2px;
+  animation: expandWidth 1s ease-out 0.3s forwards;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+@keyframes expandWidth {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 .header-actions {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  animation: slideInRight 0.6s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.header-actions :deep(.el-select) {
+  margin-right: 16px;
+}
+
+.header-actions :deep(.el-button) {
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
+  border: none;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  position: relative;
+  overflow: hidden;
+  color: #ffffff;
+}
+
+.header-actions :deep(.el-button::before) {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.header-actions :deep(.el-button:active::before) {
+  width: 300px;
+  height: 300px;
+}
+
+.header-actions :deep(.el-button:hover) {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.5);
+}
+
+/* 表格样式 */
+.index-list {
+  margin-top: 24px;
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:deep(.el-table) {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+:deep(.el-table__header-wrapper) {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-bottom: 2px solid rgba(59, 130, 246, 0.5);
+  z-index: 10;
+}
+
+:deep(.el-table__header th) {
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9) !important;
+  background: transparent !important;
+  border-bottom: none;
+  padding: 18px 16px;
+  font-size: 14px;
+  position: relative;
+  z-index: 11;
+}
+
+:deep(.el-table__header th::after) {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+  transform-origin: center;
+}
+
+:deep(.el-table__header th:hover::after) {
+  transform: scaleX(1);
+}
+
+:deep(.el-table__row) {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeInUp 0.6s ease forwards;
+  opacity: 0;
+  position: relative;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+}
+
+:deep(.el-table__row:nth-child(1)) {
+  animation-delay: 0.1s;
+}
+
+:deep(.el-table__row:nth-child(2)) {
+  animation-delay: 0.2s;
+}
+
+:deep(.el-table__row:nth-child(3)) {
+  animation-delay: 0.3s;
+}
+
+:deep(.el-table__row:nth-child(4)) {
+  animation-delay: 0.4s;
+}
+
+:deep(.el-table__row:nth-child(5)) {
+  animation-delay: 0.5s;
+}
+
+:deep(.el-table__row:hover) {
+  background: rgba(59, 130, 246, 0.1) !important;
+  transform: translateX(8px) scale(1.01);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+  border-left: 3px solid #3b82f6;
+}
+
+:deep(.el-table__row.el-table__row--striped) {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+:deep(.el-table__cell) {
+  padding: 18px 16px;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+:deep(.el-table__cell:hover) {
+  background: rgba(59, 130, 246, 0.05);
+  transform: scale(1.02);
+}
+
+/* 空状态 */
+.empty-state {
+  padding: 60px 0;
+  text-align: center;
+  animation: fadeIn 0.8s ease-out;
+}
+
+/* 索引参数弹出框 */
+.index-params {
+  max-height: 300px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.9);
+  padding: 16px;
+  border-radius: 8px;
+  font-family: 'Courier New', Courier, monospace;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.index-params pre {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* 表单样式 */
 :deep(.el-form) {
-  margin-bottom: 30px;
   padding: 24px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(15, 23, 42, 0.8);
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+  animation: fadeInUp 0.6s ease-out;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 :deep(.el-form-item) {
-  margin-bottom: 20px;
-  transition: all 0.3s ease;
-}
-
-:deep(.el-form-item:hover) {
-  transform: translateX(4px);
+  margin-bottom: 24px;
 }
 
 :deep(.el-form-item__label) {
-  font-weight: 500;
-  color: #303133;
-  font-size: 14px;
-}
-
-:deep(.el-input__wrapper),
-:deep(.el-select__wrapper) {
-  border-radius: 10px;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(64, 158, 255, 0.2);
-}
-
-:deep(.el-input__wrapper:hover),
-:deep(.el-select__wrapper:hover) {
-  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
-  border-color: #409eff;
-}
-
-:deep(.el-input__wrapper.is-focus),
-:deep(.el-select__wrapper.is-focus) {
-  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
-  border-color: #409eff;
-}
-
-/* 信息图标样式 */
-.info-icon {
-  margin-left: 10px;
-  cursor: help;
-  color: #409eff;
-  transition: all 0.3s ease;
-  font-size: 16px;
-}
-
-.info-icon:hover {
-  transform: scale(1.2);
-  color: #667eea;
-  animation: pulse 1s infinite;
-}
-
-/* 表格样式 */
-:deep(.el-table) {
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  margin-bottom: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-:deep(.el-table__header-wrapper) {
-  background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
-  border-radius: 16px 16px 0 0;
-}
-
-:deep(.el-table__header th) {
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 600;
-  color: #303133;
-  background: transparent;
-  border-bottom: 3px solid #409eff;
-  padding: 16px;
 }
 
-:deep(.el-table__row) {
-  transition: all 0.3s ease;
-  border-left: 3px solid transparent;
+:deep(.el-input__wrapper) {
+  border-radius: 10px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
-:deep(.el-table__row:hover) {
-  background: rgba(64, 158, 255, 0.05) !important;
-  border-left-color: #409eff;
-  transform: translateX(4px);
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
 }
 
-:deep(.el-table__row.el-table__row--striped) {
-  background: rgba(0, 0, 0, 0.02);
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
 }
 
-:deep(.el-table__cell) {
-  padding: 18px;
-  border-bottom: 1px solid #f0f0f0;
-  transition: all 0.3s ease;
+:deep(.el-input__inner) {
+  color: rgba(255, 255, 255, 0.8);
 }
 
-:deep(.el-table__cell:hover) {
-  color: #409eff;
+:deep(.el-select .el-input__wrapper) {
+  border-radius: 10px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
-/* 状态标签样式 */
-.status-tag {
-  border-radius: 20px;
-  padding: 6px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+:deep(.el-select .el-input__wrapper:hover) {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
 }
 
-.status-tag:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-/* 进度条样式 */
-.progress-container {
-  margin-top: 4px;
-}
-
-:deep(.el-progress) {
-  margin-top: 8px;
-}
-
-:deep(.el-progress__bar) {
+:deep(.el-select-dropdown) {
   border-radius: 12px;
   overflow: hidden;
-  height: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  animation: fadeInScale 0.3s ease-out;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
 }
 
-:deep(.el-progress__bar-inner) {
-  border-radius: 12px;
-  background: linear-gradient(90deg, #409eff, #667eea);
-  transition: width 1s ease;
-  box-shadow: 0 0 10px rgba(64, 158, 255, 0.5);
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
-:deep(.el-progress__text) {
-  font-size: 13px;
-  font-weight: 500;
-  color: #606266;
-  margin-top: 4px;
-}
-
-/* 资源信息样式 */
-.resources-info {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.resource-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #606266;
-  padding: 6px 12px;
-  background: rgba(64, 158, 255, 0.05);
-  border-radius: 12px;
-  transition: all 0.3s ease;
-}
-
-.resource-item:hover {
-  background: rgba(64, 158, 255, 0.1);
-  transform: scale(1.05);
-}
-
-.resource-icon {
-  font-size: 14px;
-  color: #409eff;
-}
-
-/* 操作按钮样式 */
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.action-btn {
+:deep(.el-select-dropdown__item) {
+  padding: 12px 20px;
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 12px;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
+  margin: 4px 8px;
 }
 
-.action-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+:deep(.el-select-dropdown__item:hover) {
+  background: rgba(59, 130, 246, 0.1);
+  transform: translateX(8px);
 }
 
-.action-btn.view {
-  background: linear-gradient(90deg, #409eff, #667eea);
-  border: none;
+:deep(.el-select-dropdown__item.selected) {
+  background: rgba(59, 130, 246, 0.2);
+  color: #ffffff;
+}
+
+/* 对话框样式 */
+:deep(.el-dialog) {
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: zoomIn 0.6s ease-out;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+:deep(.el-dialog__header) {
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
   color: #fff;
-}
-
-.action-btn.rebuild {
-  background: linear-gradient(90deg, #e6a23c, #ebb563);
-  border: none;
-  color: #fff;
-}
-
-.action-btn.delete {
-  background: linear-gradient(90deg, #f56c6c, #f78989);
-  border: none;
-  color: #fff;
-}
-
-/* 创建按钮样式 */
-.create-btn {
-  border-radius: 10px;
-  padding: 12px 32px;
-  font-size: 16px;
-  font-weight: 600;
-  background: linear-gradient(90deg, #409eff, #667eea);
-  border: none;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.3);
-}
-
-.create-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.4);
-  animation: pulse 1.5s infinite;
-}
-
-/* 分割线样式 */
-:deep(.el-divider) {
-  margin: 40px 0;
-}
-
-:deep(.el-divider__text) {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  background: #fff;
-  padding: 0 24px;
-}
-
-/* 索引详情样式 */
-.index-detail {
-  max-height: 600px;
-  overflow-y: auto;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
-  border-radius: 16px;
   padding: 24px;
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* 描述列表样式 */
-:deep(.el-descriptions) {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+:deep(.el-dialog__title) {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
 }
 
-.desc-item {
-  transition: all 0.3s ease;
-}
-
-.desc-item:hover {
-  background: rgba(64, 158, 255, 0.05);
-}
-
-:deep(.el-descriptions__label) {
-  font-weight: 500;
-  color: #303133;
-  background: rgba(64, 158, 255, 0.08);
-  padding: 16px;
-  font-size: 14px;
-}
-
-:deep(.el-descriptions__cell) {
-  padding: 16px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-/* 资源详情样式 */
-.resource-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.resource-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.resource-label {
-  width: 60px;
-  font-size: 13px;
-  color: #606266;
-  font-weight: 500;
-}
-
-.resource-progress {
-  flex: 1;
-  height: 8px;
-  background: #f0f0f0;
-  border-radius: 4px;
-  overflow: hidden;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.resource-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #409eff, #667eea);
-  border-radius: 4px;
-  transition: width 1s ease;
-  box-shadow: 0 0 10px rgba(64, 158, 255, 0.5);
-}
-
-.resource-progress-bar.disk {
-  background: linear-gradient(90deg, #67c23a, #85ce61);
-  box-shadow: 0 0 10px rgba(103, 194, 58, 0.5);
-}
-
-.resource-value {
-  width: 100px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #303133;
-  text-align: right;
-}
-
-/* 错误信息样式 */
-.error-message {
-  color: #f56c6c;
-  background-color: #fef0f0;
-  padding: 16px;
-  border-radius: 12px;
-  border-left: 4px solid #f56c6c;
-  box-shadow: 0 4px 16px rgba(245, 108, 108, 0.15);
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.error-message:hover {
-  box-shadow: 0 8px 32px rgba(245, 108, 108, 0.25);
-  transform: translateX(4px);
-}
-
-.error-icon {
+:deep(.el-dialog__close) {
+  color: #fff;
   font-size: 20px;
-  margin-top: 2px;
-  flex-shrink: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-dialog__close:hover) {
+  transform: scale(1.2) rotate(90deg);
+  color: #f1f5f9;
+}
+
+:deep(.el-dialog__body) {
+  padding: 32px;
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+:deep(.el-dialog__footer) {
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.9);
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+:deep(.el-dialog__footer :deep(.el-button)) {
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: 600;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-right: 12px;
+}
+
+:deep(.el-dialog__footer :deep(.el-button:hover)) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+}
+
+/* 按钮样式 */
+:deep(.el-button) {
+  border-radius: 8px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
+  margin-right: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+:deep(.el-button::before) {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+:deep(.el-button:active::before) {
+  width: 200px;
+  height: 200px;
+}
+
+:deep(.el-button:hover) {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  color: #ffffff;
+}
+
+:deep(.el-button--primary) {
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
+  border: none;
+  color: #ffffff;
+}
+
+:deep(.el-button--danger) {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+  border: none;
+  color: #ffffff;
 }
 
 /* 卡片样式 */
 :deep(.el-card) {
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  border: none;
-  background: #fff;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  animation: fadeInUp 0.8s ease-out;
 }
 
-/* 对话框样式 */
-.index-detail-dialog {
-  border-radius: 20px !important;
-  overflow: hidden !important;
-  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.25) !important;
-  animation: fadeIn 0.5s ease;
+:deep(.el-card__body) {
+  padding: 32px;
 }
 
-:deep(.el-dialog__header) {
-  background: linear-gradient(90deg, #409eff, #667eea);
-  color: #fff;
-  padding: 24px;
-  border-radius: 20px 20px 0 0;
-}
-
-:deep(.el-dialog__title) {
-  color: #fff;
-  font-size: 18px;
-  font-weight: 600;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-:deep(.el-dialog__close) {
-  color: #fff;
-  font-size: 20px;
-  transition: all 0.3s ease;
-}
-
-:deep(.el-dialog__close:hover) {
-  transform: scale(1.2);
-  color: #fff;
-}
-
-:deep(.el-dialog__body) {
-  padding: 28px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
-}
-
-:deep(.el-dialog__footer) {
-  padding: 24px;
-  background: #f5f7fa;
-  border-top: 1px solid #e4e7ed;
-  border-radius: 0 0 20px 20px;
-}
-
-.dialog-btn {
-  border-radius: 8px;
-  padding: 8px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.dialog-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.dialog-btn.rebuild {
-  background: linear-gradient(90deg, #e6a23c, #ebb563);
-  border: none;
-  color: #fff;
-}
-
-/* 分割线样式 */
-:deep(.el-divider) {
-  margin: 40px 0;
-}
-
-:deep(.el-divider__text) {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  background: #fff;
-  padding: 0 24px;
-  border-radius: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+/* 表单提示 */
+.form-tip {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 8px;
+  line-height: 1.4;
 }
 
 /* 滚动条样式 */
@@ -1144,59 +830,126 @@ const getStatusType = (status: string) => {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: rgba(15, 23, 42, 0.6);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #409eff, #667eea);
+  background: rgba(59, 130, 246, 0.5);
   border-radius: 5px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid rgba(15, 23, 42, 0.6);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #667eea, #409eff);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: rgba(59, 130, 246, 0.8);
+  transform: scale(1.1);
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
+  .header-actions {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .header-actions :deep(.el-select) {
+    margin-right: 0;
+  }
+  
+  :deep(.el-button) {
+    margin-right: 6px;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+  
+  :deep(.el-table__cell) {
+    padding: 14px 12px;
+    font-size: 13px;
+  }
+  
+  :deep(.el-table__header th) {
+    padding: 14px 12px;
+    font-size: 13px;
+  }
+  
+  .card-header {
+    padding: 0 20px;
+  }
+  
+  .card-header span {
+    font-size: 18px;
+  }
+  
+  .header-actions :deep(.el-button) {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 992px) {
   .milvus-indexes {
     padding: 16px;
   }
-
-  .page-title {
-    font-size: 24px;
+  
+  :deep(.el-card__body) {
+    padding: 24px;
   }
-
-  .stats-cards {
-    grid-template-columns: 1fr;
+  
+  :deep(.el-table__cell) {
+    padding: 12px 8px;
   }
+  
+  :deep(.el-button) {
+    margin-right: 4px;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+}
 
+@media (max-width: 768px) {
   .card-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 16px;
+    padding: 0 16px;
   }
-
-  :deep(.el-form) {
-    padding: 20px;
-  }
-
-  :deep(.el-table__cell) {
-    padding: 12px;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .action-btn {
+  
+  .header-actions {
     width: 100%;
-    justify-content: center;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .header-actions :deep(.el-select) {
+    width: 100% !important;
+    margin-bottom: 12px;
+  }
+  
+  .header-actions :deep(.el-button) {
+    align-self: flex-start;
+  }
+  
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+  
+  :deep(.el-table__cell) {
+    padding: 8px 4px;
+  }
+  
+  :deep(.el-button) {
+    margin-right: 2px;
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+  
+  :deep(.el-dialog) {
+    width: 90% !important;
+  }
+  
+  :deep(.el-dialog__body) {
+    padding: 24px;
   }
 }
 </style>

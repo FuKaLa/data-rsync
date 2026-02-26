@@ -8,6 +8,10 @@ export interface ApiResponse<T = any> {
   code: number
   message: string
   data: T
+  timestamp?: number
+  errorCode?: string
+  errorDetail?: string
+  suggestion?: string
 }
 
 // 定义请求配置类型
@@ -153,7 +157,11 @@ api.interceptors.response.use(
     }
     
     // 统一错误处理
-    const errorMessage = error.response?.data?.message || error.message || '网络请求失败'
+    const errorResponse = error.response?.data as ApiResponse
+    const errorMessage = errorResponse?.message || error.message || '网络请求失败'
+    const errorCode = errorResponse?.errorCode || 'UNKNOWN_ERROR'
+    const errorDetail = errorResponse?.errorDetail || ''
+    const suggestion = errorResponse?.suggestion || ''
     
     // 处理401错误
     if (error.response && error.response.status === 401) {
@@ -176,7 +184,10 @@ api.interceptors.response.use(
     return Promise.reject({
       code: error.response?.status || 500,
       message: errorMessage,
-      data: null
+      data: null,
+      errorCode,
+      errorDetail,
+      suggestion
     } as ApiResponse)
   }
 )
@@ -465,12 +476,39 @@ export const taskApi = {
   create: (data: CreateTaskRequest): Promise<ApiResponse<Task>> => api.post('/tasks', data),
   update: (data: UpdateTaskRequest): Promise<ApiResponse<Task>> => api.put('/tasks', data),
   delete: (id: number): Promise<ApiResponse<void>> => api.delete(`/tasks/${id}`),
+  toggle: (id: number, enabled: boolean): Promise<ApiResponse<{ success: boolean; message: string }>> => api.patch(`/tasks/${id}/toggle`, { enabled }),
+  getByName: (name: string): Promise<ApiResponse<Task>> => api.get(`/tasks/name/${name}`),
+  getByStatus: (status: string): Promise<ApiResponse<Task[]>> => api.get(`/tasks/status/${status}`),
+  getByDataSourceId: (dataSourceId: number): Promise<ApiResponse<Task[]>> => api.get(`/tasks/data-source/${dataSourceId}`),
   start: (id: number): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post(`/tasks/${id}/trigger`),
   pause: (id: number): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post(`/tasks/${id}/pause`),
   resume: (id: number): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post(`/tasks/${id}/resume`),
   rollback: (id: number, rollbackPoint: string): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post(`/tasks/${id}/rollback?rollbackPoint=${rollbackPoint}`),
+  executeScheduled: (): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post('/tasks/execute-scheduled'),
+  saveNodes: (taskId: number, nodes: any[]): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post(`/tasks/${taskId}/nodes`, nodes),
+  saveConnections: (taskId: number, connections: any[]): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post(`/tasks/${taskId}/connections`, connections),
+  saveDependency: (taskId: number, dependency: any): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post(`/tasks/${taskId}/dependency`, dependency),
+  getNodes: (taskId: number): Promise<ApiResponse<Array<any>>> => api.get(`/tasks/${taskId}/nodes`),
+  getConnections: (taskId: number): Promise<ApiResponse<Array<any>>> => api.get(`/tasks/${taskId}/connections`),
+  getDependencies: (taskId: number): Promise<ApiResponse<Array<any>>> => api.get(`/tasks/${taskId}/dependencies`),
+  validateFlow: (taskId: number): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post(`/tasks/${taskId}/validate-flow`),
   getVersions: (id: number): Promise<ApiResponse<Array<{ version: string; time: string }>>> => api.get(`/tasks/${id}/versions`),
-  getErrorData: (id: number): Promise<ApiResponse<Array<any>>> => api.get(`/tasks/${id}/error-data`)
+  getErrorData: (id: number, errorType?: string, syncStage?: string): Promise<ApiResponse<Array<any>>> => api.get(`/tasks/${id}/error-data`, { params: { errorType, syncStage } }),
+  retryErrorData: (errorDataId: number): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post(`/tasks/error-data/${errorDataId}/retry`),
+  batchRetryErrorData: (errorDataIds: number[]): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post('/tasks/error-data/batch-retry', errorDataIds),
+  cleanErrorData: (taskId: number): Promise<ApiResponse<{ success: boolean; message: string }>> => api.delete(`/tasks/${taskId}/error-data`),
+  saveVectorizationConfig: (config: any): Promise<ApiResponse<any>> => api.post('/tasks/vectorization-config', config),
+  getVectorizationConfigByTaskId: (taskId: number): Promise<ApiResponse<Array<any>>> => api.get(`/tasks/${taskId}/vectorization-config`),
+  getVectorizationConfigById: (id: number): Promise<ApiResponse<any>> => api.get(`/tasks/vectorization-config/${id}`),
+  deleteVectorizationConfig: (id: number): Promise<ApiResponse<{ success: boolean; message: string }>> => api.delete(`/tasks/vectorization-config/${id}`),
+  generateVectorizationPreview: (previewRequest: any): Promise<ApiResponse<any>> => api.post('/tasks/vectorization-config/preview', previewRequest),
+  saveMilvusIndex: (index: any): Promise<ApiResponse<any>> => api.post('/tasks/milvus-index', index),
+  getMilvusIndexesByCollection: (collectionName: string): Promise<ApiResponse<Array<any>>> => api.get(`/tasks/milvus-index/collection/${collectionName}`),
+  getMilvusIndexById: (id: number): Promise<ApiResponse<any>> => api.get(`/tasks/milvus-index/${id}`),
+  updateMilvusIndexStatus: (id: number, status: string, progress: number): Promise<ApiResponse<{ success: boolean; message: string }>> => api.patch(`/tasks/milvus-index/${id}/status`, { status, progress }),
+  deleteMilvusIndex: (id: number): Promise<ApiResponse<{ success: boolean; message: string }>> => api.delete(`/tasks/milvus-index/${id}`),
+  deleteMilvusIndexByName: (collectionName: string, indexName: string): Promise<ApiResponse<{ success: boolean; message: string }>> => api.delete('/tasks/milvus-index', { params: { collectionName, indexName } }),
+  rebuildMilvusIndex: (collectionName: string, indexName: string): Promise<ApiResponse<{ success: boolean; message: string }>> => api.post('/tasks/milvus-index/rebuild', { collectionName, indexName })
 }
 
 // 监控相关
@@ -505,9 +543,14 @@ export const milvusApi = {
   insertData: (collectionName: string, data: any) => api.post(`/milvus/collections/${collectionName}/insert`, data),
   deleteData: (collectionName: string, ids: any) => api.delete(`/milvus/collections/${collectionName}/delete`, { data: ids }),
   searchData: (collectionName: string, data: any) => api.post(`/milvus/collections/${collectionName}/search`, data),
+  queryData: (collectionName: string, params: { expr?: string; outputFields?: string[]; limit?: number; offset?: number }) => api.get(`/milvus/collections/${collectionName}/query`, { params }),
   batchOperation: (data: any) => api.post('/milvus/batch', data),
   checkConsistency: (collectionName: string) => api.get(`/milvus/consistency/${collectionName}`),
-  rebuildIndex: (collectionName: string, indexName: string) => api.post(`/milvus/indexes/${collectionName}/rebuild`, { indexName })
+  rebuildIndex: (collectionName: string, indexName: string) => api.post(`/milvus/indexes/${collectionName}/rebuild`, { indexName }),
+  syncDatabase: (data: any) => api.post('/milvus/sync/database', data),
+  syncTable: (data: any) => api.post('/milvus/sync/table', data),
+  verifySync: (collectionName: string, expectedCount: number) => api.get('/milvus/sync/verify', { params: { collectionName, expectedCount } }),
+  getSyncProgress: (params: { taskId: number }) => api.get('/milvus/sync/progress', { params })
 }
 
 // 系统相关

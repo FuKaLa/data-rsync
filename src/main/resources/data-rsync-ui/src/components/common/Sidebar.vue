@@ -92,6 +92,10 @@
             <el-icon><Check /></el-icon>
             <span>健康检查</span>
           </el-menu-item>
+          <el-menu-item index="milvus/sync">
+            <el-icon><DataMigration /></el-icon>
+            <span>数据同步</span>
+          </el-menu-item>
         </el-sub-menu>
         
         <!-- 字典管理 -->
@@ -167,7 +171,8 @@ import {
   Collection,
   ArrowLeft,
   ArrowRight,
-  Files
+  Files,
+  DataMigration
 } from '@element-plus/icons-vue'
 
 const props = defineProps<{

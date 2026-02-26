@@ -115,6 +115,12 @@ public class DataSourceEntity {
     private Integer failureCount;
 
     /**
+     * 是否为Docker部署
+     */
+    @TableField(value = "docker_deployed", exist = false)
+    private Boolean dockerDeployed;
+
+    /**
      * 描述
      */
     @TableField(value = "description", exist = true)
@@ -191,12 +197,13 @@ public class DataSourceEntity {
         this.deleted = 0;
         this.version = 0;
         this.failureCount = 0;
+        this.dockerDeployed = false;
     }
 
     /**
      * 全参数构造方法
      */
-    public DataSourceEntity(Long id, Long tenantId, String name, String dataSourceGroup, String type, String host, Integer port, String databaseName, String username, String password, String url, Boolean enabled, String healthStatus, String lastFailureReason, Integer heartbeatTime, LocalDateTime lastHeartbeatTime, Integer failureCount, String description, String driverClass, String logMonitorType, Integer connectionTimeout, String connectionPoolConfig, Integer deleted, LocalDateTime createTime, LocalDateTime updateTime, String createBy, String updateBy, Integer version) {
+    public DataSourceEntity(Long id, Long tenantId, String name, String dataSourceGroup, String type, String host, Integer port, String databaseName, String username, String password, String url, Boolean enabled, String healthStatus, String lastFailureReason, Integer heartbeatTime, LocalDateTime lastHeartbeatTime, Integer failureCount, Boolean dockerDeployed, String description, String driverClass, String logMonitorType, Integer connectionTimeout, String connectionPoolConfig, Integer deleted, LocalDateTime createTime, LocalDateTime updateTime, String createBy, String updateBy, Integer version) {
         this.id = id;
         this.tenantId = tenantId;
         this.name = name;
@@ -214,6 +221,7 @@ public class DataSourceEntity {
         this.heartbeatTime = heartbeatTime;
         this.lastHeartbeatTime = lastHeartbeatTime;
         this.failureCount = failureCount;
+        this.dockerDeployed = dockerDeployed;
         this.description = description;
         this.driverClass = driverClass;
         this.logMonitorType = logMonitorType;
@@ -247,6 +255,7 @@ public class DataSourceEntity {
                 ", heartbeatTime=" + heartbeatTime +
                 ", lastHeartbeatTime=" + lastHeartbeatTime +
                 ", failureCount=" + failureCount +
+                ", dockerDeployed=" + dockerDeployed +
                 ", description='" + description + '\'' +
                 ", driverClass='" + driverClass + '\'' +
                 ", logMonitorType='" + logMonitorType + '\'' +
